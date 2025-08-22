@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.Local
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - gradle-cache:/home/gradle/.gradle
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false
+    stdin_open: true
+    tty: true
+
+volumes:
+  gradle-cache:

@@ -1,0 +1,18 @@
+FROM gradle:8.10.2-jdk17
+
+WORKDIR /app
+
+# Copy gradle files first for caching
+COPY build.gradle.kts settings.gradle.kts gradlew gradlew.bat ./
+COPY gradle ./gradle
+
+# Download dependencies
+RUN gradle dependencies --no-daemon || true
+
+# Copy source code
+COPY . .
+
+EXPOSE 8080
+
+# Use bootRun for hot reload
+CMD ["gradle", "bootRun", "--no-daemon", "--continuous"]

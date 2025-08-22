@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sight-spring-backend
+  profiles:
+    active: local
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+
+logging:
+  level:
+    com.sight: INFO
+    org.springframework: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+      
+logging:
+  level:
+    com.sight: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    root: INFO

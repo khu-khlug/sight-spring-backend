@@ -92,3 +92,6 @@ test-results/
 # Keystore files
 *.jks
 *.keystore
+
+# Development references (symbolic links)
+*-ref

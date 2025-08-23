@@ -1,0 +1,7 @@
+package com.sight.config.security
+
+import com.sight.domain.auth.UserRole
+
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Auth(val roles: Array<UserRole>)

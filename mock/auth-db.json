@@ -1,0 +1,15 @@
+{
+  "posts": [
+    {
+      "id": 1,
+      "login": true,
+      "userId": 123
+    }
+  ],
+  "internal": {
+    "auth": {
+      "login": true,
+      "userId": 123
+    }
+  }
+}

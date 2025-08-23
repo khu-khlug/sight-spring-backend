@@ -1,0 +1,3 @@
+{
+  "POST /internal/auth": "POST /auth-response"
+}

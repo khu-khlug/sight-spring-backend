@@ -8,7 +8,7 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.web.server.ResponseStatusException
-import java.util.*
+import java.util.Optional
 import kotlin.test.assertEquals
 
 class AuthServiceTest {

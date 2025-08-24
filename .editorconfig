@@ -1,0 +1,5 @@
+root = true
+
+[*.{kt,kts}]
+# Disable the rule that prevents blank lines in parameter lists
+ktlint_standard_no-blank-line-in-list = disabled

@@ -1,0 +1,27 @@
+{
+  "uuid": "sight-external-service-mock",
+  "lastMigration": 32,
+  "name": "sight external service mock",
+  "port": 3000,
+  "hostname": "0.0.0.0",
+  "routes": [
+    {
+      "uuid": "auth-route-uuid",
+      "type": "http",
+      "method": "post",
+      "endpoint": "internal/auth",
+      "responses": [
+        {
+          "uuid": "auth-response-uuid",
+          "body": "{\"login\":true,\"userId\":456}",
+          "statusCode": 200,
+          "headers": [{ "key": "Content-Type", "value": "application/json" }],
+          "default": true
+        }
+      ]
+    }
+  ],
+  "rootChildren": [{ "type": "route", "uuid": "auth-route-uuid" }],
+  "cors": true,
+  "headers": []
+}

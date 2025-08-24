@@ -25,9 +25,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=builder /workspace/build/libs/*.jar /app.jar
+COPY --from=builder /workspace/build/libs/*.jar app.jar
 
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseStringDeduplication -XX:+AlwaysActAsServer"
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+UseStringDeduplication"
 ENV SPRING_PROFILES_ACTIVE=prod
 
 EXPOSE 8080

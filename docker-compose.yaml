@@ -11,13 +11,17 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - GRADLE_OPTS=-Dorg.gradle.daemon=false
+
+      # Authentication
       - AUTH_SERVICE_ENDPOINT=http://mock-auth:3000
       - AUTH_SERVICE_API_KEY=test-api-key
+
+      # Database
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
-      - MYSQL_DATABASE=sight_db
-      - MYSQL_USER=sight_user
-      - MYSQL_PASSWORD=sight_password
+      - MYSQL_DATABASE=sight
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=test
     stdin_open: true
     tty: true
     depends_on:

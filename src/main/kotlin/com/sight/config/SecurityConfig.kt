@@ -18,16 +18,18 @@ import org.springframework.web.client.RestTemplate
 @EnableMethodSecurity(prePostEnabled = true)
 @EnableAspectJAutoProxy
 class SecurityConfig {
-    
     @Bean
     fun restTemplate(): RestTemplate {
         return RestTemplate()
     }
-    
+
     @Bean
-    fun filterChain(http: HttpSecurity, authService: AuthService): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        authService: AuthService,
+    ): SecurityFilterChain {
         val cookieAuthenticationFilter = CookieAuthenticationFilter(authService)
-        
+
         return http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }

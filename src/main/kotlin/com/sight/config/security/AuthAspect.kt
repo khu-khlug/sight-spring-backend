@@ -11,17 +11,20 @@ import org.springframework.web.server.ResponseStatusException
 @Aspect
 @Component
 class AuthAspect {
-    
     @Around("@annotation(auth)")
-    fun checkAuth(joinPoint: ProceedingJoinPoint, auth: Auth): Any? {
-        val requester = AuthenticationHelper.getCurrentRequester()
-            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required")
-        
+    fun checkAuth(
+        joinPoint: ProceedingJoinPoint,
+        auth: Auth,
+    ): Any? {
+        val requester =
+            AuthenticationHelper.getCurrentRequester()
+                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required")
+
         val requiredRoles = auth.roles
         if (!requiredRoles.contains(requester.role)) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges")
         }
-        
+
         return joinPoint.proceed()
     }
 }

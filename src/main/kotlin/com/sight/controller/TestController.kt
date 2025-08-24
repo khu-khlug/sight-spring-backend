@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/test")
 class TestController {
-
     @GetMapping("/public")
     fun publicEndpoint(): String {
         return "This is a public endpoint"

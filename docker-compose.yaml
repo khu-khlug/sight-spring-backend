@@ -11,8 +11,20 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - GRADLE_OPTS=-Dorg.gradle.daemon=false
+      - AUTH_SERVICE_ENDPOINT=http://mock-auth:3000
+      - AUTH_SERVICE_API_KEY=test-api-key
     stdin_open: true
     tty: true
+    depends_on:
+      - mock-auth
+
+  mock-auth:
+    build:
+      context: ./mock
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./mock:/app
 
 volumes:
   gradle-cache:

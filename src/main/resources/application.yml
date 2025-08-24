@@ -28,6 +28,11 @@ logging:
   level:
     com.sight: DEBUG
 
+auth:
+  service:
+    endpoint: ${AUTH_SERVICE_ENDPOINT:}
+    api-key: ${AUTH_SERVICE_API_KEY:}
+
 ---
 spring:
   config:

@@ -57,10 +57,10 @@ data class Member(
     @Column(name = "expoint", nullable = false)
     val expoint: Long = 0L,
 
-    @Column(name = "active", nullable = false)
+    @Column(name = "active", nullable = false, columnDefinition = "TINYINT(1)")
     val active: Boolean = false,
 
-    @Column(name = "manager", nullable = false)
+    @Column(name = "manager", nullable = false, columnDefinition = "TINYINT(1)")
     val manager: Boolean = false,
 
     @Column(name = "slack", length = 100)

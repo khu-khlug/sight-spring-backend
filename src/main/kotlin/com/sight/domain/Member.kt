@@ -15,19 +15,19 @@ data class Member(
     @Column(name = "name", unique = true, nullable = false, length = 127)
     val name: String,
 
-    @Column(name = "password")
+    @Column(name = "password", length = 255)
     val password: String? = null,
 
     @Column(name = "number")
     val number: Long? = null,
 
-    @Column(name = "admission", nullable = false, length = 2)
+    @Column(name = "admission", nullable = false, columnDefinition = "CHAR(2)")
     val admission: String = "",
 
-    @Column(name = "realname", nullable = false)
+    @Column(name = "realname", nullable = false, length = 255)
     val realname: String = "",
 
-    @Column(name = "college", nullable = false)
+    @Column(name = "college", nullable = false, length = 255)
     val college: String = "",
 
     @Column(name = "grade", nullable = false)
@@ -36,31 +36,31 @@ data class Member(
     @Column(name = "state", nullable = false)
     val state: Long = -1L,
 
-    @Column(name = "email")
+    @Column(name = "email", length = 255)
     val email: String? = null,
 
-    @Column(name = "phone")
+    @Column(name = "phone", length = 255)
     val phone: String? = null,
 
-    @Column(name = "homepage")
+    @Column(name = "homepage", length = 255)
     val homepage: String? = null,
 
-    @Column(name = "language")
+    @Column(name = "language", length = 255)
     val language: String? = null,
 
     @Column(name = "interest", length = 1023)
     val interest: String? = null,
 
-    @Column(name = "prefer")
+    @Column(name = "prefer", length = 255)
     val prefer: String? = null,
 
     @Column(name = "expoint", nullable = false)
     val expoint: Long = 0L,
 
-    @Column(name = "active", nullable = false, columnDefinition = "TINYINT(1)")
+    @Column(name = "active", nullable = false, columnDefinition = "TINYINT")
     val active: Boolean = false,
 
-    @Column(name = "manager", nullable = false, columnDefinition = "TINYINT(1)")
+    @Column(name = "manager", nullable = false, columnDefinition = "TINYINT")
     val manager: Boolean = false,
 
     @Column(name = "slack", length = 100)

@@ -2,6 +2,9 @@ name: Build Spring Backend Image
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io

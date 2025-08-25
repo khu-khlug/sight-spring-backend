@@ -6,7 +6,10 @@ on:
     branches:
       - main
     paths:
-      - "!.github/**"
+      - "src/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "Dockerfile.Build"
 
 env:
   REGISTRY: ghcr.io

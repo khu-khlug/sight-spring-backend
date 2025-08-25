@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service
 @Service
 class UserService(
     private val discordIntegrationRepository: DiscordIntegrationRepository,
+    private val discordMemberService: DiscordMemberService,
 ) {
     private val logger = LoggerFactory.getLogger(UserService::class.java)
 
@@ -22,10 +23,6 @@ class UserService(
         val userId = discordIntegration.userId
         logger.info("Found Discord integration for user ID: $userId, Discord user: $discordUserId")
 
-        // TODO: Implement reflectUserInfoToDiscordUser logic
-        // This would mirror the DiscordMemberService.reflectUserInfoToDiscordUser functionality
-        // - Load user by userId
-        // - Calculate roles based on user status
-        // - Update Discord member nickname and roles
+        discordMemberService.reflectUserInfoToDiscordUser(userId)
     }
 }

@@ -48,6 +48,7 @@ auth:
 
 discord:
   token: ${DISCORD_BOT_TOKEN:}
+  guild-id: ${DISCORD_GUILD_ID:}
 
 ---
 spring:
@@ -78,3 +79,4 @@ auth:
 
 discord:
   token: ${DISCORD_BOT_TOKEN:}
+  guild-id: ${DISCORD_GUILD_ID:}

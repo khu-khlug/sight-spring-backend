@@ -1,6 +1,8 @@
 package com.sight.service
 
-import com.sight.domain.Member
+import com.sight.domain.member.Member
+import StudentStatus
+import UserStatus
 import com.sight.domain.auth.UserRole
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Test
@@ -28,6 +30,8 @@ class AuthServiceTest {
                 realname = "Manager User",
                 admission = "20",
                 college = "Engineering",
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
             )
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(managerMember))
 
@@ -50,6 +54,8 @@ class AuthServiceTest {
                 realname = "Regular User",
                 admission = "21",
                 college = "Science",
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
             )
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(regularMember))
 
@@ -84,6 +90,8 @@ class AuthServiceTest {
                 realname = "Manager User",
                 admission = "20",
                 college = "Engineering",
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
             )
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(managerMember))
 

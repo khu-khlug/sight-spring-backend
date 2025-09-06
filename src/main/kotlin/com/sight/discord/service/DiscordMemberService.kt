@@ -5,7 +5,7 @@ import UserStatus
 import com.sight.discord.adapter.DiscordApiAdapter
 import com.sight.discord.adapter.DiscordApiModifyMemberParams
 import com.sight.discord.model.DiscordRole
-import com.sight.domain.Member
+import com.sight.domain.member.Member
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service

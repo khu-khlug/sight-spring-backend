@@ -1,4 +1,4 @@
-package com.sight.domain
+package com.sight.domain.member
 
 import StudentStatus
 import UserStatus

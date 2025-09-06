@@ -1,6 +1,6 @@
 package com.sight.discord.config
 
-import com.sight.discord.handler.UserDiscordEventHandler
+import com.sight.controllers.discord.UserDiscordEventController
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.requests.GatewayIntent
@@ -13,11 +13,11 @@ class DiscordConfig {
     @Bean
     fun jda(
         @Value("\${discord.token}") token: String,
-        userDiscordEventHandler: UserDiscordEventHandler,
+        userDiscordEventController: UserDiscordEventController,
     ): JDA {
         return JDABuilder.createDefault(token)
             .enableIntents(GatewayIntent.GUILD_MEMBERS)
-            .addEventListeners(userDiscordEventHandler)
+            .addEventListeners(userDiscordEventController)
             .build()
     }
 }

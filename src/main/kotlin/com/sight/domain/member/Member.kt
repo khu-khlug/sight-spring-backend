@@ -1,5 +1,7 @@
 package com.sight.domain
 
+import StudentStatus
+import UserStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -33,8 +35,8 @@ data class Member(
     @Column(name = "grade", nullable = false)
     val grade: Long = 0L,
 
-    @Column(name = "state", nullable = false)
-    val state: Long = -1L,
+    @Column(name = "state", nullable = false, columnDefinition = "INT")
+    val studentStatus: StudentStatus,
 
     @Column(name = "email", length = 255)
     val email: String? = null,
@@ -58,7 +60,7 @@ data class Member(
     val expoint: Long = 0L,
 
     @Column(name = "active", nullable = false, columnDefinition = "TINYINT")
-    val active: Boolean = false,
+    val status: UserStatus,
 
     @Column(name = "manager", nullable = false, columnDefinition = "TINYINT")
     val manager: Boolean = false,

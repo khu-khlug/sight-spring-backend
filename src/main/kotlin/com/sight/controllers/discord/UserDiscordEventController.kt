@@ -1,16 +1,16 @@
-package com.sight.discord.handler
+package com.sight.controllers.discord
 
-import com.sight.discord.service.UserService
+import com.sight.core.discord.UserDiscordEventHandler
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.springframework.stereotype.Component
 
 @Component
-class UserDiscordEventHandler(
-    private val userService: UserService,
+class UserDiscordEventController(
+    private val userDiscordEventHandler: UserDiscordEventHandler,
 ) : ListenerAdapter() {
     override fun onGuildMemberJoin(event: GuildMemberJoinEvent) {
         val discordUserId = event.user.id
-        userService.applyUserInfoToEnteredDiscordUser(discordUserId)
+        userDiscordEventHandler.handleGuildMemberJoin(discordUserId)
     }
 }

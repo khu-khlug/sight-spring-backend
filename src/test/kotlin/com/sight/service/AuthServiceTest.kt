@@ -1,9 +1,9 @@
 package com.sight.service
 
-import com.sight.domain.member.Member
 import StudentStatus
 import UserStatus
 import com.sight.domain.auth.UserRole
+import com.sight.domain.member.Member
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

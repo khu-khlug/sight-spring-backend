@@ -11,7 +11,7 @@ import jakarta.persistence.Table
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "discord_roles")
+@Table(name = "discord_role")
 data class DiscordRole(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

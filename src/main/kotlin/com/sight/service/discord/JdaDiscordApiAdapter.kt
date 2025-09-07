@@ -1,6 +1,6 @@
 package com.sight.service.discord
 
-import com.sight.domain.discord.DiscordRole
+import com.sight.domain.discord.DiscordRoleType
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.Role
 import org.slf4j.LoggerFactory
@@ -54,13 +54,13 @@ class JdaDiscordApiAdapter(
 
     private fun getRoleByDiscordRole(
         guild: net.dv8tion.jda.api.entities.Guild,
-        discordRole: DiscordRole,
+        discordRole: DiscordRoleType,
     ): Role? {
         val roleName =
             when (discordRole) {
-                DiscordRole.MEMBER -> "Member"
-                DiscordRole.GRADUATED_MEMBER -> "Graduated Member"
-                DiscordRole.MANAGER -> "Manager"
+                DiscordRoleType.MEMBER -> "Member"
+                DiscordRoleType.GRADUATED_MEMBER -> "Graduated Member"
+                DiscordRoleType.MANAGER -> "Manager"
             }
         return guild.getRolesByName(roleName, true).firstOrNull()
     }

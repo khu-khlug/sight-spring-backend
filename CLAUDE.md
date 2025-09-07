@@ -46,14 +46,18 @@
 ### 디렉토리별 책임
 - **config**: 애플리케이션 설정과 관련된 내용. 로직이 들어가면 안 됨
 - **controllers**: 외부에서 들어오는 모든 요청(HTTP, 디스코드 이벤트 등)을 최초로 받는 곳
-  - REST API 컨트롤러: `com.sight.controllers.api` 패키지
+  - REST API 컨트롤러: `com.sight.controllers.http` 패키지
   - 디스코드 이벤트 컨트롤러: `com.sight.controllers.discord` 패키지
-  - API 엔드포인트는 `/api` 접두사 사용 (예: `/api/ping`)
+  - **중요**: 컨트롤러에서는 비즈니스 로직을 작성하지 않고, DTO validation과 응답 DTO 생성만 담당
+  - 모든 비즈니스 로직은 Service 계층에 위임
+  - **API 경로 규칙**: 클래스 레벨 `@RequestMapping` 사용 금지. 각 메서드의 매핑 어노테이션에 전체 경로 직접 지정 (예: `@GetMapping("/users/@me/profile")`)
 - **core**: 횡단 관심사와 관련된 모든 코드 (데이터베이스 연결, 인증/인가, 디스코드 클라이언트 등)
 - **domain**: 도메인 모델과 도메인 서비스 (순수 함수, side-effect 없음)
   - 멤버 도메인: `com.sight.domain.member` 패키지
 - **repository**: 데이터 접근을 위한 리포지토리 인터페이스
 - **service**: side-effect가 발생할 수 있는 로직 및 애플리케이션 처리 흐름 제어 (clean architecture의 application 계층)
+  - 컨트롤러에서 호출되는 모든 비즈니스 로직을 담당
+  - 아무리 간단한 로직이라도 Service 계층에서 처리
 
 ### 의존성 방향
 - 일반적인 로직 처리 흐름: `controllers` → `service` → `domain`

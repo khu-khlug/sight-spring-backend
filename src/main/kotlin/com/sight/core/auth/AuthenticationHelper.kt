@@ -1,6 +1,5 @@
-package com.sight.core
+package com.sight.core.auth
 
-import com.sight.domain.auth.Requester
 import org.springframework.security.core.context.SecurityContextHolder
 
 object AuthenticationHelper {

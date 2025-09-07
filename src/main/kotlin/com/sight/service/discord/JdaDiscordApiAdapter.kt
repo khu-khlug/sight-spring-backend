@@ -1,4 +1,4 @@
-package com.sight.core.discord
+package com.sight.service.discord
 
 import com.sight.domain.discord.DiscordRole
 import net.dv8tion.jda.api.JDA

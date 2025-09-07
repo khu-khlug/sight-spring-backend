@@ -1,6 +1,4 @@
-package com.sight.core
-
-import com.sight.domain.auth.UserRole
+package com.sight.core.auth
 
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

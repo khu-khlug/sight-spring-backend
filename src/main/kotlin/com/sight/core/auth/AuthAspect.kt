@@ -1,4 +1,4 @@
-package com.sight.core
+package com.sight.core.auth
 
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around

@@ -1,7 +1,5 @@
-package com.sight.service
+package com.sight.core.auth
 
-import com.sight.domain.auth.Requester
-import com.sight.domain.auth.UserRole
 import com.sight.repository.MemberRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity

@@ -1,6 +1,5 @@
-package com.sight.service
+package com.sight.core.auth
 
-import com.sight.domain.auth.UserRole
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -50,7 +49,6 @@ class AuthServiceTest {
             Member(
                 id = userId,
                 name = "user",
-                manager = false,
                 realname = "Regular User",
                 admission = "21",
                 college = "Science",

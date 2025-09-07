@@ -1,6 +1,6 @@
 package com.sight.service
 
-import com.sight.domain.discord.DiscordRole
+import com.sight.domain.discord.DiscordRoleType
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -35,19 +35,19 @@ class DiscordMemberService(
         )
     }
 
-    private fun calcRoles(member: Member): List<DiscordRole> {
-        val roles = mutableListOf<DiscordRole>()
+    private fun calcRoles(member: Member): List<DiscordRoleType> {
+        val roles = mutableListOf<DiscordRoleType>()
 
         if (member.status == UserStatus.ACTIVE && member.studentStatus != StudentStatus.GRADUATE) {
-            roles.add(DiscordRole.MEMBER)
+            roles.add(DiscordRoleType.MEMBER)
         }
 
         if (member.status == UserStatus.ACTIVE && member.studentStatus == StudentStatus.GRADUATE) {
-            roles.add(DiscordRole.GRADUATED_MEMBER)
+            roles.add(DiscordRoleType.GRADUATED_MEMBER)
         }
 
         if (member.manager) {
-            roles.add(DiscordRole.MANAGER)
+            roles.add(DiscordRoleType.MANAGER)
         }
 
         return roles

@@ -53,7 +53,7 @@ class AuthService(
     fun getUserRole(userId: Long): UserRole {
         val member =
             memberRepository.findById(userId).orElse(null)
-                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found")
+                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "사용자를 찾을 수 없습니다")
 
         return if (member.manager) UserRole.MANAGER else UserRole.USER
     }

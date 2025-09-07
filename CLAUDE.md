@@ -82,6 +82,15 @@
 - Docker 환경에서 Gradle 데몬 비활성화
 - Docker에서 로컬 프로파일 자동 활성화
 
+### 에러 메시지 작성 규칙
+- **모든 에러 메시지는 한국어로 작성**: ResponseStatusException, IllegalStateException 등의 메시지는 한국어 사용
+- 사용자에게 보여질 수 있는 모든 오류 문구는 한국어로 작성
+- 예시:
+  - "Authentication required" → "인증이 필요합니다"
+  - "Insufficient privileges" → "권한이 부족합니다"
+  - "User not found" → "사용자를 찾을 수 없습니다"
+  - "No authenticated user found" → "인증된 사용자가 없습니다"
+
 ### 개발 참조
 - 다른 로컬 프로젝트를 참조할 때는 `-ref` 접미사로 심볼릭 링크 생성 (예: `ln -s /path/to/other-project ./other-project-ref`)
 - 모든 `*-ref` 디렉토리는 git에서 자동으로 무시됨

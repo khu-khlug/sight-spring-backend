@@ -1,4 +1,4 @@
-package com.sight.discord.model
+package com.sight.domain.discord
 
 enum class DiscordRole {
     MEMBER,

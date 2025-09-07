@@ -1,6 +1,6 @@
-package com.sight.discord.adapter
+package com.sight.core.discord
 
-import com.sight.discord.model.DiscordRole
+import com.sight.domain.discord.DiscordRole
 
 data class DiscordApiModifyMemberParams(
     val discordUserId: String,

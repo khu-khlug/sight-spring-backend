@@ -1,6 +1,6 @@
 package com.sight.core.discord
 
-import com.sight.discord.service.UserService
+import com.sight.service.UserService
 import org.springframework.stereotype.Component
 
 @Component

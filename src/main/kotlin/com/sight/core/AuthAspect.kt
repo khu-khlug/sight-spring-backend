@@ -1,6 +1,5 @@
-package com.sight.config.security
+package com.sight.core
 
-import com.sight.common.AuthenticationHelper
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
 import org.aspectj.lang.annotation.Aspect

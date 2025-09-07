@@ -1,7 +1,7 @@
 package com.sight.controllers.discord
 
+import com.sight.core.discord.DiscordEventListener
 import com.sight.core.discord.UserDiscordEventHandler
-import com.sight.discord.annotation.DiscordEventListener
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.springframework.stereotype.Component

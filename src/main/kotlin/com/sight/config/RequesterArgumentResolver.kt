@@ -1,6 +1,6 @@
 package com.sight.config
 
-import com.sight.common.AuthenticationHelper
+import com.sight.core.AuthenticationHelper
 import com.sight.domain.auth.Requester
 import org.springframework.core.MethodParameter
 import org.springframework.stereotype.Component

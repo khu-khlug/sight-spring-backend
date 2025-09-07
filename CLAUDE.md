@@ -35,15 +35,30 @@
 
 ### 프로젝트 구조
 - 메인 애플리케이션 진입점: `src/main/kotlin/com/sight/SightSpringBackendApplication.kt`
-- **컨트롤러 아키텍처**: 모든 외부 요청과 이벤트는 `controllers` 패키지에서 처리
+- `com.sight` 하위에는 다음 6개 디렉토리만 유지:
+  - `config`: 애플리케이션 설정
+  - `controllers`: 외부 요청 처리
+  - `core`: 횡단 관심사
+  - `domain`: 도메인 모델 및 서비스
+  - `repository`: 데이터 접근 계층
+  - `service`: 애플리케이션 서비스 계층
+
+### 디렉토리별 책임
+- **config**: 애플리케이션 설정과 관련된 내용. 로직이 들어가면 안 됨
+- **controllers**: 외부에서 들어오는 모든 요청(HTTP, 디스코드 이벤트 등)을 최초로 받는 곳
   - REST API 컨트롤러: `com.sight.controllers.api` 패키지
   - 디스코드 이벤트 컨트롤러: `com.sight.controllers.discord` 패키지
   - API 엔드포인트는 `/api` 접두사 사용 (예: `/api/ping`)
-- **코어 아키텍처**: 핵심 비즈니스 로직과 이벤트 처리는 `core` 패키지에서 담당
-  - 디스코드 이벤트 핸들러: `com.sight.core.discord` 패키지
-  - 컨트롤러는 실제 처리를 위해 코어 핸들러에 위임
-- **도메인 아키텍처**: 도메인 모델은 기능별로 구성
+- **core**: 횡단 관심사와 관련된 모든 코드 (데이터베이스 연결, 인증/인가, 디스코드 클라이언트 등)
+- **domain**: 도메인 모델과 도메인 서비스 (순수 함수, side-effect 없음)
   - 멤버 도메인: `com.sight.domain.member` 패키지
+- **repository**: 데이터 접근을 위한 리포지토리 인터페이스
+- **service**: side-effect가 발생할 수 있는 로직 및 애플리케이션 처리 흐름 제어 (clean architecture의 application 계층)
+
+### 의존성 방향
+- 일반적인 로직 처리 흐름: `controllers` → `service` → `domain`
+- 역방향 의존성은 금지
+- `config`, `core`, `repository`는 다른 계층에서 접근 가능하지만 역방향은 불가
 - 설정 프로파일: `local` (기본값), `prod`
 
 ### Spring Boot 설정

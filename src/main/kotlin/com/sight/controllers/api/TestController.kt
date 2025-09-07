@@ -1,6 +1,6 @@
 package com.sight.controllers.api
 
-import com.sight.config.security.Auth
+import com.sight.core.Auth
 import com.sight.domain.auth.Requester
 import com.sight.domain.auth.UserRole
 import org.springframework.web.bind.annotation.GetMapping

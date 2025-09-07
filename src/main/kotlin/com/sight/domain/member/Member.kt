@@ -1,7 +1,5 @@
 package com.sight.domain.member
 
-import StudentStatus
-import UserStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id

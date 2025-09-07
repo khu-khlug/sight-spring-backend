@@ -1,4 +1,4 @@
-package com.sight.discord.service
+package com.sight.service
 
 import com.sight.repository.DiscordIntegrationRepository
 import org.springframework.stereotype.Service

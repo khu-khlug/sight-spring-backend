@@ -1,4 +1,4 @@
-package com.sight.config.security
+package com.sight.core
 
 import com.sight.domain.auth.UserRole
 

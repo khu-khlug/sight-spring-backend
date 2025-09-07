@@ -1,6 +1,6 @@
 package com.sight.config
 
-import com.sight.service.AuthService
+import com.sight.core.auth.AuthService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.EnableAspectJAutoProxy

@@ -1,4 +1,4 @@
-package com.sight.domain.auth
+package com.sight.core.auth
 
 data class Requester(
     val userId: Long,

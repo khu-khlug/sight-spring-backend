@@ -1,6 +1,6 @@
 package com.sight.config
 
-import com.sight.service.AuthService
+import com.sight.core.auth.AuthService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse

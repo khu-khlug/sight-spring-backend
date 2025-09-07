@@ -1,4 +1,4 @@
-package com.sight.domain.auth
+package com.sight.core.auth
 
 enum class UserRole {
     USER,

@@ -1,7 +1,7 @@
 package com.sight.config
 
-import com.sight.core.AuthenticationHelper
-import com.sight.domain.auth.Requester
+import com.sight.core.auth.AuthenticationHelper
+import com.sight.core.auth.Requester
 import org.springframework.core.MethodParameter
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.support.WebDataBinderFactory

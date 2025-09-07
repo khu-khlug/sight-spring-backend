@@ -1,4 +1,4 @@
-package com.sight.domain
+package com.sight.domain.discord
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

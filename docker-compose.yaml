@@ -22,6 +22,8 @@ services:
       - MYSQL_DATABASE=sight
       - MYSQL_USER=root
       - MYSQL_PASSWORD=test
+    env_file:
+      - ".env"
     stdin_open: true
     tty: true
     depends_on:

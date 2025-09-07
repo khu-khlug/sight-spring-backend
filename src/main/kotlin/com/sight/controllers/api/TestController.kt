@@ -1,4 +1,4 @@
-package com.sight.controller
+package com.sight.controllers.api
 
 import com.sight.config.security.Auth
 import com.sight.domain.auth.Requester

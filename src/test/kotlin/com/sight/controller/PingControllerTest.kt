@@ -9,7 +9,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-@WebMvcTest(PingController::class, excludeAutoConfiguration = [SecurityAutoConfiguration::class])
+@WebMvcTest(com.sight.controllers.api.PingController::class, excludeAutoConfiguration = [SecurityAutoConfiguration::class])
 class PingControllerTest {
     @Autowired
     private lateinit var mockMvc: MockMvc

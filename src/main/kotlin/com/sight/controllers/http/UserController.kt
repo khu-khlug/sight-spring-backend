@@ -7,17 +7,15 @@ import com.sight.core.auth.UserRole
 import com.sight.service.UserDiscordService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 
 @RestController
-@RequestMapping("/users")
 class UserController(
     private val userDiscordService: UserDiscordService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GetMapping("/@me/discord-integration")
+    @GetMapping("/users/@me/discord-integration")
     fun getCurrentUserDiscordIntegration(requester: Requester): GetDiscordIntegrationResponse {
         val integration =
             userDiscordService.getDiscordIntegration(requester.userId)

@@ -50,6 +50,7 @@
   - 디스코드 이벤트 컨트롤러: `com.sight.controllers.discord` 패키지
   - **중요**: 컨트롤러에서는 비즈니스 로직을 작성하지 않고, DTO validation과 응답 DTO 생성만 담당
   - 모든 비즈니스 로직은 Service 계층에 위임
+  - **API 경로 규칙**: 클래스 레벨 `@RequestMapping` 사용 금지. 각 메서드의 매핑 어노테이션에 전체 경로 직접 지정 (예: `@GetMapping("/users/@me/profile")`)
 - **core**: 횡단 관심사와 관련된 모든 코드 (데이터베이스 연결, 인증/인가, 디스코드 클라이언트 등)
 - **domain**: 도메인 모델과 도메인 서비스 (순수 함수, side-effect 없음)
   - 멤버 도메인: `com.sight.domain.member` 패키지

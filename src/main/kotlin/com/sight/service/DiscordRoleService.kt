@@ -2,7 +2,9 @@ package com.sight.service
 
 import com.sight.domain.discord.DiscordRole
 import com.sight.repository.DiscordRoleRepository
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDateTime
 
 @Service
@@ -19,7 +21,7 @@ class DiscordRoleService(
     ): DiscordRole {
         val discordRole =
             discordRoleRepository.findById(id).orElseThrow {
-                IllegalArgumentException("Discord role not found with id: $id")
+                ResponseStatusException(HttpStatus.NOT_FOUND, "디스코드 역할 정보를 찾을 수 없습니다")
             }
 
         val updatedRole =

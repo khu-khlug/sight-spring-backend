@@ -17,11 +17,11 @@ class AuthAspect {
     ): Any? {
         val requester =
             AuthenticationHelper.getCurrentRequester()
-                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required")
+                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증이 필요합니다")
 
         val requiredRoles = auth.roles
         if (!requiredRoles.contains(requester.role)) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges")
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "권한이 부족합니다")
         }
 
         return joinPoint.proceed()

@@ -21,7 +21,7 @@ data class DiscordIntegration(
     val id: String,
 
     @Column(name = "user_id", nullable = false)
-    val userId: Long,
+    val userId: Int,
 
     @Column(name = "discord_user_id", length = 32, nullable = false)
     val discordUserId: String,

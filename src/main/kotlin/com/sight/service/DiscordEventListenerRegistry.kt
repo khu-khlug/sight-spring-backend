@@ -1,6 +1,6 @@
-package com.sight.discord.service
+package com.sight.service
 
-import com.sight.discord.annotation.DiscordEventListener
+import com.sight.core.discord.DiscordEventListener
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.slf4j.LoggerFactory

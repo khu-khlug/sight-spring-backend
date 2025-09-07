@@ -1,3 +1,5 @@
+package com.sight.domain.member
+
 enum class StudentStatus(val code: Int) {
     UNITED(-1),
     ABSENCE(0),

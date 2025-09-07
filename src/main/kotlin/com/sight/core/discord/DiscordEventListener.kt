@@ -1,4 +1,4 @@
-package com.sight.discord.annotation
+package com.sight.core.discord
 
 /**
  * Discord 이벤트 리스너로 자동 등록될 클래스에 사용하는 어노테이션

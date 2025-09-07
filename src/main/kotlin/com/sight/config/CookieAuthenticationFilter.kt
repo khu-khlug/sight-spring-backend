@@ -1,4 +1,4 @@
-package com.sight.config.security
+package com.sight.config
 
 import com.sight.service.AuthService
 import jakarta.servlet.FilterChain

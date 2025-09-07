@@ -1,6 +1,5 @@
 package com.sight.config
 
-import com.sight.config.security.CookieAuthenticationFilter
 import com.sight.service.AuthService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

@@ -1,4 +1,4 @@
-package com.sight.common
+package com.sight.core
 
 import com.sight.domain.auth.Requester
 import org.springframework.security.core.context.SecurityContextHolder

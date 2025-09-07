@@ -1,11 +1,11 @@
-package com.sight.discord.service
+package com.sight.service
 
-import StudentStatus
-import UserStatus
-import com.sight.discord.adapter.DiscordApiAdapter
-import com.sight.discord.adapter.DiscordApiModifyMemberParams
-import com.sight.discord.model.DiscordRole
+import com.sight.core.discord.DiscordApiAdapter
+import com.sight.core.discord.DiscordApiModifyMemberParams
+import com.sight.domain.discord.DiscordRole
 import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service

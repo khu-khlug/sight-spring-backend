@@ -16,7 +16,7 @@ class PingControllerTest {
 
     @Test
     fun `ping API는 pong을 반환한다`() {
-        mockMvc.perform(get("/api/ping"))
+        mockMvc.perform(get("/ping"))
             .andExpect(status().isOk)
             .andExpect(content().string("pong"))
     }

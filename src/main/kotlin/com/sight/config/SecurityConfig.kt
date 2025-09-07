@@ -34,7 +34,7 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/api/ping", "/actuator/**", "/api/test/public").permitAll()
+                    .requestMatchers("/ping", "/actuator/**", "/test/public").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)

@@ -33,7 +33,7 @@ data class Member(
     @Column(name = "grade", nullable = false)
     val grade: Long = 0L,
 
-    @Column(name = "state", nullable = false, columnDefinition = "INT")
+    @Column(name = "state", nullable = false, columnDefinition = "bigint")
     val studentStatus: StudentStatus,
 
     @Column(name = "email", length = 255)

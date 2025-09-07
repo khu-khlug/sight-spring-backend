@@ -17,7 +17,7 @@ class DiscordRoleController(
     private val discordRoleService: DiscordRoleService,
 ) {
     @Auth([UserRole.MANAGER])
-    @GetMapping("/discord/roles")
+    @GetMapping("/discord-roles")
     fun getDiscordRoles(): List<GetDiscordRoleResponse> {
         val discordRoles = discordRoleService.getAllDiscordRoles()
         return discordRoles.map { discordRole ->
@@ -32,7 +32,7 @@ class DiscordRoleController(
     }
 
     @Auth([UserRole.MANAGER])
-    @PutMapping("/discord/roles/{id}")
+    @PutMapping("/discord-roles/{id}")
     fun updateDiscordRole(
         @PathVariable id: Long,
         @Valid @RequestBody request: UpdateDiscordRoleRequest,

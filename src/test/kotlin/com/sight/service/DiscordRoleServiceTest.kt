@@ -5,13 +5,15 @@ import com.sight.domain.discord.DiscordRoleType
 import com.sight.repository.DiscordRoleRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.http.HttpStatus
+import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDateTime
 import java.util.Optional
 
@@ -91,11 +93,9 @@ class DiscordRoleServiceTest {
         whenever(discordRoleRepository.findById(roleId)).thenReturn(Optional.empty())
 
         val exception =
-            assertThrows(IllegalArgumentException::class.java) {
+            assertThrows<ResponseStatusException> {
                 discordRoleService.updateDiscordRole(roleId, newRoleId)
             }
-
-        assertEquals("Discord role not found with id: $roleId", exception.message)
-        verify(discordRoleRepository).findById(roleId)
+        assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
     }
 }

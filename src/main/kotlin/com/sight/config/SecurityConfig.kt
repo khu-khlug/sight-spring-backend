@@ -1,6 +1,5 @@
 package com.sight.config
 
-import com.sight.core.auth.AuthService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.EnableAspectJAutoProxy
@@ -11,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.filter.OncePerRequestFilter
 
 @Configuration
 @EnableWebSecurity
@@ -25,10 +25,8 @@ class SecurityConfig {
     @Bean
     fun filterChain(
         http: HttpSecurity,
-        authService: AuthService,
+        authenticationFilter: AuthenticationFilter,
     ): SecurityFilterChain {
-        val cookieAuthenticationFilter = CookieAuthenticationFilter(authService)
-
         return http
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
@@ -37,7 +35,7 @@ class SecurityConfig {
                     .requestMatchers("/ping", "/actuator/**", "/test/public").permitAll()
                     .anyRequest().authenticated()
             }
-            .addFilterBefore(cookieAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(authenticationFilter as OncePerRequestFilter, UsernamePasswordAuthenticationFilter::class.java)
             .build()
     }
 }

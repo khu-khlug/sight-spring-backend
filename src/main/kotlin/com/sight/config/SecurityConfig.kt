@@ -29,6 +29,7 @@ class SecurityConfig {
     ): SecurityFilterChain {
         return http
             .csrf { it.disable() }
+            .cors { }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth

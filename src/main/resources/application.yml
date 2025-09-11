@@ -50,10 +50,10 @@ discord:
   token: ${DISCORD_BOT_TOKEN:}
   guild-id: ${DISCORD_GUILD_ID:}
   oauth2:
-    client-id: ${DISCORD_OAUTH2_CLIENT_ID:}
-    client-secret: ${DISCORD_OAUTH2_CLIENT_SECRET:}
-    redirect-uri: ${DISCORD_OAUTH2_REDIRECT_URI:}
-    state-secret: ${DISCORD_OAUTH2_STATE_SECRET:}
+    client-id: ${DISCORD_CLIENT_ID:}
+    client-secret: ${DISCORD_CLIENT_SECRET:}
+    redirect-uri: ${DISCORD_REDIRECT_URI:}
+    state-secret: ${DISCORD_STATE_SECRET:}
 
 ---
 spring:
@@ -86,7 +86,7 @@ discord:
   token: ${DISCORD_BOT_TOKEN:}
   guild-id: ${DISCORD_GUILD_ID:}
   oauth2:
-    client-id: ${DISCORD_OAUTH2_CLIENT_ID:}
-    client-secret: ${DISCORD_OAUTH2_CLIENT_SECRET:}
-    redirect-uri: ${DISCORD_OAUTH2_REDIRECT_URI:}
-    state-secret: ${DISCORD_OAUTH2_STATE_SECRET:}
+    client-id: ${DISCORD_CLIENT_ID:}
+    client-secret: ${DISCORD_CLIENT_SECRET:}
+    redirect-uri: ${DISCORD_REDIRECT_URI:}
+    state-secret: ${DISCORD_STATE_SECRET:}

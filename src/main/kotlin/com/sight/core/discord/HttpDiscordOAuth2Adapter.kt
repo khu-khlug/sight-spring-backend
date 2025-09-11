@@ -94,36 +94,11 @@ class HttpDiscordOAuth2Adapter(
         }
 
     private data class TokenResponse(
-        @JsonProperty("access_token")
+        @field:JsonProperty("access_token")
         val accessToken: String,
-        @JsonProperty("token_type")
-        val tokenType: String,
-        @JsonProperty("expires_in")
-        val expiresIn: Int,
-        @JsonProperty("refresh_token")
-        val refreshToken: String,
-        val scope: String,
     )
 
     private data class UserResponse(
         val id: String,
-        val username: String,
-        val discriminator: String,
-        val avatar: String?,
-        val bot: Boolean?,
-        val system: Boolean?,
-        @JsonProperty("mfa_enabled")
-        val mfaEnabled: Boolean?,
-        val banner: String?,
-        @JsonProperty("accent_color")
-        val accentColor: Int?,
-        val locale: String?,
-        val verified: Boolean?,
-        val email: String?,
-        val flags: Int?,
-        @JsonProperty("premium_type")
-        val premiumType: Int?,
-        @JsonProperty("public_flags")
-        val publicFlags: Int?,
     )
 }

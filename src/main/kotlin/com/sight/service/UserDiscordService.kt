@@ -28,24 +28,20 @@ class UserDiscordService(
         code: String,
         state: String,
     ) {
-        // 상태값 검증
         val expectedState = discordStateGenerator.generate(userId)
         if (expectedState != state) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "알 수 없는 디스코드 OAuth2 상태값입니다")
         }
 
-        // 이미 연동이 있는지 확인
         val existingIntegration = discordIntegrationRepository.findByUserId(userId)
         if (existingIntegration != null) {
             // 이미 존재한다면 무시합니다.
             return
         }
 
-        // OAuth2 토큰 교환 및 사용자 정보 획득
         val accessToken = runBlocking { discordOAuth2Adapter.getAccessToken(code) }
         val discordUserId = runBlocking { discordOAuth2Adapter.getCurrentUserId(accessToken) }
 
-        // 새 연동 정보 저장
         val newDiscordIntegration =
             DiscordIntegration(
                 id = UlidCreator.getUlid().toString(),
@@ -55,7 +51,6 @@ class UserDiscordService(
             )
         discordIntegrationRepository.save(newDiscordIntegration)
 
-        // 디스코드 멤버 정보 동기화
         discordMemberService.reflectUserInfoToDiscordUser(userId)
     }
 }

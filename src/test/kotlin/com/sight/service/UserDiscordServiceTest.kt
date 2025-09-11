@@ -1,5 +1,7 @@
 package com.sight.service
 
+import com.sight.core.discord.DiscordOAuth2Adapter
+import com.sight.core.discord.DiscordStateGenerator
 import com.sight.domain.discord.DiscordIntegration
 import com.sight.repository.DiscordIntegrationRepository
 import org.junit.jupiter.api.Test
@@ -13,7 +15,15 @@ import kotlin.test.assertEquals
 
 class UserDiscordServiceTest {
     private val discordIntegrationRepository = mock<DiscordIntegrationRepository>()
-    private val userDiscordService = UserDiscordService(discordIntegrationRepository)
+    private val discordOAuth2Adapter = mock<DiscordOAuth2Adapter>()
+    private val discordStateGenerator = mock<DiscordStateGenerator>()
+    private val discordMemberService = mock<DiscordMemberService>()
+    private val userDiscordService = UserDiscordService(
+        discordIntegrationRepository,
+        discordOAuth2Adapter,
+        discordStateGenerator,
+        discordMemberService,
+    )
 
     @Test
     fun `사용자 ID로 디스코드 연동 정보를 조회한다`() {

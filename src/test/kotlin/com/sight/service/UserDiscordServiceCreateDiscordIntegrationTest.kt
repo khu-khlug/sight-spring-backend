@@ -45,8 +45,9 @@ class UserDiscordServiceCreateDiscordIntegrationTest {
         val userId = 1L
         val code = "test-code"
         val state = "invalid-state"
+        val expectedState = "expected-state"
 
-        whenever(discordStateGenerator.validate(userId, state)).thenReturn(false)
+        whenever(discordStateGenerator.generate(userId)).thenReturn(expectedState)
 
         // When & Then
         val exception =
@@ -72,7 +73,7 @@ class UserDiscordServiceCreateDiscordIntegrationTest {
                 createdAt = java.time.LocalDateTime.now(),
             )
 
-        whenever(discordStateGenerator.validate(userId, state)).thenReturn(true)
+        whenever(discordStateGenerator.generate(userId)).thenReturn(state)
         whenever(discordIntegrationRepository.findByUserId(userId)).thenReturn(existingIntegration)
 
         // When
@@ -92,7 +93,7 @@ class UserDiscordServiceCreateDiscordIntegrationTest {
         val accessToken = "access-token"
         val discordUserId = "discord-user-id"
 
-        whenever(discordStateGenerator.validate(userId, state)).thenReturn(true)
+        whenever(discordStateGenerator.generate(userId)).thenReturn(state)
         whenever(discordIntegrationRepository.findByUserId(userId)).thenReturn(null)
         whenever(runBlocking { discordOAuth2Adapter.getAccessToken(code) }).thenReturn(accessToken)
         whenever(runBlocking { discordOAuth2Adapter.getCurrentUserId(accessToken) }).thenReturn(discordUserId)

@@ -29,7 +29,8 @@ class UserDiscordService(
         state: String,
     ) {
         // 상태값 검증
-        if (!discordStateGenerator.validate(userId, state)) {
+        val expectedState = discordStateGenerator.generate(userId)
+        if (expectedState != state) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "잘못된 상태값입니다")
         }
 

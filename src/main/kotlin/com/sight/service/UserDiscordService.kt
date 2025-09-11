@@ -31,7 +31,7 @@ class UserDiscordService(
         // 상태값 검증
         val expectedState = discordStateGenerator.generate(userId)
         if (expectedState != state) {
-            throw ResponseStatusException(HttpStatus.FORBIDDEN, "잘못된 상태값입니다")
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "알 수 없는 디스코드 OAuth2 상태값입니다")
         }
 
         // 이미 연동이 있는지 확인

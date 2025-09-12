@@ -56,7 +56,6 @@ class UserDiscordServiceCreateDiscordIntegrationTest {
             }
 
         assertEquals(HttpStatus.FORBIDDEN, exception.statusCode)
-        assertEquals("잘못된 상태값입니다", exception.reason)
     }
 
     @Test

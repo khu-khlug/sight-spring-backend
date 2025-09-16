@@ -54,6 +54,13 @@ class UserDiscordService(
         discordMemberService.reflectUserInfoToDiscordUser(userId)
     }
 
+    fun removeDiscordIntegration(userId: Long) {
+        discordIntegrationRepository.findByUserId(userId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "아직 디스코드와 연동하지 않았습니다")
+
+        discordMemberService.clearDiscordIntegration(userId)
+    }
+
     fun issueDiscordIntegrationUrl(userId: Long): String {
         val state = discordStateGenerator.generate(userId)
         return discordOAuth2Adapter.createOAuth2Url(state)

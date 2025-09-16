@@ -2,6 +2,7 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.CallbackDiscordIntegrationRequest
 import com.sight.controllers.http.dto.GetDiscordIntegrationResponse
+import com.sight.controllers.http.dto.IssueDiscordIntegrationUrlResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 
@@ -45,5 +47,13 @@ class UserController(
         return ResponseEntity.status(HttpStatus.FOUND)
             .location(URI.create("https://app.khlug.org/member/integrate-discord"))
             .build()
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/users/@me/discord-integration/issue-url")
+    fun issueDiscordIntegrationUrl(requester: Requester): IssueDiscordIntegrationUrlResponse {
+        val url = userDiscordService.issueDiscordIntegrationUrl(requester.userId)
+
+        return IssueDiscordIntegrationUrlResponse(url)
     }
 }

@@ -53,4 +53,9 @@ class UserDiscordService(
 
         discordMemberService.reflectUserInfoToDiscordUser(userId)
     }
+
+    fun issueDiscordIntegrationUrl(userId: Long): String {
+        val state = discordStateGenerator.generate(userId)
+        return discordOAuth2Adapter.createOAuth2Url(state)
+    }
 }

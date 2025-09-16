@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.server.ResponseStatusException
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 @Component
@@ -105,6 +107,24 @@ class HttpDiscordOAuth2Adapter(
                 throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 사용자 정보 조회에 실패했습니다", e)
             }
         }
+
+    override fun createOAuth2Url(state: String): String {
+        val params =
+            mapOf(
+                "client_id" to clientId,
+                "redirect_uri" to redirectUri,
+                "response_type" to "code",
+                "scope" to "identify",
+                "state" to state,
+            )
+
+        val queryString =
+            params.entries.joinToString("&") { (key, value) ->
+                "$key=${URLEncoder.encode(value, StandardCharsets.UTF_8)}"
+            }
+
+        return "https://discord.com/oauth2/authorize?$queryString"
+    }
 
     private data class TokenResponse(
         @field:JsonProperty("access_token")

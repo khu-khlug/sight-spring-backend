@@ -2,8 +2,11 @@ package com.sight.core.discord
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.sight.config.DiscordConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Component
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.server.ResponseStatusException
+import java.util.Base64
 
 @Component
 class HttpDiscordOAuth2Adapter(
@@ -23,20 +27,25 @@ class HttpDiscordOAuth2Adapter(
     private val clientSecret: String,
     @Value("\${discord.oauth2.redirect-uri}")
     private val redirectUri: String,
-    private val restTemplate: RestTemplate = RestTemplate(),
+    @Qualifier("discordRestTemplate")
+    private val restTemplate: RestTemplate,
     private val objectMapper: ObjectMapper = ObjectMapper(),
+    private val discordConfig: DiscordConfig,
 ) : DiscordOAuth2Adapter {
+    private val logger = LoggerFactory.getLogger(HttpDiscordOAuth2Adapter::class.java)
+
     override suspend fun getAccessToken(code: String): String =
         withContext(Dispatchers.IO) {
+            val credentials = Base64.getEncoder().encodeToString("$clientId:$clientSecret".toByteArray())
+
             val headers =
                 HttpHeaders().apply {
                     contentType = MediaType.APPLICATION_FORM_URLENCODED
+                    set("Authorization", "Basic $credentials")
                 }
 
             val body =
                 LinkedMultiValueMap<String, String>().apply {
-                    add("client_id", clientId)
-                    add("client_secret", clientSecret)
                     add("grant_type", "authorization_code")
                     add("code", code)
                     add("redirect_uri", redirectUri)
@@ -47,7 +56,7 @@ class HttpDiscordOAuth2Adapter(
             try {
                 val response =
                     restTemplate.exchange(
-                        "https://discord.com/api/oauth2/token",
+                        "${discordConfig.getBaseUrl()}/oauth2/token",
                         HttpMethod.POST,
                         request,
                         String::class.java,
@@ -57,9 +66,11 @@ class HttpDiscordOAuth2Adapter(
                     val tokenResponse = objectMapper.readValue(response.body, TokenResponse::class.java)
                     tokenResponse.accessToken
                 } else {
+                    logger.warn("디스코드 토큰 교환 실패: status=${response.statusCode}, body=${response.body}")
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 액세스 토큰 획득에 실패했습니다")
                 }
             } catch (e: Exception) {
+                logger.error("디스코드 액세스 토큰 획득 실패: code=$code", e)
                 throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 액세스 토큰 획득에 실패했습니다", e)
             }
         }
@@ -76,7 +87,7 @@ class HttpDiscordOAuth2Adapter(
             try {
                 val response =
                     restTemplate.exchange(
-                        "https://discord.com/api/users/@me",
+                        "${discordConfig.getBaseUrl()}/users/@me",
                         HttpMethod.GET,
                         request,
                         String::class.java,
@@ -86,9 +97,11 @@ class HttpDiscordOAuth2Adapter(
                     val userResponse = objectMapper.readValue(response.body, UserResponse::class.java)
                     userResponse.id
                 } else {
+                    logger.warn("디스코드 사용자 정보 조회 실패: status=${response.statusCode}, body=${response.body}")
                     throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 사용자 정보 조회에 실패했습니다")
                 }
             } catch (e: Exception) {
+                logger.error("디스코드 사용자 정보 조회 실패", e)
                 throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 사용자 정보 조회에 실패했습니다", e)
             }
         }

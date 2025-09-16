@@ -59,4 +59,23 @@ class UserDiscordServiceTest {
             }
         assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
     }
+
+    @Test
+    fun `디스코드 연동 URL을 발급한다`() {
+        // given
+        val userId = 123L
+        val state = "generated-state"
+        val expectedUrl =
+            "https://discord.com/oauth2/authorize?" +
+                "client_id=test&redirect_uri=http%3A//localhost%3A8080/callback&response_type=code&scope=identify&state=generated-state"
+
+        given(discordStateGenerator.generate(userId)).willReturn(state)
+        given(discordOAuth2Adapter.createOAuth2Url(state)).willReturn(expectedUrl)
+
+        // when
+        val result = userDiscordService.issueDiscordIntegrationUrl(userId)
+
+        // then
+        assertEquals(expectedUrl, result)
+    }
 }

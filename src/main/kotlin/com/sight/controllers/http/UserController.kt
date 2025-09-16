@@ -10,6 +10,7 @@ import com.sight.service.UserDiscordService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PostMapping
@@ -55,5 +56,13 @@ class UserController(
         val url = userDiscordService.issueDiscordIntegrationUrl(requester.userId)
 
         return IssueDiscordIntegrationUrlResponse(url)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/users/@me/discord-integration")
+    fun deleteCurrentUserDiscordIntegration(requester: Requester): ResponseEntity<Void> {
+        userDiscordService.removeDiscordIntegration(requester.userId)
+
+        return ResponseEntity.noContent().build()
     }
 }

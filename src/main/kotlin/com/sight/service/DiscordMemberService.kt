@@ -16,6 +16,23 @@ class DiscordMemberService(
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val memberRepository: MemberRepository,
 ) {
+    fun clearDiscordIntegration(userId: Long) {
+        val discordIntegration = discordIntegrationRepository.findByUserId(userId) ?: return
+
+        val discordUserId = discordIntegration.discordUserId
+        val hasMember = discordApiAdapter.hasMember(discordUserId)
+        if (hasMember) {
+            discordApiAdapter.modifyMember(
+                DiscordApiModifyMemberParams(
+                    discordUserId = discordUserId,
+                    roles = emptyList(),
+                ),
+            )
+        }
+
+        discordIntegrationRepository.delete(discordIntegration)
+    }
+
     fun reflectUserInfoToDiscordUser(userId: Long) {
         val user = memberRepository.findById(userId).orElse(null) ?: return
         val discordIntegration = discordIntegrationRepository.findByUserId(userId) ?: return

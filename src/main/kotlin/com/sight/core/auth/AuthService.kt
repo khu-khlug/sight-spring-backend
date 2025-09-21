@@ -1,15 +1,14 @@
 package com.sight.core.auth
 
+import com.sight.core.exception.UnauthorizedException
 import com.sight.repository.MemberRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
-import org.springframework.web.server.ResponseStatusException
 
 data class AuthResponse(
     val login: Boolean,
@@ -53,7 +52,7 @@ class AuthService(
     fun getUserRole(userId: Long): UserRole {
         val member =
             memberRepository.findById(userId).orElse(null)
-                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "사용자를 찾을 수 없습니다")
+                ?: throw UnauthorizedException("사용자를 찾을 수 없습니다")
 
         return if (member.manager) UserRole.MANAGER else UserRole.USER
     }

@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.sight.core.discord.DiscordOAuth2Adapter
 import com.sight.core.discord.DiscordStateGenerator
+import com.sight.core.exception.ForbiddenException
 import com.sight.domain.discord.DiscordIntegration
 import com.sight.repository.DiscordIntegrationRepository
 import kotlinx.coroutines.runBlocking
@@ -14,7 +15,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.http.HttpStatus
-import org.springframework.web.server.ResponseStatusException
 import kotlin.test.assertEquals
 
 class UserDiscordServiceCreateDiscordIntegrationTest {
@@ -51,7 +51,7 @@ class UserDiscordServiceCreateDiscordIntegrationTest {
 
         // When & Then
         val exception =
-            assertThrows<ResponseStatusException> {
+            assertThrows<ForbiddenException> {
                 userDiscordService.createDiscordIntegration(userId, code, state)
             }
 

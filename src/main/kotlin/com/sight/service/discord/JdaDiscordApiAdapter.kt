@@ -61,7 +61,7 @@ class JdaDiscordApiAdapter(
     private fun getRoleByDiscordRole(
         guild: Guild,
         discordRole: DiscordRoleType,
-    ): Role? {
+    ): Role {
         val discordRole =
             discordRoleRepository.findByRoleType(discordRole)
                 ?: throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "적절한 디스코드 역할을 찾을 수 없습니다. 운영진에게 문의해주세요.")

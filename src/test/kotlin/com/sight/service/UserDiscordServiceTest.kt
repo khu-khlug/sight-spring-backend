@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.sight.core.discord.DiscordOAuth2Adapter
 import com.sight.core.discord.DiscordStateGenerator
+import com.sight.core.exception.NotFoundException
 import com.sight.domain.discord.DiscordIntegration
 import com.sight.repository.DiscordIntegrationRepository
 import org.junit.jupiter.api.Test
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.springframework.http.HttpStatus
-import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 
@@ -54,7 +54,7 @@ class UserDiscordServiceTest {
 
         // when & then
         val exception =
-            assertThrows<ResponseStatusException> {
+            assertThrows<NotFoundException> {
                 userDiscordService.getDiscordIntegration(userId)
             }
         assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)

@@ -1,5 +1,6 @@
 package com.sight.core.auth
 
+import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import org.springframework.web.server.ResponseStatusException
 import java.util.Optional
 import kotlin.test.assertEquals
 
@@ -71,7 +71,7 @@ class AuthServiceTest {
         whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
 
         // When & Then
-        assertThrows<ResponseStatusException> {
+        assertThrows<UnauthorizedException> {
             authService.getUserRole(userId)
         }
     }

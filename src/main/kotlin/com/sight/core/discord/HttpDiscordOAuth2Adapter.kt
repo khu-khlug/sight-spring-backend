@@ -3,6 +3,7 @@ package com.sight.core.discord
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sight.config.DiscordConfig
+import com.sight.core.exception.BadRequestException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
@@ -16,7 +17,6 @@ import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
-import org.springframework.web.server.ResponseStatusException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -69,11 +69,11 @@ class HttpDiscordOAuth2Adapter(
                     tokenResponse.accessToken
                 } else {
                     logger.warn("디스코드 토큰 교환 실패: status=${response.statusCode}, body=${response.body}")
-                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 액세스 토큰 획득에 실패했습니다")
+                    throw BadRequestException("디스코드 액세스 토큰 획득에 실패했습니다")
                 }
             } catch (e: Exception) {
                 logger.error("디스코드 액세스 토큰 획득 실패: code=$code", e)
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 액세스 토큰 획득에 실패했습니다", e)
+                throw BadRequestException("디스코드 액세스 토큰 획득에 실패했습니다")
             }
         }
 
@@ -100,11 +100,11 @@ class HttpDiscordOAuth2Adapter(
                     userResponse.id
                 } else {
                     logger.warn("디스코드 사용자 정보 조회 실패: status=${response.statusCode}, body=${response.body}")
-                    throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 사용자 정보 조회에 실패했습니다")
+                    throw BadRequestException("디스코드 사용자 정보 조회에 실패했습니다")
                 }
             } catch (e: Exception) {
                 logger.error("디스코드 사용자 정보 조회 실패", e)
-                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "디스코드 사용자 정보 조회에 실패했습니다", e)
+                throw BadRequestException("디스코드 사용자 정보 조회에 실패했습니다")
             }
         }
 

@@ -34,7 +34,7 @@ data class Member(
     @Column(name = "grade", nullable = false)
     val grade: Long = 0L,
 
-    @Column(name = "state", nullable = false, columnDefinition = "TINYINT")
+    @Column(name = "state", nullable = false, columnDefinition = "bigint")
     @Convert(converter = StudentStatusConverter::class)
     val studentStatus: StudentStatus,
 

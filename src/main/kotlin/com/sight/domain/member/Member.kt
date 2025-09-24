@@ -1,6 +1,7 @@
 package com.sight.domain.member
 
 import jakarta.persistence.Column
+import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
@@ -34,6 +35,7 @@ data class Member(
     val grade: Long = 0L,
 
     @Column(name = "state", nullable = false, columnDefinition = "bigint")
+    @Convert(converter = StudentStatusConverter::class)
     val studentStatus: StudentStatus,
 
     @Column(name = "email", length = 255)
@@ -58,6 +60,7 @@ data class Member(
     val expoint: Long = 0L,
 
     @Column(name = "active", nullable = false, columnDefinition = "TINYINT")
+    @Convert(converter = UserStatusConverter::class)
     val status: UserStatus,
 
     @Column(name = "manager", nullable = false, columnDefinition = "TINYINT")

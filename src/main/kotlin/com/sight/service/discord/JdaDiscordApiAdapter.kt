@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component
 @Component
 class JdaDiscordApiAdapter(
     private val jda: JDA,
-    @field:Value("\${discord.guild-id}") private val guildId: String,
-    @field:Value("\${discord.categories.group") private val groupCategoryId: String,
+    @param:Value("\${discord.guild-id}") private val guildId: String,
+    @param:Value("\${discord.categories.group") private val groupCategoryId: String,
 
     private val discordRoleRepository: DiscordRoleRepository,
 ) : DiscordApiAdapter {

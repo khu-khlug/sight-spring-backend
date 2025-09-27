@@ -46,6 +46,9 @@ auth:
     endpoint: ${AUTH_SERVICE_ENDPOINT:}
     api-key: ${AUTH_SERVICE_API_KEY:}
 
+internal:
+  api-key: ${INTERNAL_API_KEY:}
+
 discord:
   token: ${DISCORD_BOT_TOKEN:}
   guild-id: ${DISCORD_GUILD_ID:}
@@ -81,6 +84,9 @@ auth:
   service:
     endpoint: ${AUTH_SERVICE_ENDPOINT:}
     api-key: ${AUTH_SERVICE_API_KEY:}
+
+internal:
+  api-key: ${INTERNAL_API_KEY:}
 
 discord:
   token: ${DISCORD_BOT_TOKEN:}

@@ -10,7 +10,6 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.client.RestTemplate
-import org.springframework.web.filter.OncePerRequestFilter
 
 @Configuration
 @EnableWebSecurity
@@ -25,18 +24,37 @@ class SecurityConfig {
     @Bean
     fun filterChain(
         http: HttpSecurity,
-        authenticationFilter: AuthenticationFilter,
+        internalApiAuthenticationFilter: InternalApiAuthenticationFilter,
+        cookieAuthenticationFilter: CookieAuthenticationFilter?,
+        mockAuthenticationFilter: MockAuthenticationFilter?,
+        customAuthenticationEntryPoint: CustomAuthenticationEntryPoint,
+        customAccessDeniedHandler: CustomAccessDeniedHandler,
     ): SecurityFilterChain {
-        return http
-            .csrf { it.disable() }
-            .cors { }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .authorizeHttpRequests { auth ->
-                auth
-                    .requestMatchers("/ping", "/actuator/**", "/test/public").permitAll()
-                    .anyRequest().authenticated()
-            }
-            .addFilterBefore(authenticationFilter as OncePerRequestFilter, UsernamePasswordAuthenticationFilter::class.java)
-            .build()
+        val httpSecurity =
+            http
+                .csrf { it.disable() }
+                .cors { }
+                .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+                .authorizeHttpRequests { auth ->
+                    auth
+                        .requestMatchers("/ping", "/actuator/**", "/test/public").permitAll()
+                        .anyRequest().authenticated()
+                }
+                .exceptionHandling { exceptions ->
+                    exceptions
+                        .authenticationEntryPoint(customAuthenticationEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler)
+                }
+                .addFilterBefore(internalApiAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+
+        cookieAuthenticationFilter?.let { filter ->
+            httpSecurity.addFilterAfter(filter, InternalApiAuthenticationFilter::class.java)
+        }
+
+        mockAuthenticationFilter?.let { filter ->
+            httpSecurity.addFilterAfter(filter, InternalApiAuthenticationFilter::class.java)
+        }
+
+        return httpSecurity.build()
     }
 }

@@ -12,4 +12,6 @@ interface DiscordApiAdapter {
     fun hasMember(discordUserId: String): Boolean
 
     fun modifyMember(params: DiscordApiModifyMemberParams)
+
+    fun createTextChannel(channelName: String): String
 }

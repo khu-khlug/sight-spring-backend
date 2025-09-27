@@ -57,6 +57,20 @@ class JdaDiscordApiAdapter(
         }
     }
 
+    override fun createTextChannel(channelName: String): String {
+        return try {
+            val guild =
+                jda.getGuildById(guildId)
+                    ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
+
+            val channel = guild.createTextChannel(channelName).complete()
+            channel.id
+        } catch (e: Exception) {
+            logger.error("Failed to create Discord text channel: $channelName", e)
+            throw InternalServerErrorException("디스코드 채널 생성에 실패했습니다. 운영진에게 문의해주세요.")
+        }
+    }
+
     private fun getRoleByDiscordRole(
         guild: Guild,
         type: DiscordRoleType,

@@ -57,6 +57,8 @@ discord:
     client-secret: ${DISCORD_CLIENT_SECRET:}
     redirect-uri: ${DISCORD_REDIRECT_URI:}
     state-secret: ${DISCORD_STATE_SECRET:}
+  categories:
+    group: ${DISCORD_GROUP_CATEGORY:}
 
 ---
 spring:
@@ -96,3 +98,5 @@ discord:
     client-secret: ${DISCORD_CLIENT_SECRET:}
     redirect-uri: ${DISCORD_REDIRECT_URI:}
     state-secret: ${DISCORD_STATE_SECRET:}
+  categories:
+    group: ${DISCORD_GROUP_CATEGORY:}

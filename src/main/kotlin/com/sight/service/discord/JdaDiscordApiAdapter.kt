@@ -13,7 +13,8 @@ import org.springframework.stereotype.Component
 @Component
 class JdaDiscordApiAdapter(
     private val jda: JDA,
-    @Value("\${discord.guild-id}") private val guildId: String,
+    @field:Value("\${discord.guild-id}") private val guildId: String,
+    @field:Value("\${discord.categories.group") private val groupCategoryId: String,
 
     private val discordRoleRepository: DiscordRoleRepository,
 ) : DiscordApiAdapter {
@@ -57,13 +58,18 @@ class JdaDiscordApiAdapter(
         }
     }
 
-    override fun createTextChannel(channelName: String): String {
+    override fun createGroupTextChannel(channelName: String): String {
         return try {
             val guild =
                 jda.getGuildById(guildId)
                     ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
-            val channel = guild.createTextChannel(channelName).complete()
+            val category = guild.getCategoryById(groupCategoryId)
+            if (category == null) {
+                logger.warn("그룹 디스코드 채널 생성에 사용될 카테고리가 지정되지 않았습니다.")
+            }
+
+            val channel = guild.createTextChannel(channelName, category).complete()
             channel.id
         } catch (e: Exception) {
             logger.error("Failed to create Discord text channel: $channelName", e)

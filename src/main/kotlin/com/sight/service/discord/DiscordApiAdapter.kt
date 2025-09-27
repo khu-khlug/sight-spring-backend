@@ -1,6 +1,7 @@
 package com.sight.service.discord
 
 import com.sight.domain.discord.DiscordRoleType
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 
 data class DiscordApiModifyMemberParams(
     val discordUserId: String,
@@ -13,5 +14,5 @@ interface DiscordApiAdapter {
 
     fun modifyMember(params: DiscordApiModifyMemberParams)
 
-    fun createGroupTextChannel(channelName: String): String
+    fun createGroupTextChannel(channelName: String): TextChannel
 }

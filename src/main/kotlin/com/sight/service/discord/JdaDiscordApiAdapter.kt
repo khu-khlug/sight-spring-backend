@@ -6,6 +6,7 @@ import com.sight.repository.DiscordRoleRepository
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.Guild
 import net.dv8tion.jda.api.entities.Role
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -58,19 +59,14 @@ class JdaDiscordApiAdapter(
         }
     }
 
-    override fun createGroupTextChannel(channelName: String): String {
+    override fun createGroupTextChannel(channelName: String): TextChannel {
         return try {
             val guild =
                 jda.getGuildById(guildId)
                     ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
             val category = guild.getCategoryById(groupCategoryId)
-            if (category == null) {
-                logger.warn("그룹 디스코드 채널 생성에 사용될 카테고리가 지정되지 않았습니다.")
-            }
-
-            val channel = guild.createTextChannel(channelName, category).complete()
-            channel.id
+            guild.createTextChannel(channelName, category).complete()
         } catch (e: Exception) {
             logger.error("Failed to create Discord text channel: $channelName", e)
             throw InternalServerErrorException("디스코드 채널 생성에 실패했습니다. 운영진에게 문의해주세요.")

@@ -11,6 +11,7 @@ import com.sight.domain.group.GroupState
 import com.sight.repository.GroupDiscordChannelRepository
 import com.sight.repository.GroupRepository
 import com.sight.service.discord.DiscordApiAdapter
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -46,6 +47,7 @@ class GroupDiscordChannelServiceTest {
                 grade = GroupAccessGrade.MEMBER,
             )
         val discordChannelId = "1234567890"
+        val mockTextChannel = mock<TextChannel>()
         val groupDiscordChannel =
             GroupDiscordChannel(
                 id = "test-ulid",
@@ -53,9 +55,10 @@ class GroupDiscordChannelServiceTest {
                 discordChannelId = discordChannelId,
             )
 
+        given(mockTextChannel.id).willReturn(discordChannelId)
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
         given(groupDiscordChannelRepository.existsByGroupId(groupId)).willReturn(false)
-        given(discordApiAdapter.createTextChannel("테스트-그룹")).willReturn(discordChannelId)
+        given(discordApiAdapter.createGroupTextChannel("테스트-그룹")).willReturn(mockTextChannel)
         given(groupDiscordChannelRepository.save(any<GroupDiscordChannel>())).willReturn(groupDiscordChannel)
 
         val result = groupDiscordChannelService.createDiscordChannel(groupId, masterId)
@@ -63,7 +66,7 @@ class GroupDiscordChannelServiceTest {
         assertEquals(groupDiscordChannel.id, result.id)
         assertEquals(groupId, result.groupId)
         assertEquals(discordChannelId, result.discordChannelId)
-        verify(discordApiAdapter).createTextChannel("테스트-그룹")
+        verify(discordApiAdapter).createGroupTextChannel("테스트-그룹")
         verify(groupDiscordChannelRepository).save(any<GroupDiscordChannel>())
     }
 

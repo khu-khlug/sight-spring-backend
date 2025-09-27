@@ -1,4 +1,6 @@
 package com.sight.config
+import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -20,19 +22,18 @@ class InternalApiAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain,
     ) {
-        if (request.requestURI.startsWith("/internal/")) {
-            val apiKeyHeader = request.getHeader("x-api-key")
+        val apiKeyHeader = request.getHeader("x-api-key")
 
-            if (internalApiKey.isBlank() || apiKeyHeader.isNullOrBlank() || !Objects.equals(internalApiKey, apiKeyHeader)) {
-                SecurityContextHolder.clearContext()
-                filterChain.doFilter(request, response)
-                return
-            }
-
-            val authorities = listOf(SimpleGrantedAuthority("ROLE_INTERNAL_API"))
+        if (!internalApiKey.isBlank() &&
+            !apiKeyHeader.isNullOrBlank() &&
+            Objects.equals(internalApiKey, apiKeyHeader) &&
+            SecurityContextHolder.getContext().authentication == null
+        ) {
+            val requester = Requester(-1, UserRole.SYSTEM)
+            val authorities = listOf(SimpleGrantedAuthority("ROLE_SYSTEM"))
             val authToken =
                 UsernamePasswordAuthenticationToken(
-                    "INTERNAL_API_USER",
+                    requester,
                     null,
                     authorities,
                 )

@@ -44,7 +44,7 @@ class JdaDiscordApiAdapter(
 
             if (params.roles != null) {
                 val discordRoles =
-                    params.roles.mapNotNull { role ->
+                    params.roles.map { role ->
                         getRoleByDiscordRole(guild, role)
                     }
                 guild.modifyMemberRoles(member, discordRoles).queue(
@@ -59,10 +59,10 @@ class JdaDiscordApiAdapter(
 
     private fun getRoleByDiscordRole(
         guild: Guild,
-        discordRole: DiscordRoleType,
+        type: DiscordRoleType,
     ): Role {
         val discordRole =
-            discordRoleRepository.findByRoleType(discordRole)
+            discordRoleRepository.findByRoleType(type)
                 ?: throw InternalServerErrorException("적절한 디스코드 역할을 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
         return guild.getRoleById(discordRole.roleId)

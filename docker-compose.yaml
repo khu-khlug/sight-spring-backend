@@ -11,6 +11,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - GRADLE_OPTS=-Dorg.gradle.daemon=false
+      - INTERNAL_API_KEY=internal-api-key
 
       # Authentication
       - AUTH_SERVICE_ENDPOINT=http://mock-auth:3000

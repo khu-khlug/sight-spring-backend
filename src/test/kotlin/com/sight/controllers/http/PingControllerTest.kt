@@ -1,4 +1,4 @@
-package com.sight.controller.http
+package com.sight.controllers.http
 
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -9,7 +9,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-@WebMvcTest(com.sight.controllers.http.PingController::class, excludeAutoConfiguration = [SecurityAutoConfiguration::class])
+@WebMvcTest(PingController::class, excludeAutoConfiguration = [SecurityAutoConfiguration::class])
 class PingControllerTest {
     @Autowired
     private lateinit var mockMvc: MockMvc

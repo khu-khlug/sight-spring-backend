@@ -36,7 +36,7 @@ class GroupDiscordChannelService(
         }
 
         val channelName = generateChannelName(group.title)
-        val discordChannel = discordApiAdapter.createGroupTextChannel(channelName)
+        val discordChannel = discordApiAdapter.createGroupPrivateTextChannel(channelName)
 
         val groupDiscordChannel =
             GroupDiscordChannel(

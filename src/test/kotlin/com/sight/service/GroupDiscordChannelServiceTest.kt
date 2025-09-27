@@ -58,7 +58,7 @@ class GroupDiscordChannelServiceTest {
         given(mockTextChannel.id).willReturn(discordChannelId)
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
         given(groupDiscordChannelRepository.existsByGroupId(groupId)).willReturn(false)
-        given(discordApiAdapter.createGroupTextChannel("테스트-그룹")).willReturn(mockTextChannel)
+        given(discordApiAdapter.createGroupPrivateTextChannel("테스트-그룹")).willReturn(mockTextChannel)
         given(groupDiscordChannelRepository.save(any<GroupDiscordChannel>())).willReturn(groupDiscordChannel)
 
         val result = groupDiscordChannelService.createDiscordChannel(groupId, masterId)
@@ -66,7 +66,7 @@ class GroupDiscordChannelServiceTest {
         assertEquals(groupDiscordChannel.id, result.id)
         assertEquals(groupId, result.groupId)
         assertEquals(discordChannelId, result.discordChannelId)
-        verify(discordApiAdapter).createGroupTextChannel("테스트-그룹")
+        verify(discordApiAdapter).createGroupPrivateTextChannel("테스트-그룹")
         verify(groupDiscordChannelRepository).save(any<GroupDiscordChannel>())
     }
 

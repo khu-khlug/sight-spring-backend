@@ -4,12 +4,14 @@ import com.sight.core.exception.InternalServerErrorException
 import com.sight.domain.discord.DiscordRoleType
 import com.sight.repository.DiscordRoleRepository
 import net.dv8tion.jda.api.JDA
+import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.entities.Guild
 import net.dv8tion.jda.api.entities.Role
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.util.EnumSet
 
 @Component
 class JdaDiscordApiAdapter(
@@ -59,14 +61,20 @@ class JdaDiscordApiAdapter(
         }
     }
 
-    override fun createGroupTextChannel(channelName: String): TextChannel {
+    override fun createGroupPrivateTextChannel(channelName: String): TextChannel {
         return try {
             val guild =
                 jda.getGuildById(guildId)
                     ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
             val category = guild.getCategoryById(groupCategoryId)
-            guild.createTextChannel(channelName, category).complete()
+            val channel =
+                guild
+                    .createTextChannel(channelName, category)
+                    .addPermissionOverride(guild.publicRole, null, EnumSet.of(Permission.VIEW_CHANNEL))
+                    .complete()
+
+            channel
         } catch (e: Exception) {
             logger.error("Failed to create Discord text channel: $channelName", e)
             throw InternalServerErrorException("디스코드 채널 생성에 실패했습니다. 운영진에게 문의해주세요.")

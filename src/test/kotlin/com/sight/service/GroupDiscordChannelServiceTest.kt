@@ -8,7 +8,9 @@ import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupDiscordChannel
 import com.sight.domain.group.GroupState
+import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.GroupDiscordChannelRepository
+import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.service.discord.DiscordApiAdapter
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
@@ -24,11 +26,15 @@ import kotlin.test.assertEquals
 class GroupDiscordChannelServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupDiscordChannelRepository = mock<GroupDiscordChannelRepository>()
+    private val groupMemberRepository = mock<GroupMemberRepository>()
+    private val discordIntegrationRepository = mock<DiscordIntegrationRepository>()
     private val discordApiAdapter = mock<DiscordApiAdapter>()
     private val groupDiscordChannelService =
         GroupDiscordChannelService(
             groupRepository,
             groupDiscordChannelRepository,
+            groupMemberRepository,
+            discordIntegrationRepository,
             discordApiAdapter,
         )
 

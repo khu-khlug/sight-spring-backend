@@ -15,4 +15,9 @@ interface DiscordApiAdapter {
     fun modifyMember(params: DiscordApiModifyMemberParams)
 
     fun createGroupPrivateTextChannel(channelName: String): TextChannel
+
+    fun addMemberToChannel(
+        channelId: String,
+        discordUserId: String,
+    )
 }

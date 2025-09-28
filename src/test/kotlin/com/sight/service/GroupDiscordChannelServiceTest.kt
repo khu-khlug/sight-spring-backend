@@ -3,6 +3,7 @@ package com.sight.service
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.discord.DiscordIntegration
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
@@ -20,6 +21,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.willReturn
 import java.util.Optional
 import kotlin.test.assertEquals
 
@@ -60,10 +62,12 @@ class GroupDiscordChannelServiceTest {
                 groupId = groupId,
                 discordChannelId = discordChannelId,
             )
+        val mockGroupMasterDiscordIntegration = mock<DiscordIntegration>()
 
         given(mockTextChannel.id).willReturn(discordChannelId)
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
         given(groupDiscordChannelRepository.existsByGroupId(groupId)).willReturn(false)
+        given(discordIntegrationRepository.findByUserId(masterId)).willReturn(mockGroupMasterDiscordIntegration)
         given(discordApiAdapter.createGroupPrivateTextChannel("테스트-그룹")).willReturn(mockTextChannel)
         given(groupDiscordChannelRepository.save(any<GroupDiscordChannel>())).willReturn(groupDiscordChannel)
 

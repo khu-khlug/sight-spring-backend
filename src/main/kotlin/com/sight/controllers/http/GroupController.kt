@@ -48,7 +48,7 @@ class GroupController(
     ) {
         groupDiscordChannelService.addMemberToDiscordChannel(
             groupId = groupId,
-            memberId = request.memberId,
+            memberId = request.memberId!!,
             requesterId = requester.userId,
         )
     }

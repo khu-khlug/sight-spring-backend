@@ -81,6 +81,30 @@ class JdaDiscordApiAdapter(
         }
     }
 
+    override fun addMemberToChannel(
+        channelId: String,
+        discordUserId: String,
+    ) {
+        try {
+            val guild =
+                jda.getGuildById(guildId)
+                    ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
+
+            val channel =
+                guild.getTextChannelById(channelId)
+                    ?: throw InternalServerErrorException("디스코드 채널을 찾을 수 없습니다. 운영진에게 문의해주세요.")
+
+            val member = guild.retrieveMemberById(discordUserId).complete()
+
+            channel.upsertPermissionOverride(member)
+                .setAllowed(EnumSet.of(Permission.VIEW_CHANNEL))
+                .complete()
+        } catch (e: Exception) {
+            logger.error("Failed to add member $discordUserId to channel $channelId", e)
+            throw InternalServerErrorException("채널에 멤버를 추가하는데 실패했습니다. 운영진에게 문의해주세요.")
+        }
+    }
+
     private fun getRoleByDiscordRole(
         guild: Guild,
         type: DiscordRoleType,

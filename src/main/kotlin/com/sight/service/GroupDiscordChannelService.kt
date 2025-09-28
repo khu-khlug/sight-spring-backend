@@ -39,8 +39,14 @@ class GroupDiscordChannelService(
             throw UnprocessableEntityException("이미 디스코드 채널이 존재합니다")
         }
 
+        val groupMasterDiscordIntegration =
+            discordIntegrationRepository.findByUserId(requesterId)
+                ?: throw UnprocessableEntityException("요청자의 디스코드 연동 정보가 존재하지 않아 디스코드 채널을 만들 수 없습니다. 디스코드 연동을 먼저 진행해주세요.")
+
         val channelName = generateChannelName(group.title)
         val discordChannel = discordApiAdapter.createGroupPrivateTextChannel(channelName)
+
+        discordApiAdapter.addMemberToChannel(discordChannel.id, groupMasterDiscordIntegration.discordUserId)
 
         val groupDiscordChannel =
             GroupDiscordChannel(

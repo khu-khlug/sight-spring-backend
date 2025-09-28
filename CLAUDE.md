@@ -77,6 +77,40 @@
 - Spring Boot 테스팅 컨벤션을 따르며 `@Autowired` MockMvc 사용
 - 컨트롤러 테스트 시 전체 패키지 경로 참조 (예: `com.sight.controllers.api.PingController::class`)
 
+#### 서비스 테스트 스타일 가이드
+- Mock 생성: `mock<Type>()` 함수 사용 (Mockito 어노테이션 사용 금지)
+- Service 인스턴스 생성: 생성자에 직접 mock 객체들 전달
+- Stubbing: `given().willReturn()` 패턴 사용 (`when().thenReturn()` 사용 금지)
+- 예외 테스트: `assertThrows<ExceptionType>` 사용 (`assertThrows(ExceptionType::class.java)` 사용 금지)
+- 검증: `verify()` 메서드 사용하여 mock 호출 확인
+
+예시:
+```kotlin
+class ServiceTest {
+    private val repository = mock<Repository>()
+    private val service = Service(repository)
+
+    @Test
+    fun `테스트 메서드`() {
+        given(repository.findById(1L)).willReturn(testData)
+
+        val result = service.method(1L)
+
+        verify(repository).findById(1L)
+        assertEquals(expected, result)
+    }
+
+    @Test
+    fun `예외 테스트`() {
+        given(repository.findById(1L)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            service.method(1L)
+        }
+    }
+}
+```
+
 ### 개발 환경
 - Docker Compose는 볼륨 마운팅을 통한 라이브 리로드 제공
 - Docker 환경에서 Gradle 데몬 비활성화

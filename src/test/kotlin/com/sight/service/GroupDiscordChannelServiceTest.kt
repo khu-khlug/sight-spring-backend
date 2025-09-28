@@ -22,6 +22,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.willReturn
+import java.time.LocalDateTime
 import java.util.Optional
 import kotlin.test.assertEquals
 
@@ -135,6 +136,39 @@ class GroupDiscordChannelServiceTest {
 
         assertThrows<UnprocessableEntityException> {
             groupDiscordChannelService.createDiscordChannel(groupId, masterId)
+        }
+    }
+
+    @Test
+    fun `그룹 ID로 디스코드 채널 정보를 조회한다`() {
+        val groupId = 1L
+        val groupDiscordChannel =
+            GroupDiscordChannel(
+                id = "test-ulid",
+                groupId = groupId,
+                discordChannelId = "1234567890",
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(groupDiscordChannel)
+
+        val result = groupDiscordChannelService.getDiscordChannelByGroupId(groupId)
+
+        assertEquals(groupDiscordChannel.id, result.id)
+        assertEquals(groupId, result.groupId)
+        assertEquals("1234567890", result.discordChannelId)
+        verify(groupDiscordChannelRepository).findByGroupId(groupId)
+    }
+
+    @Test
+    fun `존재하지 않는 그룹의 디스코드 채널 조회 시 NotFoundException이 발생한다`() {
+        val groupId = 1L
+
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            groupDiscordChannelService.getDiscordChannelByGroupId(groupId)
         }
     }
 }

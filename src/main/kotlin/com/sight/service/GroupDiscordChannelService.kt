@@ -89,6 +89,12 @@ class GroupDiscordChannelService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun getDiscordChannelByGroupId(groupId: Long): GroupDiscordChannel {
+        return groupDiscordChannelRepository.findByGroupId(groupId)
+            ?: throw NotFoundException("해당 그룹의 디스코드 채널이 존재하지 않습니다")
+    }
+
     private fun validateMemberAddPermission(
         group: com.sight.domain.group.Group,
         memberId: Long,

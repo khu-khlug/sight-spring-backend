@@ -233,15 +233,23 @@ class GroupDiscordChannelServiceTest {
     }
 
     @Test
-    fun `디스코드 연동 정보가 없으면 채널 참여 확인 시 NotFoundException이 발생한다`() {
+    fun `디스코드 연동 정보가 없으면 채널 참여 확인 시 false를 반환한다`() {
         val groupId = 1L
         val memberId = 200L
+        val discordChannelId = "test-channel-id"
+        val testGroupDiscordChannel =
+            GroupDiscordChannel(
+                id = "test-id",
+                groupId = groupId,
+                discordChannelId = discordChannelId,
+            )
 
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
         given(discordIntegrationRepository.findByUserId(memberId)).willReturn(null)
 
-        assertThrows<NotFoundException> {
-            groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
-        }
+        val result = groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
+
+        assertEquals(false, result)
     }
 
     @Test

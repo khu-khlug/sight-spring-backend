@@ -20,4 +20,9 @@ interface DiscordApiAdapter {
         channelId: String,
         discordUserId: String,
     )
+
+    fun isUserInChannel(
+        channelId: String,
+        discordUserId: String,
+    ): Boolean
 }

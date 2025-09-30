@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CheckUserInGroupDiscordChannelResponse
 import com.sight.controllers.http.dto.GetGroupDiscordChannelResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
@@ -25,6 +26,23 @@ class InternalGroupController(
             discordChannelId = groupDiscordChannel.discordChannelId,
             createdAt = groupDiscordChannel.createdAt,
             updatedAt = groupDiscordChannel.updatedAt,
+        )
+    }
+
+    @Auth([UserRole.SYSTEM])
+    @GetMapping("/internal/groups/{groupId}/members/{userId}/discord-participation")
+    fun checkUserInGroupDiscordChannel(
+        @PathVariable groupId: Long,
+        @PathVariable userId: Long,
+    ): CheckUserInGroupDiscordChannelResponse {
+        val isInChannel =
+            groupDiscordChannelService.checkUserInDiscordChannel(
+                groupId = groupId,
+                userId = userId,
+            )
+
+        return CheckUserInGroupDiscordChannelResponse(
+            isInChannel = isInChannel,
         )
     }
 }

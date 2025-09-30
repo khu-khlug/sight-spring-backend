@@ -105,6 +105,23 @@ class JdaDiscordApiAdapter(
         }
     }
 
+    override fun isUserInChannel(
+        channelId: String,
+        discordUserId: String,
+    ): Boolean {
+        return try {
+            val guild = jda.getGuildById(guildId) ?: return false
+            val channel = guild.getTextChannelById(channelId) ?: return false
+            val member = guild.retrieveMemberById(discordUserId).complete()
+
+            val permissionOverride = channel.getPermissionOverride(member)
+            permissionOverride?.allowed?.contains(Permission.VIEW_CHANNEL) == true
+        } catch (e: Exception) {
+            logger.debug("Failed to check if user $discordUserId is in channel $channelId", e)
+            false
+        }
+    }
+
     private fun getRoleByDiscordRole(
         guild: Guild,
         type: DiscordRoleType,

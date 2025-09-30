@@ -95,6 +95,25 @@ class GroupDiscordChannelService(
             ?: throw NotFoundException("해당 그룹의 디스코드 채널이 존재하지 않습니다")
     }
 
+    @Transactional(readOnly = true)
+    fun checkUserInDiscordChannel(
+        groupId: Long,
+        userId: Long,
+    ): Boolean {
+        val discordIntegration =
+            discordIntegrationRepository.findByUserId(userId)
+                ?: throw NotFoundException("아직 디스코드에 연동하지 않았습니다. 디스코드 연동 후 다시 시도해주세요.")
+
+        val groupDiscordChannel =
+            groupDiscordChannelRepository.findByGroupId(groupId)
+                ?: throw NotFoundException("해당 그룹이 아직 디스코드 채널을 생성하지 않았습니다.")
+
+        return discordApiAdapter.isUserInChannel(
+            groupDiscordChannel.discordChannelId,
+            discordIntegration.discordUserId,
+        )
+    }
+
     private fun validateMemberAddPermission(
         group: com.sight.domain.group.Group,
         memberId: Long,

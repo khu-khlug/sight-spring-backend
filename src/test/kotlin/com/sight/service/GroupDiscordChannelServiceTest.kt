@@ -171,4 +171,97 @@ class GroupDiscordChannelServiceTest {
             groupDiscordChannelService.getDiscordChannelByGroupId(groupId)
         }
     }
+
+    @Test
+    fun `유저가 그룹 디스코드 채널에 참여되어 있으면 true를 반환한다`() {
+        val groupId = 1L
+        val memberId = 200L
+        val discordChannelId = "test-channel-id"
+        val discordUserId = "test-discord-user-id"
+        val testDiscordIntegration =
+            DiscordIntegration(
+                id = "integration-id",
+                userId = memberId,
+                discordUserId = discordUserId,
+                createdAt = LocalDateTime.now(),
+            )
+        val testGroupDiscordChannel =
+            GroupDiscordChannel(
+                id = "test-id",
+                groupId = groupId,
+                discordChannelId = discordChannelId,
+            )
+
+        given(discordIntegrationRepository.findByUserId(memberId)).willReturn(testDiscordIntegration)
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
+        given(discordApiAdapter.isUserInChannel(discordChannelId, discordUserId)).willReturn(true)
+
+        val result = groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
+
+        assertEquals(true, result)
+        verify(discordApiAdapter).isUserInChannel(discordChannelId, discordUserId)
+    }
+
+    @Test
+    fun `유저가 그룹 디스코드 채널에 참여되어 있지 않으면 false를 반환한다`() {
+        val groupId = 1L
+        val memberId = 200L
+        val discordChannelId = "test-channel-id"
+        val discordUserId = "test-discord-user-id"
+        val testDiscordIntegration =
+            DiscordIntegration(
+                id = "integration-id",
+                userId = memberId,
+                discordUserId = discordUserId,
+                createdAt = LocalDateTime.now(),
+            )
+        val testGroupDiscordChannel =
+            GroupDiscordChannel(
+                id = "test-id",
+                groupId = groupId,
+                discordChannelId = discordChannelId,
+            )
+
+        given(discordIntegrationRepository.findByUserId(memberId)).willReturn(testDiscordIntegration)
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
+        given(discordApiAdapter.isUserInChannel(discordChannelId, discordUserId)).willReturn(false)
+
+        val result = groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
+
+        assertEquals(false, result)
+        verify(discordApiAdapter).isUserInChannel(discordChannelId, discordUserId)
+    }
+
+    @Test
+    fun `디스코드 연동 정보가 없으면 채널 참여 확인 시 NotFoundException이 발생한다`() {
+        val groupId = 1L
+        val memberId = 200L
+
+        given(discordIntegrationRepository.findByUserId(memberId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
+        }
+    }
+
+    @Test
+    fun `그룹 디스코드 채널이 없으면 참여 확인 시 NotFoundException이 발생한다`() {
+        val groupId = 1L
+        val memberId = 200L
+        val discordUserId = "test-discord-user-id"
+        val testDiscordIntegration =
+            DiscordIntegration(
+                id = "integration-id",
+                userId = memberId,
+                discordUserId = discordUserId,
+                createdAt = LocalDateTime.now(),
+            )
+
+        given(discordIntegrationRepository.findByUserId(memberId)).willReturn(testDiscordIntegration)
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            groupDiscordChannelService.checkUserInDiscordChannel(groupId, memberId)
+        }
+    }
 }

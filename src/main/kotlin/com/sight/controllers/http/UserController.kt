@@ -1,12 +1,14 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.CallbackDiscordIntegrationRequest
+import com.sight.controllers.http.dto.GetCurrentUserResponse
 import com.sight.controllers.http.dto.GetDiscordIntegrationResponse
 import com.sight.controllers.http.dto.IssueDiscordIntegrationUrlResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.UserDiscordService
+import com.sight.service.UserService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -20,7 +22,24 @@ import java.net.URI
 @RestController
 class UserController(
     private val userDiscordService: UserDiscordService,
+    private val userService: UserService,
 ) {
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/users/@me")
+    fun getCurrentUser(requester: Requester): GetCurrentUserResponse {
+        val member = userService.getMemberById(requester.userId)
+
+        return GetCurrentUserResponse(
+            id = member.id,
+            name = member.name,
+            manager = member.manager,
+            status = member.status,
+            studentStatus = member.studentStatus,
+            createdAt = member.createdAt,
+            updatedAt = member.updatedAt,
+        )
+    }
+
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/users/@me/discord-integration")
     fun getCurrentUserDiscordIntegration(requester: Requester): GetDiscordIntegrationResponse {

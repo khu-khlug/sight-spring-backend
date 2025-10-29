@@ -1,18 +1,26 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CreateTransactionRequest
+import com.sight.controllers.http.dto.CreateTransactionResponse
 import com.sight.controllers.http.dto.ListTransactionResponse
 import com.sight.controllers.http.dto.ListTransactionsResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.TransactionService
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -33,8 +41,6 @@ class TransactionController(
                 ListTransactionResponse(
                     id = transaction.id,
                     author = transaction.author,
-                    year = transaction.year,
-                    month = transaction.month,
                     item = transaction.item,
                     price = transaction.price,
                     quantity = transaction.quantity,
@@ -56,9 +62,37 @@ class TransactionController(
     @Auth([UserRole.MANAGER])
     @DeleteMapping("/transactions/{id}")
     fun deleteTransaction(
-        @PathVariable id: Long,
+        @PathVariable id: String,
     ): ResponseEntity<Void> {
         transactionService.deleteTransaction(id)
         return ResponseEntity.noContent().build()
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/transactions")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createTransaction(
+        @Valid @RequestBody request: CreateTransactionRequest,
+        requester: Requester,
+    ): CreateTransactionResponse {
+        val transaction =
+            transactionService.createTransaction(
+                request = request,
+                authorId = requester.userId,
+            )
+
+        return CreateTransactionResponse(
+            id = transaction.id,
+            author = transaction.author,
+            item = transaction.item,
+            price = transaction.price,
+            quantity = transaction.quantity,
+            total = transaction.total,
+            cumulative = transaction.cumulative,
+            place = transaction.place,
+            note = transaction.note,
+            usedAt = transaction.usedAt,
+            createdAt = transaction.createdAt,
+        )
     }
 }

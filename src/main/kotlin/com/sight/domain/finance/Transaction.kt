@@ -2,7 +2,10 @@ package com.sight.domain.finance
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
@@ -10,19 +13,22 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "khlug_finance")
+@Table(
+    name = "transaction",
+    indexes = [
+        Index(name = "idx_transaction_usedAt_createdAt", columnList = "used_at, created_at"),
+    ],
+)
 data class Transaction(
     @Id
-    val id: Long,
+    val id: String,
 
     @Column(name = "author", nullable = false)
     val author: Long,
 
-    @Column(name = "year", nullable = false)
-    val year: Int,
-
-    @Column(name = "month", nullable = false)
-    val month: Int,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false)
+    val type: TransactionType,
 
     @Column(name = "item", length = 255)
     val item: String?,

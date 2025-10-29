@@ -2,11 +2,16 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.ListTransactionResponse
 import com.sight.controllers.http.dto.ListTransactionsResponse
+import com.sight.core.auth.Auth
+import com.sight.core.auth.UserRole
 import com.sight.service.TransactionService
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
@@ -15,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController
 class TransactionController(
     private val transactionService: TransactionService,
 ) {
+    @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/transactions")
     fun getTransactions(
         @RequestParam year: Int,
@@ -45,5 +51,14 @@ class TransactionController(
             count = result.count,
             transactions = transactionResponses,
         )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/transactions/{id}")
+    fun deleteTransaction(
+        @PathVariable id: Long,
+    ): ResponseEntity<Void> {
+        transactionService.deleteTransaction(id)
+        return ResponseEntity.noContent().build()
     }
 }

@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.NotFoundException
 import com.sight.domain.finance.Transaction
 import com.sight.repository.TransactionRepository
 import org.springframework.data.domain.Page
@@ -38,5 +39,14 @@ class TransactionService(
             count = page.totalElements,
             transactions = page.content,
         )
+    }
+
+    fun deleteTransaction(id: Long) {
+        val transaction =
+            transactionRepository.findById(id).orElseThrow {
+                NotFoundException("해당 장부 내역을 찾을 수 없습니다")
+            }
+
+        transactionRepository.delete(transaction)
     }
 }

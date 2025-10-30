@@ -116,6 +116,37 @@ class ServiceTest {
 - Docker 환경에서 Gradle 데몬 비활성화
 - Docker에서 로컬 프로파일 자동 활성화
 
+### DTO 네이밍 규칙
+- **목록 조회 API**: `List` 접두사 사용
+  - 응답 DTO: `List{리소스}Response` (예: `ListTransactionResponse`, `ListUserResponse`)
+  - 목록 전체 응답 DTO: `List{리소스}sResponse` (예: `ListTransactionsResponse`, `ListUsersResponse`)
+  - 예시:
+    ```kotlin
+    data class ListTransactionResponse(...)  // 단일 항목 DTO
+    data class ListTransactionsResponse(     // 목록 전체 응답 DTO
+        val count: Long,
+        val transactions: List<ListTransactionResponse>
+    )
+    ```
+- **단건 조회 API**: `Get` 접두사 사용
+  - 응답 DTO: `Get{리소스}Response` (예: `GetTransactionResponse`, `GetUserResponse`)
+- **생성 API**: `Create` 또는 `Add` 접두사 사용
+  - 요청 DTO: `Create{리소스}Request` 또는 `Add{리소스}Request`
+  - 응답 DTO: `Create{리소스}Response` 또는 `Add{리소스}Response`
+- **수정 API**: `Update` 접두사 사용
+  - 요청 DTO: `Update{리소스}Request`
+  - 응답 DTO: `Update{리소스}Response`
+- **삭제 API**: `Delete` 접두사 사용
+  - 요청 DTO: `Delete{리소스}Request` (필요시)
+  - 응답 DTO: `Delete{리소스}Response` (필요시)
+
+### Service 메서드 네이밍 규칙
+- **목록 조회**: `list{리소스}s` (예: `listTransactions`, `listUsers`)
+- **단건 조회**: `get{리소스}ById` 또는 `get{리소스}By{조건}` (예: `getUserById`, `getUserByEmail`)
+- **생성**: `create{리소스}` 또는 `add{리소스}` (예: `createUser`, `addGroupMember`)
+- **수정**: `update{리소스}` (예: `updateUser`, `updateGroup`)
+- **삭제**: `delete{리소스}` (예: `deleteUser`, `deleteGroup`)
+
 ### 에러 메시지 작성 규칙
 - **모든 에러 메시지는 한국어로 작성**: ResponseStatusException, IllegalStateException 등의 메시지는 한국어 사용
 - 사용자에게 보여질 수 있는 모든 오류 문구는 한국어로 작성

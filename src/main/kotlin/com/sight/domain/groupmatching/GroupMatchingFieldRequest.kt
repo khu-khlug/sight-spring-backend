@@ -20,11 +20,14 @@ data class GroupMatchingFieldRequest(
     @Column(name = "field_name", nullable = false, length = 255)
     val fieldName: String,
 
-    @Column(name = "applied_at")
-    val appliedAt: LocalDateTime? = null,
+    @Column(name = "reason", length = 1000)
+    val reason: String? = null,
 
-    @Column(name = "apply_reason", length = 1000)
-    val applyReason: String? = null,
+    @Column(name = "approved_at")
+    val approvedAt: LocalDateTime? = null,
+
+    @Column(name = "denied_at")
+    val deniedAt: LocalDateTime? = null,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

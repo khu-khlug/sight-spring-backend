@@ -18,10 +18,11 @@ class GroupMatchingFieldService(
             throw UnprocessableEntityException("이미 존재하는 관심분야 이름입니다")
         }
 
-        val field = GroupMatchingField(
-            id = UlidCreator.getUlid().toString(),
-            name = request.fieldName,
-        )
+        val field =
+            GroupMatchingField(
+                id = UlidCreator.getUlid().toString(),
+                name = request.fieldName,
+            )
 
         return groupMatchingFieldRepository.save(field)
     }

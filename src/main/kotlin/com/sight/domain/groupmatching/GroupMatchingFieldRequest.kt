@@ -29,7 +29,7 @@ data class GroupMatchingFieldRequest(
     @Column(name = "rejected_at")
     val rejectedAt: LocalDateTime? = null,
 
-    @Column(name = "reject_reason")
+    @Column(name = "reject_reason", length = 1000)
     val rejectReason: String? = null,
 
     @CreationTimestamp

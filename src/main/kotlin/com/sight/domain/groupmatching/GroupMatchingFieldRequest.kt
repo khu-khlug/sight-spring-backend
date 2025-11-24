@@ -20,8 +20,8 @@ data class GroupMatchingFieldRequest(
     @Column(name = "field_name", nullable = false, length = 255)
     val fieldName: String,
 
-    @Column(name = "request_reason", length = 1000)
-    val requestReason: String? = null,
+    @Column(name = "request_reason", nullable = false, length = 1000)
+    val requestReason: String,
 
     @Column(name = "approved_at")
     val approvedAt: LocalDateTime? = null,

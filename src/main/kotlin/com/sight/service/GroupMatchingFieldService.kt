@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.controllers.http.dto.AddGroupMatchingFieldRequest
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.repository.GroupMatchingFieldRepository
@@ -25,5 +26,14 @@ class GroupMatchingFieldService(
             )
 
         return groupMatchingFieldRepository.save(field)
+    }
+
+    @Transactional
+    fun deleteGroupMatchingField(fieldId: String) {
+        if (!groupMatchingFieldRepository.existsById(fieldId)) {
+            throw NotFoundException("존재하지 않는 관심분야입니다")
+        }
+
+        groupMatchingFieldRepository.deleteById(fieldId)
     }
 }

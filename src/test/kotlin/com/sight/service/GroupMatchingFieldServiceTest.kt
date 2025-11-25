@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.controllers.http.dto.AddGroupMatchingFieldRequest
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.repository.GroupMatchingFieldRepository
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 
 class GroupMatchingFieldServiceTest {
@@ -48,5 +50,33 @@ class GroupMatchingFieldServiceTest {
             groupMatchingFieldService.addGroupMatchingField(request)
         }
         verify(groupMatchingFieldRepository).existsByName(request.fieldName)
+    }
+
+    @Test
+    fun `deleteGroupMatchingField는 존재하는 관심분야를 삭제한다`() {
+        // given
+        val fieldId = "field-123"
+        given(groupMatchingFieldRepository.existsById(fieldId)).willReturn(true)
+
+        // when
+        groupMatchingFieldService.deleteGroupMatchingField(fieldId)
+
+        // then
+        verify(groupMatchingFieldRepository).existsById(fieldId)
+        verify(groupMatchingFieldRepository).deleteById(fieldId)
+    }
+
+    @Test
+    fun `deleteGroupMatchingField는 존재하지 않는 관심분야면 NotFoundException을 던진다`() {
+        // given
+        val fieldId = "non-existent"
+        given(groupMatchingFieldRepository.existsById(fieldId)).willReturn(false)
+
+        // when & then
+        assertThrows<NotFoundException> {
+            groupMatchingFieldService.deleteGroupMatchingField(fieldId)
+        }
+        verify(groupMatchingFieldRepository).existsById(fieldId)
+        verify(groupMatchingFieldRepository, never()).deleteById(any())
     }
 }

@@ -14,7 +14,7 @@ class GroupMatchingFieldService(
 ) {
     @Transactional
     fun addGroupMatchingField(request: AddGroupMatchingFieldRequest): GroupMatchingField {
-        if (groupMatchingFieldRepository.existsByName(request.fieldName)) {
+        if (groupMatchingFieldRepository.existsByNameAndObsoletedAtIsNull(request.fieldName)) {
             throw UnprocessableEntityException("이미 존재하는 관심분야 이름입니다")
         }
 

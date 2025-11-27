@@ -18,9 +18,10 @@ class GroupMatchingAnswerController(
     fun getAnswers(
         @PathVariable groupMatchingId: String,
         @RequestParam(required = false) groupType: String?,
+        @RequestParam(required = false) fieldId: String?,
         @RequestParam(required = false, defaultValue = "0") offset: Int,
         @RequestParam(required = false, defaultValue = "20") limit: Int,
     ): GetAnswersResponse {
-        return answerService.getAllAnswers(groupMatchingId, groupType, offset, limit)
+        return answerService.getAllAnswers(groupMatchingId, groupType, fieldId, offset, limit)
     }
 }

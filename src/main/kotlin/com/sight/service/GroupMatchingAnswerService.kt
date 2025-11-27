@@ -6,6 +6,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.domain.group.GroupCategory
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
 import org.springframework.stereotype.Service
@@ -16,6 +17,7 @@ class GroupMatchingAnswerService(
     private val answerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val subjectRepository: GroupMatchingSubjectRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
+    private val fieldRepository: GroupMatchingFieldRepository,
 ) {
     companion object {
         private const val DEFAULT_OFFSET = 0
@@ -25,10 +27,11 @@ class GroupMatchingAnswerService(
     fun getAllAnswers(
         groupMatchingId: String,
         groupType: String? = null,
+        fieldId: String? = null,
         offset: Int = DEFAULT_OFFSET,
         limit: Int = DEFAULT_LIMIT,
     ): GetAnswersResponse {
-        // 1. groupType 검증 - STUDY와 PROJECT만 허용
+        // groupType 검증 - STUDY와 PROJECT만 허용
         val groupTypeEnum: GroupCategory? =
             groupType?.let {
                 when (it.uppercase()) {
@@ -38,7 +41,7 @@ class GroupMatchingAnswerService(
                 }
             }
 
-        // 2. offset/limit 검증
+        // offset/limit 검증
         if (offset < 0) {
             throw BadRequestException("offset은 0 이상이어야 합니다")
         }
@@ -46,17 +49,28 @@ class GroupMatchingAnswerService(
             throw BadRequestException("limit은 양의 정수여야 합니다")
         }
 
-        // 3. 응답 조회 & 필터링
         var answers = answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId)
 
-        // groupType 필터링
+        // fieldId 검증 및 필터링
+        if (fieldId != null) {
+            if (!fieldRepository.existsById(fieldId)) {
+                throw BadRequestException("유효하지 않은 fieldId입니다")
+            } else {
+                answers =
+                    answers.filter { answer ->
+                        answerFieldRepository.findAllByAnswerId(answer.id)
+                            .any { it.fieldId == fieldId }
+                    }
+            }
+        }
+        // groupType 검증 및 필터링
         if (groupTypeEnum != null) {
             answers = answers.filter { it.groupType == groupTypeEnum }
         }
 
         val total = answers.size
 
-        // 4. 페이지네이션
+        // 페이지네이션
         // drop(offset): offset개 요소를 건너뜀 (offset >= size면 빈 리스트 반환)
         // take(limit): 최대 limit개 요소를 가져옴 (남은 요소가 limit보다 적으면 남은 것만 반환)
         // 결과: offset이 범위를 벗어나도 에러 없이 빈 리스트 반환
@@ -65,7 +79,7 @@ class GroupMatchingAnswerService(
                 .drop(offset)
                 .take(limit)
 
-        // 5. DTO 변환
+        // DTO 변환
         val answerDtos =
             pagedAnswers.map { answer ->
                 AnswerDto(

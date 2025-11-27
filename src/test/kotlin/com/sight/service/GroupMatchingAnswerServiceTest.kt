@@ -6,6 +6,7 @@ import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.GroupMatchingAnswerField
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -20,6 +21,7 @@ class GroupMatchingAnswerServiceTest {
     private val answerFieldRepository = mock<GroupMatchingAnswerFieldRepository>()
     private val subjectRepository = mock<GroupMatchingSubjectRepository>()
     private val matchedGroupRepository = mock<MatchedGroupRepository>()
+    private val fieldRepository = mock<GroupMatchingFieldRepository>()
 
     private val service =
         GroupMatchingAnswerService(
@@ -27,6 +29,7 @@ class GroupMatchingAnswerServiceTest {
             answerFieldRepository,
             subjectRepository,
             matchedGroupRepository,
+            fieldRepository,
         )
 
     private fun mockAnswerField(
@@ -234,6 +237,118 @@ class GroupMatchingAnswerServiceTest {
         assertEquals("ans-1", result.answers[0].answerId)
         assertEquals(GroupCategory.STUDY, result.answers[0].groupType)
         assertEquals(1, result.total) // 필터링 후 개수
+    }
+
+    // === fieldId 필터링 테스트 ===
+
+    @Test
+    fun `getAllAnswers는 fieldId가 유효하지 않으면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val invalidFieldId = "invalid-field"
+        given(fieldRepository.existsById(invalidFieldId)).willReturn(false)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, fieldId = invalidFieldId)
+        }
+    }
+
+    @Test
+    fun `getAllAnswers는 fieldId 필터링이 동작한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val fieldId1 = "field-1"
+        val fieldId2 = "field-2"
+        val answer1 =
+            GroupMatchingAnswer(
+                id = "ans-1",
+                userId = 1L,
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                groupMatchingId = groupMatchingId,
+            )
+        val answer2 =
+            GroupMatchingAnswer(
+                id = "ans-2",
+                userId = 2L,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
+            .willReturn(listOf(answer1, answer2))
+        given(fieldRepository.existsById(fieldId1)).willReturn(true)
+        given(answerFieldRepository.findAllByAnswerId("ans-1"))
+            .willReturn(listOf(mockAnswerField("ans-1", fieldId1)))
+        given(answerFieldRepository.findAllByAnswerId("ans-2"))
+            .willReturn(listOf(mockAnswerField("ans-2", fieldId2)))
+        given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+
+        // when
+        val result = service.getAllAnswers(groupMatchingId, fieldId = fieldId1)
+
+        // then
+        assertEquals(1, result.answers.size)
+        assertEquals("ans-1", result.answers[0].answerId)
+        assertEquals(1, result.total) // fieldId1을 가진 답변만
+    }
+
+    @Test
+    fun `getAllAnswers는 fieldId와 groupType을 함께 적용한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val fieldId = "field-1"
+        val answers =
+            listOf(
+                GroupMatchingAnswer(
+                    id = "ans-1",
+                    userId = 1L,
+                    groupType = GroupCategory.STUDY,
+                    isPreferOnline = true,
+                    groupMatchingId = groupMatchingId,
+                ),
+                GroupMatchingAnswer(
+                    id = "ans-2",
+                    userId = 2L,
+                    groupType = GroupCategory.PROJECT,
+                    isPreferOnline = false,
+                    groupMatchingId = groupMatchingId,
+                ),
+                GroupMatchingAnswer(
+                    id = "ans-3",
+                    userId = 3L,
+                    groupType = GroupCategory.STUDY,
+                    isPreferOnline = true,
+                    groupMatchingId = groupMatchingId,
+                ),
+            )
+
+        given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
+            .willReturn(answers)
+        given(fieldRepository.existsById(fieldId)).willReturn(true)
+        // ans-1: STUDY + field-1 (✓)
+        given(answerFieldRepository.findAllByAnswerId("ans-1"))
+            .willReturn(listOf(mockAnswerField("ans-1", fieldId)))
+        given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        // ans-2: PROJECT + field-1 (✗ - groupType 불일치)
+        given(answerFieldRepository.findAllByAnswerId("ans-2"))
+            .willReturn(listOf(mockAnswerField("ans-2", fieldId)))
+        // ans-3: STUDY + field-2 (✗ - fieldId 불일치)
+        given(answerFieldRepository.findAllByAnswerId("ans-3"))
+            .willReturn(listOf(mockAnswerField("ans-3", "field-2")))
+
+        // when
+        val result = service.getAllAnswers(groupMatchingId, groupType = "STUDY", fieldId = fieldId)
+
+        // then
+        assertEquals(1, result.answers.size)
+        assertEquals("ans-1", result.answers[0].answerId)
+        assertEquals(GroupCategory.STUDY, result.answers[0].groupType)
+        assertEquals(1, result.total) // STUDY이면서 field-1을 가진 답변만
     }
 
     // === 페이지네이션 테스트 ===

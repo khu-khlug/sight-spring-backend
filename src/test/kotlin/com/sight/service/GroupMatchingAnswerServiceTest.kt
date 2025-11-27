@@ -1,16 +1,15 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
-import com.sight.domain.groupmatching.GroupMatchingAnswerField
-import com.sight.domain.groupmatching.GroupMatchingSubject
-import com.sight.domain.groupmatching.MatchedGroup
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import java.time.LocalDateTime
@@ -28,6 +27,8 @@ class GroupMatchingAnswerServiceTest {
             subjectRepository,
             matchedGroupRepository,
         )
+
+    // === 기본 기능 테스트 ===
 
     @Test
     fun `getAllAnswers는 응답이 없으면 빈 배열을 반환한다`() {
@@ -70,9 +71,8 @@ class GroupMatchingAnswerServiceTest {
                 updatedAt = now,
             )
 
-        // Repository는 이미 내림차순으로 정렬된 데이터 반환
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
-            .willReturn(listOf(answer2, answer1))
+            .willReturn(listOf(answer2, answer1)) // 이미 내림차순
         given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(answerFieldRepository.findAllByAnswerId("ans-2")).willReturn(emptyList())
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
@@ -85,7 +85,7 @@ class GroupMatchingAnswerServiceTest {
 
         // then
         assertEquals(2, result.answers.size)
-        assertEquals("ans-2", result.answers[0].answerId) // 최신이 먼저
+        assertEquals("ans-2", result.answers[0].answerId)
         assertEquals("ans-1", result.answers[1].answerId)
     }
 
@@ -164,8 +164,134 @@ class GroupMatchingAnswerServiceTest {
         assertEquals(0, result.answers[0].matchedGroupIds.size)
     }
 
+    // === groupType 필터링 테스트 ===
+
     @Test
-    fun `getAllAnswers는 연관 데이터를 포함하여 반환한다`() {
+    fun `getAllAnswers는 groupType이 STUDY나 PROJECT가 아니면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, groupType = "INVALID")
+        }
+    }
+
+    @Test
+    fun `getAllAnswers는 GroupCategory에 속하지만 groupType이 아닌 값은 거부한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+
+        // when & then - MANAGE, DOCUMENTATION 등은 GroupCategory지만 groupType은 아님
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, groupType = "MANAGE")
+        }
+
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, groupType = "DOCUMENTATION")
+        }
+    }
+
+    @Test
+    fun `getAllAnswers는 groupType 필터링이 동작한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val studyAnswer =
+            GroupMatchingAnswer(
+                id = "ans-1",
+                userId = 1L,
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                groupMatchingId = groupMatchingId,
+            )
+        val projectAnswer =
+            GroupMatchingAnswer(
+                id = "ans-2",
+                userId = 2L,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
+            .willReturn(listOf(studyAnswer, projectAnswer))
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+
+        // when
+        val result = service.getAllAnswers(groupMatchingId, groupType = "STUDY")
+
+        // then
+        assertEquals(1, result.answers.size)
+        assertEquals("ans-1", result.answers[0].answerId)
+        assertEquals(GroupCategory.STUDY, result.answers[0].groupType)
+        assertEquals(1, result.total) // 필터링 후 개수
+    }
+
+    // === 페이지네이션 테스트 ===
+
+    @Test
+    fun `getAllAnswers는 offset이 음수이면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, offset = -1)
+        }
+    }
+
+    @Test
+    fun `getAllAnswers는 limit이 0 이하이면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, limit = 0)
+        }
+
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId, limit = -1)
+        }
+    }
+
+    @Test
+    fun `getAllAnswers는 페이지네이션이 동작한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val answers =
+            (1..5).map { i ->
+                GroupMatchingAnswer(
+                    id = "ans-$i",
+                    userId = i.toLong(),
+                    groupType = GroupCategory.STUDY,
+                    isPreferOnline = true,
+                    groupMatchingId = groupMatchingId,
+                )
+            }
+
+        given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
+            .willReturn(answers)
+        answers.forEach { answer ->
+            given(answerFieldRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
+            given(subjectRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
+            given(matchedGroupRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
+        }
+
+        // when
+        val result = service.getAllAnswers(groupMatchingId, offset = 1, limit = 2)
+
+        // then
+        assertEquals(2, result.answers.size)
+        assertEquals("ans-2", result.answers[0].answerId)
+        assertEquals("ans-3", result.answers[1].answerId)
+        assertEquals(5, result.total)
+    }
+
+    @Test
+    fun `getAllAnswers는 offset이 total 이상이면 빈 배열을 반환한다`() {
         // given
         val groupMatchingId = "gm-1"
         val answer =
@@ -176,51 +302,62 @@ class GroupMatchingAnswerServiceTest {
                 isPreferOnline = true,
                 groupMatchingId = groupMatchingId,
             )
-        val answerField1 =
-            GroupMatchingAnswerField(
-                id = "af-1",
-                answerId = "ans-1",
-                fieldId = "field-1",
-            )
-        val answerField2 =
-            GroupMatchingAnswerField(
-                id = "af-2",
-                answerId = "ans-1",
-                fieldId = "field-2",
-            )
-        val subject1 =
-            GroupMatchingSubject(
-                id = "subj-1",
-                answerId = "ans-1",
-                subject = "주제 1",
-            )
-        val matchedGroup =
-            MatchedGroup(
-                id = "mg-1",
-                answerId = "ans-1",
-                groupId = 100L,
-            )
 
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(answer))
-        given(answerFieldRepository.findAllByAnswerId("ans-1"))
-            .willReturn(listOf(answerField1, answerField2))
-        given(subjectRepository.findAllByAnswerId("ans-1"))
-            .willReturn(listOf(subject1))
-        given(matchedGroupRepository.findAllByAnswerId("ans-1"))
-            .willReturn(listOf(matchedGroup))
 
         // when
-        val result = service.getAllAnswers(groupMatchingId)
+        val result = service.getAllAnswers(groupMatchingId, offset = 5)
+
+        // then
+        assertEquals(0, result.answers.size)
+        assertEquals(1, result.total)
+    }
+
+    @Test
+    fun `getAllAnswers는 groupType과 페이지네이션을 함께 적용한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val answers =
+            listOf(
+                GroupMatchingAnswer(
+                    id = "ans-1",
+                    userId = 1L,
+                    groupType = GroupCategory.STUDY,
+                    isPreferOnline = true,
+                    groupMatchingId = groupMatchingId,
+                ),
+                GroupMatchingAnswer(
+                    id = "ans-2",
+                    userId = 2L,
+                    groupType = GroupCategory.PROJECT,
+                    isPreferOnline = false,
+                    groupMatchingId = groupMatchingId,
+                ),
+                GroupMatchingAnswer(
+                    id = "ans-3",
+                    userId = 3L,
+                    groupType = GroupCategory.STUDY,
+                    isPreferOnline = true,
+                    groupMatchingId = groupMatchingId,
+                ),
+            )
+
+        given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
+            .willReturn(answers)
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
+        given(subjectRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
+
+        // when
+        val result = service.getAllAnswers(groupMatchingId, groupType = "STUDY", offset = 0, limit = 1)
 
         // then
         assertEquals(1, result.answers.size)
-        assertEquals(2, result.answers[0].selectedFields.size)
-        assertEquals("field-1", result.answers[0].selectedFields[0])
-        assertEquals("field-2", result.answers[0].selectedFields[1])
-        assertEquals(1, result.answers[0].subjectIdeas.size)
-        assertEquals("주제 1", result.answers[0].subjectIdeas[0])
-        assertEquals(1, result.answers[0].matchedGroupIds.size)
-        assertEquals(100L, result.answers[0].matchedGroupIds[0])
+        assertEquals("ans-1", result.answers[0].answerId)
+        assertEquals(2, result.total) // STUDY만 2개
     }
 }

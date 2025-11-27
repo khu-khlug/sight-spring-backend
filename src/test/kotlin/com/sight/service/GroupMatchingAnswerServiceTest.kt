@@ -3,6 +3,7 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
+import com.sight.domain.groupmatching.GroupMatchingAnswerField
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingSubjectRepository
@@ -27,6 +28,15 @@ class GroupMatchingAnswerServiceTest {
             subjectRepository,
             matchedGroupRepository,
         )
+
+    private fun mockAnswerField(
+        answerId: String,
+        fieldId: String,
+    ) = GroupMatchingAnswerField(
+        id = "af-$answerId-$fieldId",
+        answerId = answerId,
+        fieldId = fieldId,
+    )
 
     // === 기본 기능 테스트 ===
 
@@ -73,8 +83,8 @@ class GroupMatchingAnswerServiceTest {
 
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(answer2, answer1)) // 이미 내림차순
-        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
-        given(answerFieldRepository.findAllByAnswerId("ans-2")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(listOf(mockAnswerField("ans-1", "field-1")))
+        given(answerFieldRepository.findAllByAnswerId("ans-2")).willReturn(listOf(mockAnswerField("ans-2", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(subjectRepository.findAllByAnswerId("ans-2")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
@@ -90,7 +100,7 @@ class GroupMatchingAnswerServiceTest {
     }
 
     @Test
-    fun `getAllAnswers는 selectedFields가 없으면 빈 배열을 반환한다`() {
+    fun `getAllAnswers는 selectedFields가 없으면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
         val answer =
@@ -104,14 +114,11 @@ class GroupMatchingAnswerServiceTest {
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(answer))
         given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
-        given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
-        given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
 
-        // when
-        val result = service.getAllAnswers(groupMatchingId)
-
-        // then
-        assertEquals(0, result.answers[0].selectedFields.size)
+        // when & then
+        assertThrows<BadRequestException> {
+            service.getAllAnswers(groupMatchingId)
+        }
     }
 
     @Test
@@ -128,7 +135,7 @@ class GroupMatchingAnswerServiceTest {
             )
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(answer))
-        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(listOf(mockAnswerField("ans-1", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
 
@@ -153,7 +160,7 @@ class GroupMatchingAnswerServiceTest {
             )
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(answer))
-        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(listOf(mockAnswerField("ans-1", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
 
@@ -215,7 +222,7 @@ class GroupMatchingAnswerServiceTest {
 
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(listOf(studyAnswer, projectAnswer))
-        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(listOf(mockAnswerField("ans-1", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
 
@@ -275,7 +282,7 @@ class GroupMatchingAnswerServiceTest {
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(answers)
         answers.forEach { answer ->
-            given(answerFieldRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
+            given(answerFieldRepository.findAllByAnswerId(answer.id)).willReturn(listOf(mockAnswerField(answer.id, "field-1")))
             given(subjectRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
             given(matchedGroupRepository.findAllByAnswerId(answer.id)).willReturn(emptyList())
         }
@@ -345,10 +352,10 @@ class GroupMatchingAnswerServiceTest {
 
         given(answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId))
             .willReturn(answers)
-        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-1")).willReturn(listOf(mockAnswerField("ans-1", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-1")).willReturn(emptyList())
-        given(answerFieldRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
+        given(answerFieldRepository.findAllByAnswerId("ans-3")).willReturn(listOf(mockAnswerField("ans-3", "field-1")))
         given(subjectRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
         given(matchedGroupRepository.findAllByAnswerId("ans-3")).willReturn(emptyList())
 

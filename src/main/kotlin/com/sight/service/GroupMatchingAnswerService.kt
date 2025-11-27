@@ -88,8 +88,13 @@ class GroupMatchingAnswerService(
     }
 
     private fun getSelectedFields(answerId: String): List<String> {
-        return answerFieldRepository.findAllByAnswerId(answerId)
-            .map { it.fieldId }
+        val fields =
+            answerFieldRepository.findAllByAnswerId(answerId)
+                .map { it.fieldId }
+        if (fields.isEmpty()) {
+            throw BadRequestException("선택한 관심분야가 존재하지 않습니다")
+        }
+        return fields
     }
 
     private fun getSubjectIdeas(answerId: String): List<String> {

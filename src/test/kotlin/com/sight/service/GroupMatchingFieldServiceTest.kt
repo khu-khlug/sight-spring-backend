@@ -6,13 +6,16 @@ import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.repository.GroupMatchingFieldRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.util.Optional
 
 class GroupMatchingFieldServiceTest {
     private val groupMatchingFieldRepository = mock<GroupMatchingFieldRepository>()
@@ -25,9 +28,7 @@ class GroupMatchingFieldServiceTest {
 
         given(groupMatchingFieldRepository.existsByName(request.fieldName)).willReturn(false)
         given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
-            val savedField = it.arguments[0] as GroupMatchingField
-            // ID는 랜덤 생성되므로 이름만 검증하거나, save된 객체를 그대로 반환한다고 가정
-            savedField
+            it.arguments[0] as GroupMatchingField
         }
 
         // when
@@ -53,30 +54,54 @@ class GroupMatchingFieldServiceTest {
     }
 
     @Test
-    fun `deleteGroupMatchingField는 존재하는 관심분야를 삭제한다`() {
+    fun `deleteGroupMatchingField는 존재하는 활성 관심분야를 soft delete한다`() {
         // given
         val fieldId = "field-123"
-        given(groupMatchingFieldRepository.existsById(fieldId)).willReturn(true)
+        val field =
+            GroupMatchingField(
+                id = fieldId,
+                name = "백엔드",
+            )
+
+        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.of(field))
+        given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
+            it.arguments[0] as GroupMatchingField
+        }
 
         // when
         groupMatchingFieldService.deleteGroupMatchingField(fieldId)
 
         // then
-        verify(groupMatchingFieldRepository).existsById(fieldId)
-        verify(groupMatchingFieldRepository).deleteById(fieldId)
+        val captor = argumentCaptor<GroupMatchingField>()
+        verify(groupMatchingFieldRepository).save(captor.capture())
+        assertNotNull(captor.firstValue.obsoletedAt) // obsoletedAt이 설정됨
     }
 
     @Test
     fun `deleteGroupMatchingField는 존재하지 않는 관심분야면 NotFoundException을 던진다`() {
         // given
         val fieldId = "non-existent"
-        given(groupMatchingFieldRepository.existsById(fieldId)).willReturn(false)
+        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.empty())
 
         // when & then
         assertThrows<NotFoundException> {
             groupMatchingFieldService.deleteGroupMatchingField(fieldId)
         }
-        verify(groupMatchingFieldRepository).existsById(fieldId)
-        verify(groupMatchingFieldRepository, never()).deleteById(any())
+        verify(groupMatchingFieldRepository).findByIdAndObsoletedAtIsNull(fieldId)
+        verify(groupMatchingFieldRepository, never()).save(any())
+    }
+
+    @Test
+    fun `deleteGroupMatchingField는 이미 obsoleted된 관심분야면 NotFoundException을 던진다`() {
+        // given
+        val fieldId = "obsoleted-field"
+        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            groupMatchingFieldService.deleteGroupMatchingField(fieldId)
+        }
+        verify(groupMatchingFieldRepository).findByIdAndObsoletedAtIsNull(fieldId)
+        verify(groupMatchingFieldRepository, never()).save(any())
     }
 }

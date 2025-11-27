@@ -8,6 +8,7 @@ import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.repository.GroupMatchingFieldRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 class GroupMatchingFieldService(
@@ -30,10 +31,13 @@ class GroupMatchingFieldService(
 
     @Transactional
     fun deleteGroupMatchingField(fieldId: String) {
-        if (!groupMatchingFieldRepository.existsById(fieldId)) {
-            throw NotFoundException("존재하지 않는 관심분야입니다")
-        }
+        // 활성 필드만 조회
+        val field =
+            groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)
+                .orElseThrow { NotFoundException("존재하지 않는 관심분야입니다") }
 
-        groupMatchingFieldRepository.deleteById(fieldId)
+        // soft delete: obsoletedAt 설정
+        field.obsoletedAt = LocalDateTime.now()
+        groupMatchingFieldRepository.save(field)
     }
 }

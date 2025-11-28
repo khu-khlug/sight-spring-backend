@@ -15,6 +15,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.time.LocalDateTime
 import java.util.Optional
 
 class GroupMatchingFieldServiceTest {
@@ -63,7 +64,7 @@ class GroupMatchingFieldServiceTest {
                 name = "백엔드",
             )
 
-        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.of(field))
+        given(groupMatchingFieldRepository.findById(fieldId)).willReturn(Optional.of(field))
         given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
             it.arguments[0] as GroupMatchingField
         }
@@ -81,13 +82,13 @@ class GroupMatchingFieldServiceTest {
     fun `deleteGroupMatchingField는 존재하지 않는 관심분야면 NotFoundException을 던진다`() {
         // given
         val fieldId = "non-existent"
-        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.empty())
+        given(groupMatchingFieldRepository.findById(fieldId)).willReturn(Optional.empty())
 
         // when & then
         assertThrows<NotFoundException> {
             groupMatchingFieldService.deleteGroupMatchingField(fieldId)
         }
-        verify(groupMatchingFieldRepository).findByIdAndObsoletedAtIsNull(fieldId)
+        verify(groupMatchingFieldRepository).findById(fieldId)
         verify(groupMatchingFieldRepository, never()).save(any())
     }
 
@@ -95,13 +96,19 @@ class GroupMatchingFieldServiceTest {
     fun `deleteGroupMatchingField는 이미 obsoleted된 관심분야면 NotFoundException을 던진다`() {
         // given
         val fieldId = "obsoleted-field"
-        given(groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)).willReturn(Optional.empty())
+        val obsoletedField =
+            GroupMatchingField(
+                id = fieldId,
+                name = "백엔드",
+                obsoletedAt = LocalDateTime.now(),
+            )
+        given(groupMatchingFieldRepository.findById(fieldId)).willReturn(Optional.of(obsoletedField))
 
         // when & then
         assertThrows<NotFoundException> {
             groupMatchingFieldService.deleteGroupMatchingField(fieldId)
         }
-        verify(groupMatchingFieldRepository).findByIdAndObsoletedAtIsNull(fieldId)
+        verify(groupMatchingFieldRepository).findById(fieldId)
         verify(groupMatchingFieldRepository, never()).save(any())
     }
 }

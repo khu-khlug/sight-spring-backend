@@ -31,12 +31,22 @@ class GroupMatchingFieldService(
 
     @Transactional
     fun deleteGroupMatchingField(fieldId: String) {
-        // 활성 필드만 조회
         val field =
-            groupMatchingFieldRepository.findByIdAndObsoletedAtIsNull(fieldId)
+            groupMatchingFieldRepository.findById(fieldId)
                 .orElseThrow { NotFoundException("존재하지 않는 관심분야입니다") }
 
-        // soft delete: obsoletedAt 설정
+        if (isObsolete(field)) {
+            throw NotFoundException("존재하지 않는 관심분야입니다")
+        }
+
+        makeFieldObsolete(field)
+    }
+
+    private fun isObsolete(field: GroupMatchingField): Boolean {
+        return field.obsoletedAt != null
+    }
+
+    private fun makeFieldObsolete(field: GroupMatchingField) {
         field.obsoletedAt = LocalDateTime.now()
         groupMatchingFieldRepository.save(field)
     }

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class GroupController(
     private val groupDiscordChannelService: GroupDiscordChannelService,
+    private val groupMatchingService: com.sight.service.GroupMatchingService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @PostMapping("/groups/{groupId}/discord-channel")
@@ -51,5 +52,20 @@ class GroupController(
             memberId = request.memberId!!,
             requesterId = requester.userId,
         )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/members")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addGroupMember(
+        @PathVariable groupId: Long,
+        @Valid @RequestBody request: com.sight.controllers.http.dto.AddGroupMemberRequest,
+    ) {
+        if (request.method == "GROUP_MATCHING") {
+            groupMatchingService.addMemberToGroup(
+                groupId = groupId,
+                answerId = request.groupMatchingParams!!.answerId,
+            )
+        }
     }
 }

@@ -69,4 +69,15 @@ class GroupMemberRepository(
 
         return count > 0
     }
+
+    fun save(
+        groupId: Long,
+        memberId: Long,
+    ) {
+        jdbcTemplate.update(
+            "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",
+            groupId,
+            memberId,
+        )
+    }
 }

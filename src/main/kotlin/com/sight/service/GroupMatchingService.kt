@@ -1,7 +1,11 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.MatchedGroup
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
 import com.sight.core.exception.NotFoundException
@@ -22,6 +26,7 @@ class GroupMatchingService(
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
+    private val groupMemberRepository: GroupMemberRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroups(
@@ -120,5 +125,32 @@ class GroupMatchingService(
             createdAt = answer.createdAt,
             updatedAt = answer.updatedAt,
         )
+    @Transactional
+    fun addMemberToGroup(
+        groupId: Long,
+        answerId: String,
+    ) {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("Group not found") }
+        val answer =
+            groupMatchingAnswerRepository.findById(answerId)
+                .orElseThrow { NotFoundException("Answer not found") }
+
+        if (groupMemberRepository.existsByGroupIdAndMemberId(groupId, answer.userId)) {
+            throw BadRequestException("Member already in group")
+        }
+
+        groupMemberRepository.save(groupId, answer.userId)
+
+        // 이미 이전에 `MatchedGroup`이 생성되었으나 해당 회원이 그룹에서 나온 경우,
+        // `MatchedGroup`은 존재하지만 `GroupMember`는 존재하지 않을 수 있음.
+        if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
+            matchedGroupRepository.save(
+                MatchedGroup(
+                    id = java.util.UUID.randomUUID().toString(),
+                    groupId = groupId,
+                    answerId = answerId,
+                ),
+            )
+        }
     }
 }

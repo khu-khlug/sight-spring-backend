@@ -1,18 +1,17 @@
 package com.sight.service
 
+import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.MatchedGroup
+import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
-import com.sight.core.exception.NotFoundException
-import com.sight.repository.GroupMatchingAnswerFieldRepository
-import com.sight.repository.GroupMatchingFieldRepository
-import com.sight.repository.GroupMatchingSubjectRepository
-import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
 import org.springframework.stereotype.Service
@@ -126,7 +125,7 @@ class GroupMatchingService(
             updatedAt = answer.updatedAt,
         )
     }
-    
+
     @Transactional
     fun addMemberToGroup(
         groupId: Long,

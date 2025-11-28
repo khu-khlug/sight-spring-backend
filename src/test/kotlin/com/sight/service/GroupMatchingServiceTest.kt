@@ -3,7 +3,10 @@ package com.sight.service
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.MatchedGroup
+import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
 import org.junit.jupiter.api.BeforeEach
@@ -11,11 +14,16 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import com.sight.core.exception.NotFoundException
 
 class GroupMatchingServiceTest {
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository = mock()
     private val matchedGroupRepository: MatchedGroupRepository = mock()
     private val groupRepository: GroupRepository = mock()
+    private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository = mock()
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository = mock()
+    private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository = mock()
     private lateinit var groupMatchingService: GroupMatchingService
 
     @BeforeEach
@@ -25,6 +33,9 @@ class GroupMatchingServiceTest {
                 groupMatchingAnswerRepository = groupMatchingAnswerRepository,
                 matchedGroupRepository = matchedGroupRepository,
                 groupRepository = groupRepository,
+                groupMatchingAnswerFieldRepository = groupMatchingAnswerFieldRepository,
+                groupMatchingFieldRepository = groupMatchingFieldRepository,
+                groupMatchingSubjectRepository = groupMatchingSubjectRepository,
             )
     }
 
@@ -81,5 +92,19 @@ class GroupMatchingServiceTest {
         assertEquals(memberId, result[0].members[0].id)
         assertEquals(memberId, result[0].members[0].userId)
         assertEquals("Test User", result[0].members[0].name)
+    }
+    @Test
+    fun `getAnswer는 답변이 없으면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(null)
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.getAnswer(groupMatchingId, userId)
+        }
     }
 }

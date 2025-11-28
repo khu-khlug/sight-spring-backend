@@ -4,6 +4,11 @@ import com.sight.domain.group.GroupCategory
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
+import com.sight.core.exception.NotFoundException
+import com.sight.repository.GroupMatchingAnswerFieldRepository
+import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingSubjectRepository
+import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
 import org.springframework.stereotype.Service
@@ -14,6 +19,9 @@ class GroupMatchingService(
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
     private val groupRepository: GroupRepository,
+    private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
+    private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroups(
@@ -58,5 +66,59 @@ class GroupMatchingService(
                     createdAt = first.groupCreatedAt,
                 )
             }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAnswer(
+        groupMatchingId: String,
+        userId: Long,
+    ): GetGroupMatchingAnswerResponse {
+        val answer =
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId)
+                ?: throw NotFoundException("Answer not found")
+
+        val answerFields = groupMatchingAnswerFieldRepository.findAllByAnswerId(answer.id)
+        val fields =
+            if (answerFields.isNotEmpty()) {
+                val fieldIds = answerFields.map { it.fieldId }
+                groupMatchingFieldRepository.findAllById(fieldIds)
+            } else {
+                emptyList()
+            }
+
+        val matchedGroups = matchedGroupRepository.findAllByAnswerId(answer.id)
+        val subjects = groupMatchingSubjectRepository.findAllByAnswerId(answer.id)
+
+        return GetGroupMatchingAnswerResponse(
+            id = answer.id,
+            userId = answer.userId,
+            groupType = answer.groupType,
+            isPreferOnline = answer.isPreferOnline,
+            groupMatchingId = answer.groupMatchingId,
+            fields =
+                fields.map { field ->
+                    GetGroupMatchingAnswerResponse.FieldResponse(
+                        id = field.id,
+                        name = field.name,
+                    )
+                },
+            matchedGroups =
+                matchedGroups.map { matchedGroup ->
+                    GetGroupMatchingAnswerResponse.MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            groupMatchingSubjects =
+                subjects.map { subject ->
+                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
+                        id = subject.id,
+                        subject = subject.subject,
+                    )
+                },
+            createdAt = answer.createdAt,
+            updatedAt = answer.updatedAt,
+        )
     }
 }

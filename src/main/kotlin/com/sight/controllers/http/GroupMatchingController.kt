@@ -1,8 +1,10 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
@@ -37,5 +39,14 @@ class GroupMatchingController(
                 createdAt = groupDto.createdAt,
             )
         }
+    }
+
+    @Auth(roles = [UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/group-matchings/{groupMatchingId}/answers/@me")
+    fun getAnswer(
+        @PathVariable groupMatchingId: String,
+        requester: Requester?,
+    ): GetGroupMatchingAnswerResponse {
+        return groupMatchingService.getAnswer(groupMatchingId, requester!!.userId)
     }
 }

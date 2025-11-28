@@ -9,6 +9,7 @@ import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 
 @Service
@@ -41,6 +42,11 @@ class GroupMatchingAnswerService(
                 }
             }
 
+        // fieldId 검증
+        if (fieldId != null && !fieldRepository.existsById(fieldId)) {
+            throw BadRequestException("유효하지 않은 fieldId입니다")
+        }
+
         // offset/limit 검증
         if (offset < 0) {
             throw BadRequestException("offset은 0 이상이어야 합니다")
@@ -49,39 +55,16 @@ class GroupMatchingAnswerService(
             throw BadRequestException("limit은 양의 정수여야 합니다")
         }
 
-        var answers = answerRepository.findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId)
+        // Pageable 생성 (offset 기반)
+        val pageNumber = offset / limit
+        val pageable = PageRequest.of(pageNumber, limit)
 
-        // fieldId 검증 및 필터링
-        if (fieldId != null) {
-            if (!fieldRepository.existsById(fieldId)) {
-                throw BadRequestException("유효하지 않은 fieldId입니다")
-            } else {
-                answers =
-                    answers.filter { answer ->
-                        answerFieldRepository.findAllByAnswerId(answer.id)
-                            .any { it.fieldId == fieldId }
-                    }
-            }
-        }
-        // groupType 검증 및 필터링
-        if (groupTypeEnum != null) {
-            answers = answers.filter { it.groupType == groupTypeEnum }
-        }
-
-        val total = answers.size
-
-        // 페이지네이션
-        // drop(offset): offset개 요소를 건너뜀 (offset >= size면 빈 리스트 반환)
-        // take(limit): 최대 limit개 요소를 가져옴 (남은 요소가 limit보다 적으면 남은 것만 반환)
-        // 결과: offset이 범위를 벗어나도 에러 없이 빈 리스트 반환
-        val pagedAnswers =
-            answers
-                .drop(offset)
-                .take(limit)
+        // DB 쿼리로 필터링 및 페이지네이션
+        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupTypeEnum, fieldId, pageable)
 
         // DTO 변환
         val answerDtos =
-            pagedAnswers.map { answer ->
+            page.content.map { answer ->
                 AnswerDto(
                     answerId = answer.id,
                     answerUserId = answer.userId,
@@ -97,7 +80,7 @@ class GroupMatchingAnswerService(
 
         return GetAnswersResponse(
             answers = answerDtos,
-            total = total,
+            total = page.totalElements.toInt(),
         )
     }
 

@@ -23,7 +23,6 @@ import org.mockito.kotlin.whenever
 import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import com.sight.core.exception.NotFoundException
 
 class GroupMatchingServiceTest {
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository = mock()
@@ -103,6 +102,7 @@ class GroupMatchingServiceTest {
         assertEquals(memberId, result[0].members[0].userId)
         assertEquals("Test User", result[0].members[0].name)
     }
+
     @Test
     fun `getAnswer는 답변이 없으면 NotFoundException을 던진다`() {
         // given

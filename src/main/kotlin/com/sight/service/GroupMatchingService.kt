@@ -125,6 +125,8 @@ class GroupMatchingService(
             createdAt = answer.createdAt,
             updatedAt = answer.updatedAt,
         )
+    }
+    
     @Transactional
     fun addMemberToGroup(
         groupId: Long,

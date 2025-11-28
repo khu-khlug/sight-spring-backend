@@ -6,10 +6,10 @@ import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.core.auth.AuthAspect
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.group.GroupCategory
-import com.sight.service.GroupMatchingService
 import com.sight.core.exception.GlobalExceptionHandler
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupCategory
+import com.sight.service.GroupMatchingService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.eq
@@ -134,8 +134,6 @@ class GroupMatchingControllerTest {
             .andExpect(status().isUnauthorized)
     }
 
-
-
     @Test
     fun `should handle invalid group matching id format`() {
         // Use a blank string instead of empty to avoid path issues, or just test empty if that's the intent
@@ -151,7 +149,7 @@ class GroupMatchingControllerTest {
         // Let's try with "invalid-id" which simply doesn't exist.
         // The user's comment says "invalid format".
         // If I use "", it will likely be 404 Not Found (Resource).
-        
+
         mockMvc.perform(
             get("/group-matchings//answers/@me")
                 .header("Authorization", "Bearer test-token"),

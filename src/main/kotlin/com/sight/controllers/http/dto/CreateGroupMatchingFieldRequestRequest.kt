@@ -5,5 +5,6 @@ import jakarta.validation.constraints.NotBlank
 data class CreateGroupMatchingFieldRequestRequest(
     @field:NotBlank
     val fieldName: String,
-    val requestReason: String? = null,
+    @field:NotBlank
+    val requestReason: String,
 )

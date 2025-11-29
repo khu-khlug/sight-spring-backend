@@ -1,11 +1,12 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.controllers.http.dto.ProcessDetails
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class GroupMatchingFieldRequestService(
     private val groupMatchingFieldRequestRepository: GroupMatchingFieldRequestRepository,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
 ) {
     fun getAllFieldRequests(): List<GetFieldRequestsResponse> {
         val requests = groupMatchingFieldRequestRepository.findAll()
@@ -55,14 +57,21 @@ class GroupMatchingFieldRequestService(
 
     @Transactional
     fun createGroupMatchingFieldRequest(
-        request: CreateGroupMatchingFieldRequestRequest,
+        fieldName: String,
+        requestReason: String,
         requesterUserId: Long,
     ): GroupMatchingFieldRequest {
+        if (groupMatchingFieldRepository.existsByName(fieldName)) {
+            throw UnprocessableEntityException("이미 등록된 관심분야 이름입니다.")
+        }
+        if (groupMatchingFieldRequestRepository.existsByFieldName(fieldName)) {
+            throw UnprocessableEntityException("이미 승인 대기 중인 요청이 존재합니다.")
+        }
         val fieldRequest =
             GroupMatchingFieldRequest(
                 id = UlidCreator.getUlid().toString(),
-                fieldName = request.fieldName,
-                requestReason = request.requestReason ?: "",
+                fieldName = fieldName,
+                requestReason = requestReason,
                 requesterUserId = requesterUserId,
             )
 

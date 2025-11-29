@@ -11,12 +11,10 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping
 class GroupMatchingFieldRequestController(
     private val groupMatchingFieldRequestService: GroupMatchingFieldRequestService,
 ) {
@@ -26,7 +24,7 @@ class GroupMatchingFieldRequestController(
         return groupMatchingFieldRequestService.getAllFieldRequests()
     }
 
-    @Auth([UserRole.USER])
+    @Auth([UserRole.USER, UserRole.MANAGER])
     @PostMapping("/field-requests")
     @ResponseStatus(HttpStatus.CREATED)
     fun createGroupMatchingFieldRequest(
@@ -35,7 +33,8 @@ class GroupMatchingFieldRequestController(
     ): CreateGroupMatchingFieldRequestResponse {
         val saved =
             groupMatchingFieldRequestService.createGroupMatchingFieldRequest(
-                request = request,
+                fieldName = request.fieldName,
+                requestReason = request.requestReason,
                 requesterUserId = userId,
             )
 

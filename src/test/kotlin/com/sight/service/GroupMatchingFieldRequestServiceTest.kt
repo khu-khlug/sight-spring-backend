@@ -1,15 +1,19 @@
 package com.sight.service
 
 import com.sight.controllers.http.dto.FieldRequestStatus
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.LocalDateTime
 
@@ -111,7 +115,7 @@ class GroupMatchingFieldRequestServiceTest {
     @Test
     fun `createGroupMatchingFieldRequest는 요청을 받아 성공적으로 저장한다`() {
         // given
-        val requesterId = 100L
+        val requesterUserId = 100L
         val fieldName = "백엔드_개발"
         val requestReason = "관심분야 추가 요청"
 
@@ -124,12 +128,12 @@ class GroupMatchingFieldRequestServiceTest {
         }
 
         // when
-        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterId)
+        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
 
         // then
-        assertEquals(request.fieldName, result.fieldName)
-        assertEquals(request.requestReason, result.requestReason)
-        assertEquals(requesterId, result.requesterUserId)
+        assertEquals(fieldName, result.fieldName)
+        assertEquals(requestReason, result.requestReason)
+        assertEquals(requesterUserId, result.requesterUserId)
 
         // save가 1번 호출되었는지 검증
         verify(repository).save(any<GroupMatchingFieldRequest>())
@@ -138,7 +142,7 @@ class GroupMatchingFieldRequestServiceTest {
     @Test
     fun `createGroupMatchingFieldRequest는 이미 등록된 관심분야 이름일 경우 예외를 발생시킨다`() {
         // given
-        val requesterId = 100L
+        val requesterUserId = 100L
         val fieldName = "백엔드_개발"
         val requestReason = "관심분야 추가 요청"
 
@@ -150,7 +154,7 @@ class GroupMatchingFieldRequestServiceTest {
             service.createGroupMatchingFieldRequest(
                 fieldName = fieldName,
                 requestReason = requestReason,
-                requesterUserId = requesterId,
+                requesterUserId = requesterUserId,
             )
         }
 
@@ -161,8 +165,9 @@ class GroupMatchingFieldRequestServiceTest {
     @Test
     fun `createGroupMatchingFieldRequest는 이미 요청된 이름일 경우 예외를 발생시킨다`() {
         // given
-        val requesterId = 100L
+        val requesterUserId = 100L
         val fieldName = "프론트엔드_요청"
+        val requestReason = "관심분야 추가 요청"
 
         given(fieldRepository.existsByName(fieldName)).willReturn(false)
         given(repository.existsByFieldName(fieldName)).willReturn(true)
@@ -172,7 +177,7 @@ class GroupMatchingFieldRequestServiceTest {
             service.createGroupMatchingFieldRequest(
                 fieldName = fieldName,
                 requestReason = requestReason,
-                requesterUserId = requesterId,
+                requesterUserId = requesterUserId,
             )
         }
 

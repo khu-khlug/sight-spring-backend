@@ -137,7 +137,7 @@ class GroupMatchingService(
         val newGroupMembers = userIds.map { GroupMember(newGroup.id, it) }
         groupMemberRepository.saveAll(newGroupMembers)
 
-        // TODO: 그룹 로그 및 포인트 처리 등 후속 처리 추가 구현 예정
+        // TODO: 그룹 로그 추가 등 후속 처리 구현 예정
 
         return newGroup.id
     }

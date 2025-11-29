@@ -1,6 +1,5 @@
 package com.sight.service
 
-import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
 import com.sight.repository.GroupMatchingFieldRequestRepository
@@ -16,7 +15,8 @@ import java.time.LocalDateTime
 
 class GroupMatchingFieldRequestServiceTest {
     private val repository = mock<GroupMatchingFieldRequestRepository>()
-    private val service = GroupMatchingFieldRequestService(repository)
+    private val fieldRepository = mock<GroupMatchingFieldRepository>()
+    private val service = GroupMatchingFieldRequestService(repository, fieldRepository)
 
     @Test
     fun `getAllFieldRequests는 빈 목록을 반환한다`() {
@@ -112,18 +112,19 @@ class GroupMatchingFieldRequestServiceTest {
     fun `createGroupMatchingFieldRequest는 요청을 받아 성공적으로 저장한다`() {
         // given
         val requesterId = 100L
-        val request =
-            CreateGroupMatchingFieldRequestRequest(
-                fieldName = "백엔드_개발",
-                requestReason = "관심분야 추가 요청",
-            )
+        val fieldName = "백엔드_개발"
+        val requestReason = "관심분야 추가 요청"
+
+        // 중복이 없음을 가정
+        given(fieldRepository.existsByName(fieldName)).willReturn(false)
+        given(repository.existsByFieldName(fieldName)).willReturn(false)
 
         given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
             it.arguments[0] as GroupMatchingFieldRequest
         }
 
         // when
-        val result = service.createGroupMatchingFieldRequest(request, requesterId)
+        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterId)
 
         // then
         assertEquals(request.fieldName, result.fieldName)
@@ -135,26 +136,47 @@ class GroupMatchingFieldRequestServiceTest {
     }
 
     @Test
-    fun `createGroupMatchingFieldRequest는 사유가 null이면 빈 문자열로 저장한다`() {
+    fun `createGroupMatchingFieldRequest는 이미 등록된 관심분야 이름일 경우 예외를 발생시킨다`() {
         // given
-        val requesterId = 200L
-        val request =
-            CreateGroupMatchingFieldRequestRequest(
-                fieldName = "프론트엔드",
-                requestReason = null,
-            )
+        val requesterId = 100L
+        val fieldName = "백엔드_개발"
+        val requestReason = "관심분야 추가 요청"
 
-        given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
-            it.arguments[0] as GroupMatchingFieldRequest
+        given(fieldRepository.existsByName(fieldName)).willReturn(true)
+        given(repository.existsByFieldName(fieldName)).willReturn(false)
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            service.createGroupMatchingFieldRequest(
+                fieldName = fieldName,
+                requestReason = requestReason,
+                requesterUserId = requesterId,
+            )
         }
 
-        // when
-        val result = service.createGroupMatchingFieldRequest(request, requesterId)
+        // 예외가 발생했으므로 저장 로직은 호출되지 않아야 함
+        verify(repository, never()).save(any())
+    }
 
-        // then
-        assertEquals(request.fieldName, result.fieldName)
-        assertEquals("", result.requestReason) // null -> "" 변환 로직 검증
+    @Test
+    fun `createGroupMatchingFieldRequest는 이미 요청된 이름일 경우 예외를 발생시킨다`() {
+        // given
+        val requesterId = 100L
+        val fieldName = "프론트엔드_요청"
 
-        verify(repository).save(any<GroupMatchingFieldRequest>())
+        given(fieldRepository.existsByName(fieldName)).willReturn(false)
+        given(repository.existsByFieldName(fieldName)).willReturn(true)
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            service.createGroupMatchingFieldRequest(
+                fieldName = fieldName,
+                requestReason = requestReason,
+                requesterUserId = requesterId,
+            )
+        }
+
+        // 예외가 발생했으므로 저장 로직은 호출되지 않아야 함
+        verify(repository, never()).save(any())
     }
 }

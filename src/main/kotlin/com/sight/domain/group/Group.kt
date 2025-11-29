@@ -87,6 +87,8 @@ data class Group(
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now(),
 
-    @Column(name = "changed_at")
-    val changedAt: LocalDateTime? = null,
+    // 레거시에서 nullable하게 정의되어 있으나 레거시에서 그룹 생성 시 값을 채워넣고 있기 때문에,
+    // 컬럼 정의는 nullable하게 하나 타입 자체는 not nullable하게 정의합니다.
+    @Column(name = "changed_at", nullable = true)
+    val changedAt: LocalDateTime = LocalDateTime.now(),
 )

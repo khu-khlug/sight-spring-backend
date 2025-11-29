@@ -80,4 +80,15 @@ class GroupMemberRepository(
             memberId,
         )
     }
+
+    fun saveAll(groupMembers: List<GroupMember>) {
+        jdbcTemplate.batchUpdate(
+            "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",
+            groupMembers,
+            groupMembers.size,
+        ) { ps, groupMember ->
+            ps.setLong(1, groupMember.group)
+            ps.setLong(2, groupMember.member)
+        }
+    }
 }

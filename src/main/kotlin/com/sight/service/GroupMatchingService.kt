@@ -110,15 +110,15 @@ class GroupMatchingService(
     ): Long {
         val answers = groupMatchingAnswerRepository.findAllById(answerIds)
         if (answers.size != answerIds.size) {
-            throw NotFoundException("Some answers not found")
+            throw NotFoundException("주어진 그룹 매칭 응답 중 존재하지 않는 것이 있습니다")
         }
 
         val userIds = answers.map { it.userId }.toSet()
-        if (leaderUserId !in userIds) {
-            throw BadRequestException("Leader must be one of the group members")
-        }
+        val leaderAnswer = answers.find { it.userId == leaderUserId }
 
-        val firstAnswer = answers.first()
+        if (leaderAnswer == null) {
+            throw BadRequestException("그룹장은 주어진 그룹 매칭의 응답 제출자들 중 한 명이어야 합니다")
+        }
 
         val newGroup =
             Group(
@@ -128,7 +128,7 @@ class GroupMatchingService(
                 master = leaderUserId,
                 state = GroupState.PROGRESS,
                 allowJoin = true,
-                category = firstAnswer.groupType,
+                category = leaderAnswer.groupType,
                 grade = GroupAccessGrade.MEMBER,
                 countMember = answerIds.size.toLong(),
             )

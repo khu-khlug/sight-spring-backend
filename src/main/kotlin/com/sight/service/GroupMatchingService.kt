@@ -1,0 +1,96 @@
+package com.sight.service
+
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.MatchedGroup
+import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
+import com.sight.repository.MatchedGroupRepository
+import com.sight.service.dto.GroupMatchingGroupDto
+import com.sight.service.dto.GroupMatchingGroupMemberDto
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+@Service
+class GroupMatchingService(
+    private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
+    private val matchedGroupRepository: MatchedGroupRepository,
+    private val groupRepository: GroupRepository,
+    private val groupMemberRepository: GroupMemberRepository,
+) {
+    @Transactional(readOnly = true)
+    fun getGroups(
+        groupMatchingId: String,
+        groupType: GroupCategory?,
+    ): List<GroupMatchingGroupDto> {
+        val answers =
+            if (groupType != null) {
+                groupMatchingAnswerRepository.findAllByGroupMatchingIdAndGroupType(groupMatchingId, groupType)
+            } else {
+                groupMatchingAnswerRepository.findAllByGroupMatchingId(groupMatchingId)
+            }
+
+        if (answers.isEmpty()) {
+            return emptyList()
+        }
+
+        val answerIds = answers.map { it.id }
+        val matchedGroups = matchedGroupRepository.findAllByAnswerIdIn(answerIds)
+        if (matchedGroups.isEmpty()) {
+            return emptyList()
+        }
+
+        val groupIds = matchedGroups.map { it.groupId }.distinct()
+        val projections = groupRepository.findGroupsWithMembers(groupIds)
+
+        return projections.groupBy { it.groupId }
+            .map { (groupId, members) ->
+                val first = members.first()
+                GroupMatchingGroupDto(
+                    id = groupId,
+                    title = first.groupTitle,
+                    members =
+                        members.map { member ->
+                            GroupMatchingGroupMemberDto(
+                                id = member.memberId,
+                                userId = member.memberId,
+                                name = member.memberRealName,
+                                number = member.memberNumber,
+                            )
+                        },
+                    createdAt = first.groupCreatedAt,
+                )
+            }
+    }
+
+    @Transactional
+    fun addMemberToGroup(
+        groupId: Long,
+        answerId: String,
+    ) {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("Group not found") }
+        val answer =
+            groupMatchingAnswerRepository.findById(answerId)
+                .orElseThrow { NotFoundException("Answer not found") }
+
+        if (groupMemberRepository.existsByGroupIdAndMemberId(groupId, answer.userId)) {
+            throw BadRequestException("Member already in group")
+        }
+
+        groupMemberRepository.save(groupId, answer.userId)
+
+        // 이미 이전에 `MatchedGroup`이 생성되었으나 해당 회원이 그룹에서 나온 경우,
+        // `MatchedGroup`은 존재하지만 `GroupMember`는 존재하지 않을 수 있음.
+        if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
+            matchedGroupRepository.save(
+                MatchedGroup(
+                    id = java.util.UUID.randomUUID().toString(),
+                    groupId = groupId,
+                    answerId = answerId,
+                ),
+            )
+        }
+    }
+}

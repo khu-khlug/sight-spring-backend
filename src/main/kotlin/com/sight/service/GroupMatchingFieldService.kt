@@ -55,9 +55,9 @@ class GroupMatchingFieldService(
         return field.obsoletedAt != null
     }
 
-    private fun makeFieldObsolete(field: GroupMatchingField) {
+    private fun makeFieldObsolete(field: GroupMatchingField): GroupMatchingField {
         field.obsoletedAt = LocalDateTime.now()
-        groupMatchingFieldRepository.save(field)
+        return groupMatchingFieldRepository.save(field)
     }
 
     private fun makeFieldActive(field: GroupMatchingField): GroupMatchingField {

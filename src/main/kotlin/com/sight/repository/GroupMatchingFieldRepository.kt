@@ -7,11 +7,9 @@ import java.util.Optional
 interface GroupMatchingFieldRepository : JpaRepository<GroupMatchingField, String> {
     fun existsByName(name: String): Boolean
 
-<<<<<<< Updated upstream
     fun existsByNameAndObsoletedAtIsNull(name: String): Boolean
 
     fun findByIdAndObsoletedAtIsNull(id: String): Optional<GroupMatchingField>
-=======
+
     fun findByName(name: String): GroupMatchingField?
->>>>>>> Stashed changes
 }

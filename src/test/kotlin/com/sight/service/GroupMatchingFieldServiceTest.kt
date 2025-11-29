@@ -21,45 +21,7 @@ class GroupMatchingFieldServiceTest {
         // given
         val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
 
-<<<<<<< Updated upstream
-        given(groupMatchingFieldRepository.existsByNameAndObsoletedAtIsNull(request.fieldName)).willReturn(false)
-        given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
-            val savedField = it.arguments[0] as GroupMatchingField
-            // ID는 랜덤 생성되므로 이름만 검증하거나, save된 객체를 그대로 반환한다고 가정
-            savedField
-        }
-
-        // when
-        val result = groupMatchingFieldService.addGroupMatchingField(request)
-
-        // then
-        assertEquals(request.fieldName, result.name)
-        verify(groupMatchingFieldRepository).existsByNameAndObsoletedAtIsNull(request.fieldName)
-        verify(groupMatchingFieldRepository).save(any<GroupMatchingField>())
-    }
-
-    @Test
-    fun `addGroupMatchingField는 이름이 이미 존재하면 UnprocessableEntityException을 던진다`() {
-        // given
-        val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
-        given(groupMatchingFieldRepository.existsByNameAndObsoletedAtIsNull(request.fieldName)).willReturn(true)
-
-        // when & then
-        assertThrows<UnprocessableEntityException> {
-            groupMatchingFieldService.addGroupMatchingField(request)
-        }
-        verify(groupMatchingFieldRepository).existsByNameAndObsoletedAtIsNull(request.fieldName)
-    }
-
-    @Test
-    fun `addGroupMatchingField는 삭제된 필드와 같은 이름으로 새 관심분야를 생성할 수 있다`() {
-        // given
-        val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
-
-        given(groupMatchingFieldRepository.existsByNameAndObsoletedAtIsNull(request.fieldName)).willReturn(false)
-=======
         given(groupMatchingFieldRepository.findByName(request.fieldName)).willReturn(null)
->>>>>>> Stashed changes
         given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
             it.arguments[0] as GroupMatchingField
         }
@@ -69,11 +31,6 @@ class GroupMatchingFieldServiceTest {
 
         // then
         assertEquals(request.fieldName, result.name)
-<<<<<<< Updated upstream
-        verify(groupMatchingFieldRepository).existsByNameAndObsoletedAtIsNull(request.fieldName)
-        verify(groupMatchingFieldRepository).save(any<GroupMatchingField>())
-    }
-=======
         verify(groupMatchingFieldRepository).findByName(request.fieldName)
         verify(groupMatchingFieldRepository).save(any<GroupMatchingField>())
     }
@@ -174,5 +131,4 @@ class GroupMatchingFieldServiceTest {
         verify(groupMatchingFieldRepository).findById(fieldId)
         verify(groupMatchingFieldRepository, never()).save(any())
     }
->>>>>>> Stashed changes
 }

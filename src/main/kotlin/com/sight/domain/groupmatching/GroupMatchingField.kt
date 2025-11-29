@@ -20,4 +20,7 @@ data class GroupMatchingField(
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
+
+    @Column(name = "obsoleted_at", nullable = true)
+    var obsoletedAt: LocalDateTime? = null,
 )

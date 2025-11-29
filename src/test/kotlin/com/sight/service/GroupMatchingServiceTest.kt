@@ -185,4 +185,55 @@ class GroupMatchingServiceTest {
         verify(groupMemberRepository).save(groupId, memberId)
         verify(matchedGroupRepository, never()).save(any<MatchedGroup>())
     }
+
+    @Test
+    fun `createGroupFromGroupMatching은 모든 답변이 존재하고 리더가 멤버에 포함되면 그룹 ID를 반환한다`() {
+        val title = "New Group"
+        val answerIds = listOf("ans1", "ans2")
+        val leaderUserId = 1L
+        val answer1 = mock<GroupMatchingAnswer>()
+        val answer2 = mock<GroupMatchingAnswer>()
+
+        whenever(answer1.userId).thenReturn(1L)
+        whenever(answer1.groupType).thenReturn(GroupCategory.STUDY)
+        whenever(answer2.userId).thenReturn(2L)
+        whenever(groupMatchingAnswerRepository.findAllById(answerIds)).thenReturn(listOf(answer1, answer2))
+
+        val result = groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
+
+        assert(result >= 1000000L)
+        verify(groupRepository).save(any())
+        verify(groupMemberRepository).saveAll(any())
+    }
+
+    @Test
+    fun `createGroupFromGroupMatching은 답변이 일부 존재하지 않으면 예외를 던진다`() {
+        val title = "New Group"
+        val answerIds = listOf("ans1", "ans2")
+        val leaderUserId = 1L
+        val answer1 = mock<GroupMatchingAnswer>()
+
+        whenever(groupMatchingAnswerRepository.findAllById(answerIds)).thenReturn(listOf(answer1))
+
+        assertThrows<NotFoundException> {
+            groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
+        }
+    }
+
+    @Test
+    fun `createGroupFromGroupMatching은 리더가 멤버에 포함되지 않으면 예외를 던진다`() {
+        val title = "New Group"
+        val answerIds = listOf("ans1", "ans2")
+        val leaderUserId = 3L
+        val answer1 = mock<GroupMatchingAnswer>()
+        val answer2 = mock<GroupMatchingAnswer>()
+
+        whenever(answer1.userId).thenReturn(1L)
+        whenever(answer2.userId).thenReturn(2L)
+        whenever(groupMatchingAnswerRepository.findAllById(answerIds)).thenReturn(listOf(answer1, answer2))
+
+        assertThrows<BadRequestException> {
+            groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
+        }
+    }
 }

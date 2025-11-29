@@ -45,8 +45,39 @@ class GroupMatchingController(
     @GetMapping("/group-matchings/{groupMatchingId}/answers/@me")
     fun getAnswer(
         @PathVariable groupMatchingId: String,
-        requester: Requester?,
+        requester: Requester,
     ): GetGroupMatchingAnswerResponse {
-        return groupMatchingService.getAnswer(groupMatchingId, requester!!.userId)
+        val answerDto = groupMatchingService.getAnswer(groupMatchingId, requester.userId)
+        return GetGroupMatchingAnswerResponse(
+            id = answerDto.id,
+            userId = answerDto.userId,
+            groupType = answerDto.groupType,
+            isPreferOnline = answerDto.isPreferOnline,
+            groupMatchingId = answerDto.groupMatchingId,
+            fields =
+                answerDto.fields.map { field ->
+                    GetGroupMatchingAnswerResponse.FieldResponse(
+                        id = field.id,
+                        name = field.name,
+                    )
+                },
+            matchedGroups =
+                answerDto.matchedGroups.map { matchedGroup ->
+                    GetGroupMatchingAnswerResponse.MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            groupMatchingSubjects =
+                answerDto.groupMatchingSubjects.map { subject ->
+                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
+                        id = subject.id,
+                        subject = subject.subject,
+                    )
+                },
+            createdAt = answerDto.createdAt,
+            updatedAt = answerDto.updatedAt,
+        )
     }
 }

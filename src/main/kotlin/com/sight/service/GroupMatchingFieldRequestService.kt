@@ -1,11 +1,14 @@
 package com.sight.service
 
+import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class GroupMatchingFieldRequestService(
@@ -48,5 +51,21 @@ class GroupMatchingFieldRequestService(
             status = status,
             processDetails = processDetails,
         )
+    }
+
+    @Transactional
+    fun createGroupMatchingFieldRequest(
+        request: CreateGroupMatchingFieldRequestRequest,
+        requesterUserId: Long,
+    ): GroupMatchingFieldRequest {
+        val fieldRequest =
+            GroupMatchingFieldRequest(
+                id = UlidCreator.getUlid().toString(),
+                fieldName = request.fieldName,
+                requestReason = request.requestReason ?: "",
+                requesterUserId = requesterUserId,
+            )
+
+        return groupMatchingFieldRequestRepository.save(fieldRequest)
     }
 }

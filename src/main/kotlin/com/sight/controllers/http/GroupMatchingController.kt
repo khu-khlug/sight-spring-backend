@@ -1,8 +1,10 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
@@ -37,5 +39,45 @@ class GroupMatchingController(
                 createdAt = groupDto.createdAt,
             )
         }
+    }
+
+    @Auth(roles = [UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/group-matchings/{groupMatchingId}/answers/@me")
+    fun getAnswer(
+        @PathVariable groupMatchingId: String,
+        requester: Requester,
+    ): GetGroupMatchingAnswerResponse {
+        val answerDto = groupMatchingService.getAnswer(groupMatchingId, requester.userId)
+        return GetGroupMatchingAnswerResponse(
+            id = answerDto.id,
+            userId = answerDto.userId,
+            groupType = answerDto.groupType,
+            isPreferOnline = answerDto.isPreferOnline,
+            groupMatchingId = answerDto.groupMatchingId,
+            fields =
+                answerDto.fields.map { field ->
+                    GetGroupMatchingAnswerResponse.FieldResponse(
+                        id = field.id,
+                        name = field.name,
+                    )
+                },
+            matchedGroups =
+                answerDto.matchedGroups.map { matchedGroup ->
+                    GetGroupMatchingAnswerResponse.MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            groupMatchingSubjects =
+                answerDto.groupMatchingSubjects.map { subject ->
+                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
+                        id = subject.id,
+                        subject = subject.subject,
+                    )
+                },
+            createdAt = answerDto.createdAt,
+            updatedAt = answerDto.updatedAt,
+        )
     }
 }

@@ -5,7 +5,10 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.MatchedGroup
+import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
 import com.sight.repository.projection.GroupWithMemberProjection
@@ -19,11 +22,15 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.Optional
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class GroupMatchingServiceTest {
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository = mock()
     private val matchedGroupRepository: MatchedGroupRepository = mock()
     private val groupRepository: GroupRepository = mock()
+    private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository = mock()
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository = mock()
+    private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository = mock()
     private val groupMemberRepository: com.sight.repository.GroupMemberRepository = mock()
     private lateinit var groupMatchingService: GroupMatchingService
 
@@ -34,6 +41,9 @@ class GroupMatchingServiceTest {
                 groupMatchingAnswerRepository = groupMatchingAnswerRepository,
                 matchedGroupRepository = matchedGroupRepository,
                 groupRepository = groupRepository,
+                groupMatchingAnswerFieldRepository = groupMatchingAnswerFieldRepository,
+                groupMatchingFieldRepository = groupMatchingFieldRepository,
+                groupMatchingSubjectRepository = groupMatchingSubjectRepository,
                 groupMemberRepository = groupMemberRepository,
             )
     }
@@ -91,6 +101,100 @@ class GroupMatchingServiceTest {
         assertEquals(memberId, result[0].members[0].id)
         assertEquals(memberId, result[0].members[0].userId)
         assertEquals("Test User", result[0].members[0].name)
+    }
+
+    @Test
+    fun `getAnswer는 답변이 없으면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(null)
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.getAnswer(groupMatchingId, userId)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 답변이 없으면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1"),
+                subjects = listOf("subject1"),
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(null)
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 답변을 성공적으로 업데이트한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updatedAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1", "field2"),
+                subjects = listOf("subject1"),
+            )
+
+        // Mock for initial findByGroupMatchingIdAndUserId (in updateAnswer)
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+            .thenReturn(updatedAnswer) // For getAnswer call at the end
+        whenever(groupMatchingAnswerFieldRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingFieldRepository.findAllById(any<List<String>>()))
+            .thenReturn(emptyList())
+        whenever(matchedGroupRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingSubjectRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+
+        // when
+        val result = groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+
+        // then
+        verify(groupMatchingAnswerRepository).save(any<GroupMatchingAnswer>())
+        verify(groupMatchingAnswerFieldRepository).deleteAllByAnswerId(answerId)
+        verify(groupMatchingSubjectRepository).deleteAllByAnswerId(answerId)
+        assertEquals(answerId, result.id)
+        assertEquals(GroupCategory.STUDY, result.groupType)
+        assertEquals(true, result.isPreferOnline)
     }
 
     @Test

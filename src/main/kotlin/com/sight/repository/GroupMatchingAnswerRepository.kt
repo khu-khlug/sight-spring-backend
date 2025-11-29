@@ -11,4 +11,9 @@ interface GroupMatchingAnswerRepository : JpaRepository<GroupMatchingAnswer, Str
         groupMatchingId: String,
         groupType: GroupCategory,
     ): List<GroupMatchingAnswer>
+
+    fun findByGroupMatchingIdAndUserId(
+        groupMatchingId: String,
+        userId: Long,
+    ): GroupMatchingAnswer?
 }

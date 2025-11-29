@@ -1,15 +1,24 @@
 package com.sight.service
 
+import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.MatchedGroup
+import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
+import com.sight.service.dto.FieldResponse
+import com.sight.service.dto.GroupMatchingAnswerDto
 import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
+import com.sight.service.dto.GroupMatchingSubjectResponse
+import com.sight.service.dto.MatchedGroupResponse
+import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -18,6 +27,9 @@ class GroupMatchingService(
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
     private val groupRepository: GroupRepository,
+    private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
+    private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
     private val groupMemberRepository: GroupMemberRepository,
 ) {
     @Transactional(readOnly = true)
@@ -27,7 +39,10 @@ class GroupMatchingService(
     ): List<GroupMatchingGroupDto> {
         val answers =
             if (groupType != null) {
-                groupMatchingAnswerRepository.findAllByGroupMatchingIdAndGroupType(groupMatchingId, groupType)
+                groupMatchingAnswerRepository.findAllByGroupMatchingIdAndGroupType(
+                    groupMatchingId,
+                    groupType,
+                )
             } else {
                 groupMatchingAnswerRepository.findAllByGroupMatchingId(groupMatchingId)
             }
@@ -45,24 +60,130 @@ class GroupMatchingService(
         val groupIds = matchedGroups.map { it.groupId }.distinct()
         val projections = groupRepository.findGroupsWithMembers(groupIds)
 
-        return projections.groupBy { it.groupId }
-            .map { (groupId, members) ->
-                val first = members.first()
-                GroupMatchingGroupDto(
-                    id = groupId,
-                    title = first.groupTitle,
-                    members =
-                        members.map { member ->
-                            GroupMatchingGroupMemberDto(
-                                id = member.memberId,
-                                userId = member.memberId,
-                                name = member.memberRealName,
-                                number = member.memberNumber,
-                            )
-                        },
-                    createdAt = first.groupCreatedAt,
-                )
+        return projections.groupBy { it.groupId }.map { (groupId, members) ->
+            val first = members.first()
+            GroupMatchingGroupDto(
+                id = groupId,
+                title = first.groupTitle,
+                members =
+                    members.map { member ->
+                        GroupMatchingGroupMemberDto(
+                            id = member.memberId,
+                            userId = member.memberId,
+                            name = member.memberRealName,
+                            number = member.memberNumber,
+                        )
+                    },
+                createdAt = first.groupCreatedAt,
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getAnswer(
+        groupMatchingId: String,
+        userId: Long,
+    ): GroupMatchingAnswerDto {
+        val answer =
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            )
+                ?: throw NotFoundException("Answer not found")
+
+        val answerFields = groupMatchingAnswerFieldRepository.findAllByAnswerId(answer.id)
+        val fields =
+            if (answerFields.isNotEmpty()) {
+                val fieldIds = answerFields.map { it.fieldId }
+                groupMatchingFieldRepository.findAllById(fieldIds)
+            } else {
+                emptyList()
             }
+
+        val matchedGroups = matchedGroupRepository.findAllByAnswerId(answer.id)
+        val subjects = groupMatchingSubjectRepository.findAllByAnswerId(answer.id)
+
+        return GroupMatchingAnswerDto(
+            id = answer.id,
+            userId = answer.userId,
+            groupType = answer.groupType,
+            isPreferOnline = answer.isPreferOnline,
+            groupMatchingId = answer.groupMatchingId,
+            fields =
+                fields.map { field ->
+                    FieldResponse(
+                        id = field.id,
+                        name = field.name,
+                    )
+                },
+            matchedGroups =
+                matchedGroups.map { matchedGroup ->
+                    MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            groupMatchingSubjects =
+                subjects.map { subject ->
+                    GroupMatchingSubjectResponse(
+                        id = subject.id,
+                        subject = subject.subject,
+                    )
+                },
+            createdAt = answer.createdAt,
+            updatedAt = answer.updatedAt,
+        )
+    }
+
+    @Transactional
+    fun updateAnswer(
+        groupMatchingId: String,
+        userId: Long,
+        updateDto: UpdateGroupMatchingAnswerDto,
+    ): GroupMatchingAnswerDto {
+        // 1. 기존 답변 조회
+        val existingAnswer =
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            )
+                ?: throw NotFoundException("Answer not found")
+
+        // 2. GroupMatchingAnswer 업데이트
+        val updatedAnswer =
+            existingAnswer.copy(
+                groupType = updateDto.groupType,
+                isPreferOnline = updateDto.isPreferOnline,
+            )
+        groupMatchingAnswerRepository.save(updatedAnswer)
+
+        // 3. 연관 fields 업데이트 (삭제 후 재생성)
+        groupMatchingAnswerFieldRepository.deleteAllByAnswerId(existingAnswer.id)
+        updateDto.fieldIds.forEach { fieldId ->
+            groupMatchingAnswerFieldRepository.save(
+                com.sight.domain.groupmatching.GroupMatchingAnswerField(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    fieldId = fieldId,
+                ),
+            )
+        }
+
+        // 4. 연관 subjects 업데이트 (삭제 후 재생성)
+        groupMatchingSubjectRepository.deleteAllByAnswerId(existingAnswer.id)
+        updateDto.subjects.forEach { subject ->
+            groupMatchingSubjectRepository.save(
+                com.sight.domain.groupmatching.GroupMatchingSubject(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    subject = subject,
+                ),
+            )
+        }
+
+        // 5. 업데이트된 데이터 조회 후 반환
+        return getAnswer(groupMatchingId, userId)
     }
 
     @Transactional
@@ -70,10 +191,14 @@ class GroupMatchingService(
         groupId: Long,
         answerId: String,
     ) {
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("Group not found") }
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                NotFoundException("Group not found")
+            }
         val answer =
-            groupMatchingAnswerRepository.findById(answerId)
-                .orElseThrow { NotFoundException("Answer not found") }
+            groupMatchingAnswerRepository.findById(answerId).orElseThrow {
+                NotFoundException("Answer not found")
+            }
 
         if (groupMemberRepository.existsByGroupIdAndMemberId(groupId, answer.userId)) {
             throw BadRequestException("Member already in group")
@@ -86,7 +211,7 @@ class GroupMatchingService(
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(
                 MatchedGroup(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = UlidCreator.getUlid().toString(),
                     groupId = groupId,
                     answerId = answerId,
                 ),

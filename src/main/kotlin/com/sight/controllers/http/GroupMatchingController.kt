@@ -3,13 +3,17 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
+import com.sight.controllers.http.dto.UpdateGroupMatchingAnswerRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
+import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
@@ -48,6 +52,56 @@ class GroupMatchingController(
         requester: Requester,
     ): GetGroupMatchingAnswerResponse {
         val answerDto = groupMatchingService.getAnswer(groupMatchingId, requester.userId)
+        return GetGroupMatchingAnswerResponse(
+            id = answerDto.id,
+            userId = answerDto.userId,
+            groupType = answerDto.groupType,
+            isPreferOnline = answerDto.isPreferOnline,
+            groupMatchingId = answerDto.groupMatchingId,
+            fields =
+                answerDto.fields.map { field ->
+                    GetGroupMatchingAnswerResponse.FieldResponse(
+                        id = field.id,
+                        name = field.name,
+                    )
+                },
+            matchedGroups =
+                answerDto.matchedGroups.map { matchedGroup ->
+                    GetGroupMatchingAnswerResponse.MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            groupMatchingSubjects =
+                answerDto.groupMatchingSubjects.map { subject ->
+                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
+                        id = subject.id,
+                        subject = subject.subject,
+                    )
+                },
+            createdAt = answerDto.createdAt,
+            updatedAt = answerDto.updatedAt,
+        )
+    }
+
+    @Auth(roles = [UserRole.USER, UserRole.MANAGER])
+    @PutMapping("/group-matchings/{groupMatchingId}/answers/@me")
+    fun updateAnswer(
+        @PathVariable groupMatchingId: String,
+        @RequestBody request: UpdateGroupMatchingAnswerRequest,
+        requester: Requester,
+    ): GetGroupMatchingAnswerResponse {
+        val updateDto =
+            UpdateGroupMatchingAnswerDto(
+                groupType = request.groupType,
+                isPreferOnline = request.isPreferOnline,
+                fieldIds = request.fieldIds,
+                subjects = request.subjects,
+            )
+
+        val answerDto = groupMatchingService.updateAnswer(groupMatchingId, requester.userId, updateDto)
+
         return GetGroupMatchingAnswerResponse(
             id = answerDto.id,
             userId = answerDto.userId,

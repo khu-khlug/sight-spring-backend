@@ -119,6 +119,85 @@ class GroupMatchingServiceTest {
     }
 
     @Test
+    fun `updateAnswer는 답변이 없으면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1"),
+                subjects = listOf("subject1"),
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(null)
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 답변을 성공적으로 업데이트한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updatedAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1", "field2"),
+                subjects = listOf("subject1"),
+            )
+
+        // Mock for initial findByGroupMatchingIdAndUserId (in updateAnswer)
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+            .thenReturn(updatedAnswer) // For getAnswer call at the end
+        whenever(groupMatchingAnswerFieldRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingFieldRepository.findAllById(any<List<String>>()))
+            .thenReturn(emptyList())
+        whenever(matchedGroupRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingSubjectRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+
+        // when
+        val result = groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+
+        // then
+        verify(groupMatchingAnswerRepository).save(any<GroupMatchingAnswer>())
+        verify(groupMatchingAnswerFieldRepository).deleteAllByAnswerId(answerId)
+        verify(groupMatchingSubjectRepository).deleteAllByAnswerId(answerId)
+        assertEquals(answerId, result.id)
+        assertEquals(GroupCategory.STUDY, result.groupType)
+        assertEquals(true, result.isPreferOnline)
+    }
+
+    @Test
     fun `addMemberToGroup은 그룹이 존재하지 않으면 예외를 던진다`() {
         // given
         val groupId = 100L

@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
@@ -17,6 +18,7 @@ import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
 import com.sight.service.dto.GroupMatchingSubjectResponse
 import com.sight.service.dto.MatchedGroupResponse
+import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -135,6 +137,56 @@ class GroupMatchingService(
     }
 
     @Transactional
+    fun updateAnswer(
+        groupMatchingId: String,
+        userId: Long,
+        updateDto: UpdateGroupMatchingAnswerDto,
+    ): GroupMatchingAnswerDto {
+        // 1. 기존 답변 조회
+        val existingAnswer =
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            )
+                ?: throw NotFoundException("Answer not found")
+
+        // 2. GroupMatchingAnswer 업데이트
+        val updatedAnswer =
+            existingAnswer.copy(
+                groupType = updateDto.groupType,
+                isPreferOnline = updateDto.isPreferOnline,
+            )
+        groupMatchingAnswerRepository.save(updatedAnswer)
+
+        // 3. 연관 fields 업데이트 (삭제 후 재생성)
+        groupMatchingAnswerFieldRepository.deleteAllByAnswerId(existingAnswer.id)
+        updateDto.fieldIds.forEach { fieldId ->
+            groupMatchingAnswerFieldRepository.save(
+                com.sight.domain.groupmatching.GroupMatchingAnswerField(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    fieldId = fieldId,
+                ),
+            )
+        }
+
+        // 4. 연관 subjects 업데이트 (삭제 후 재생성)
+        groupMatchingSubjectRepository.deleteAllByAnswerId(existingAnswer.id)
+        updateDto.subjects.forEach { subject ->
+            groupMatchingSubjectRepository.save(
+                com.sight.domain.groupmatching.GroupMatchingSubject(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    subject = subject,
+                ),
+            )
+        }
+
+        // 5. 업데이트된 데이터 조회 후 반환
+        return getAnswer(groupMatchingId, userId)
+    }
+
+    @Transactional
     fun addMemberToGroup(
         groupId: Long,
         answerId: String,
@@ -159,7 +211,7 @@ class GroupMatchingService(
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(
                 MatchedGroup(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = UlidCreator.getUlid().toString(),
                     groupId = groupId,
                     answerId = answerId,
                 ),

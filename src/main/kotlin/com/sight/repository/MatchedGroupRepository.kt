@@ -7,6 +7,7 @@ interface MatchedGroupRepository : JpaRepository<MatchedGroup, String> {
     fun findAllByAnswerIdIn(answerIds: List<String>): List<MatchedGroup>
 
     fun findAllByAnswerId(answerId: String): List<MatchedGroup>
+
     fun existsByGroupIdAndAnswerId(
         groupId: Long,
         answerId: String,

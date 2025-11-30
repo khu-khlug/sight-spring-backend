@@ -7,4 +7,5 @@ interface GroupMatchingFieldRepository : JpaRepository<GroupMatchingField, Strin
     fun existsByName(name: String): Boolean
 
     fun findAllByObsoletedAtIsNull(): List<GroupMatchingField>
+    fun findByName(name: String): GroupMatchingField?
 }

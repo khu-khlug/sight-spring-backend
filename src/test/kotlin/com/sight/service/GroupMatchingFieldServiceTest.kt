@@ -28,7 +28,7 @@ class GroupMatchingFieldServiceTest {
         // given
         val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
 
-        given(groupMatchingFieldRepository.existsByName(request.fieldName)).willReturn(false)
+        given(groupMatchingFieldRepository.findByName(request.fieldName)).willReturn(null)
         given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
             it.arguments[0] as GroupMatchingField
         }
@@ -38,7 +38,7 @@ class GroupMatchingFieldServiceTest {
 
         // then
         assertEquals(request.fieldName, result.name)
-        verify(groupMatchingFieldRepository).existsByName(request.fieldName)
+        verify(groupMatchingFieldRepository).findByName(request.fieldName)
         verify(groupMatchingFieldRepository).save(any<GroupMatchingField>())
     }
 
@@ -46,13 +46,39 @@ class GroupMatchingFieldServiceTest {
     fun `addGroupMatchingField는 이름이 이미 존재하면 UnprocessableEntityException을 던진다`() {
         // given
         val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
-        given(groupMatchingFieldRepository.existsByName(request.fieldName)).willReturn(true)
+        val existingField = GroupMatchingField(id = "existing-id", name = "백엔드")
+        given(groupMatchingFieldRepository.findByName(request.fieldName)).willReturn(existingField)
 
         // when & then
         assertThrows<UnprocessableEntityException> {
             groupMatchingFieldService.addGroupMatchingField(request)
         }
-        verify(groupMatchingFieldRepository).existsByName(request.fieldName)
+        verify(groupMatchingFieldRepository).findByName(request.fieldName)
+    }
+
+    @Test
+    fun `addGroupMatchingField는 obsoleted된 관심분야를 재활성화한다`() {
+        // given
+        val request = AddGroupMatchingFieldRequest(fieldName = "백엔드")
+        val obsoletedField =
+            GroupMatchingField(
+                id = "obsoleted-id",
+                name = "백엔드",
+                obsoletedAt = LocalDateTime.now(),
+            )
+        given(groupMatchingFieldRepository.findByName(request.fieldName)).willReturn(obsoletedField)
+        given(groupMatchingFieldRepository.save(any<GroupMatchingField>())).willAnswer {
+            it.arguments[0] as GroupMatchingField
+        }
+
+        // when
+        val result = groupMatchingFieldService.addGroupMatchingField(request)
+
+        // then
+        assertEquals("백엔드", result.name)
+        assertEquals(null, result.obsoletedAt)
+        verify(groupMatchingFieldRepository).findByName(request.fieldName)
+        verify(groupMatchingFieldRepository).save(obsoletedField)
     }
 
     @Test

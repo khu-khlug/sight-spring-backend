@@ -18,10 +18,19 @@ class GroupMatchingFieldService(
 ) {
     @Transactional
     fun addGroupMatchingField(request: AddGroupMatchingFieldRequest): GroupMatchingField {
-        if (groupMatchingFieldRepository.existsByName(request.fieldName)) {
+        val existing = groupMatchingFieldRepository.findByName(request.fieldName)
+
+        // 활성 상태 중복
+        if (existing != null && !isObsolete(existing)) {
             throw UnprocessableEntityException("이미 존재하는 관심분야 이름입니다")
         }
 
+        // 폐기 상태 → 재활성화
+        if (existing != null && isObsolete(existing)) {
+            return makeFieldActive(existing)
+        }
+
+        // 새로 생성
         val field =
             GroupMatchingField(
                 id = UlidCreator.getUlid().toString(),
@@ -70,5 +79,8 @@ class GroupMatchingFieldService(
                 obsoletedAt = field.obsoletedAt,
             )
         }
+    private fun makeFieldActive(field: GroupMatchingField): GroupMatchingField {
+        field.obsoletedAt = null
+        return groupMatchingFieldRepository.save(field)
     }
 }

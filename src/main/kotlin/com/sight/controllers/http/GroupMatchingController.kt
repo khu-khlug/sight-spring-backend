@@ -1,5 +1,7 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CreateGroupMatchingRequest
+import com.sight.controllers.http.dto.CreateGroupMatchingResponse
 import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
@@ -8,9 +10,14 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -78,6 +85,28 @@ class GroupMatchingController(
                 },
             createdAt = answerDto.createdAt,
             updatedAt = answerDto.updatedAt,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/group-matchings")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createGroupMatchingRequest(
+        @Valid @RequestBody request: CreateGroupMatchingRequest,
+    ): CreateGroupMatchingResponse {
+        val saved =
+            groupMatchingService.createGroupMatching(
+                year = request.year,
+                semester = request.semester,
+                closedAt = request.closedAt,
+            )
+
+        return CreateGroupMatchingResponse(
+            id = saved.id,
+            year = saved.year,
+            semester = saved.semester,
+            createdAt = saved.createdAt,
+            closedAt = saved.closedAt,
         )
     }
 }

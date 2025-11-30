@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 interface GroupMatchingFieldRepository : JpaRepository<GroupMatchingField, String> {
     fun existsByName(name: String): Boolean
 
+    fun findAllByObsoletedAtIsNull(): List<GroupMatchingField>
+
     fun findByName(name: String): GroupMatchingField?
 
     fun findAllByObsoletedAtIsNull(): List<GroupMatchingField>

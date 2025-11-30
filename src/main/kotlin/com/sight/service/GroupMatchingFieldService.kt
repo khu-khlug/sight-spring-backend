@@ -85,4 +85,8 @@ class GroupMatchingFieldService(
             )
         }
     }
+        private fun makeFieldActive(field: GroupMatchingField): GroupMatchingField {
+            field.obsoletedAt = null
+            return groupMatchingFieldRepository.save(field)
+        }
 }

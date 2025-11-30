@@ -34,4 +34,9 @@ interface GroupMatchingAnswerRepository : JpaRepository<GroupMatchingAnswer, Str
         @Param("fieldId") fieldId: String?,
         pageable: Pageable,
     ): Page<GroupMatchingAnswer>
+
+    fun findByGroupMatchingIdAndUserId(
+        groupMatchingId: String,
+        userId: Long,
+    ): GroupMatchingAnswer?
 }

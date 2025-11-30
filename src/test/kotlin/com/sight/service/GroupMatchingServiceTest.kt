@@ -227,7 +227,8 @@ class GroupMatchingServiceTest {
             com.sight.service.dto.UpdateGroupMatchingAnswerDto(
                 groupType = GroupCategory.STUDY,
                 isPreferOnline = true,
-                fieldIds = listOf("field1", "field1"), // 중복
+                // 중복된 fieldId
+                fieldIds = listOf("field1", "field1"),
                 subjects = emptyList(),
             )
 
@@ -300,7 +301,8 @@ class GroupMatchingServiceTest {
                 groupType = GroupCategory.STUDY,
                 isPreferOnline = true,
                 fieldIds = listOf("field1"),
-                subjects = listOf("subject1", "  "), // 공백 포함
+                // 공백 포함
+                subjects = listOf("subject1", "  "),
             )
 
         val field1 =

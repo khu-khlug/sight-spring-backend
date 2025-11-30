@@ -61,7 +61,8 @@ class GroupMatchingFieldRequestService(
         requestReason: String,
         requesterUserId: Long,
     ): GroupMatchingFieldRequest {
-        if (groupMatchingFieldRepository.existsByName(fieldName)) {
+        val existingField = groupMatchingFieldRepository.findByName(fieldName)
+        if (existingField != null && existingField.obsoletedAt == null) {
             throw UnprocessableEntityException("이미 등록된 관심분야 이름입니다.")
         }
         if (groupMatchingFieldRequestRepository.existsByFieldName(fieldName)) {

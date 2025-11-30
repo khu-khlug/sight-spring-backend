@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
@@ -140,13 +141,16 @@ class GroupMatchingFieldRequestServiceTest {
     }
 
     @Test
-    fun `createGroupMatchingFieldRequest는 이미 등록된 관심분야 이름일 경우 예외를 발생시킨다`() {
+    fun `createGroupMatchingFieldRequest는 이미 등록되고 obsoletedAt이 null인 관심분야 이름일 경우 예외를 발생시킨다`() {
         // given
         val requesterUserId = 100L
         val fieldName = "백엔드_개발"
         val requestReason = "관심분야 추가 요청"
 
-        given(fieldRepository.existsByName(fieldName)).willReturn(true)
+        val activeField = mock<GroupMatchingField>()
+        given(activeField.obsoletedAt).willReturn(null)
+
+        given(fieldRepository.findByName(fieldName)).willReturn(activeField)
         given(repository.existsByFieldName(fieldName)).willReturn(false)
 
         // when & then
@@ -160,6 +164,34 @@ class GroupMatchingFieldRequestServiceTest {
 
         // 예외가 발생했으므로 저장 로직은 호출되지 않아야 함
         verify(repository, never()).save(any())
+    }
+
+    @Test
+    fun `createGroupMatchingFieldRequest는 폐기된(ObsoletedAt != null) 관심분야 이름일 경우 정상적으로 저장한다`() {
+        // given
+        val requesterUserId = 100L
+        val fieldName = "구_백엔드" // 예전에 쓰다 버린 이름
+        val requestReason = "다시 쓰고 싶어요"
+
+        // Mock: 이미 존재하지만 폐기된 필드 (obsoletedAt != null)
+        val obsoletedField = mock<GroupMatchingField>()
+        given(obsoletedField.obsoletedAt).willReturn(LocalDateTime.now()) // 삭제됨
+
+        // findByName 호출 시 폐기된 필드 반환 -> 서비스는 이를 '없는 것'과 동일하게 취급해야 함
+        given(fieldRepository.findByName(fieldName)).willReturn(obsoletedField)
+
+        given(repository.existsByFieldName(fieldName)).willReturn(false)
+        given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
+            it.arguments[0] as GroupMatchingFieldRequest
+        }
+
+        // when
+        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
+
+        // then
+        // 예외 없이 저장 성공 확인
+        assertEquals(fieldName, result.fieldName)
+        verify(repository).save(any<GroupMatchingFieldRequest>())
     }
 
     @Test

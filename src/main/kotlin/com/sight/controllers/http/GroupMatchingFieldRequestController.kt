@@ -4,6 +4,7 @@ import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestResponse
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.GroupMatchingFieldRequestService
 import jakarta.validation.Valid
@@ -29,13 +30,13 @@ class GroupMatchingFieldRequestController(
     @ResponseStatus(HttpStatus.CREATED)
     fun createGroupMatchingFieldRequest(
         @Valid @RequestBody request: CreateGroupMatchingFieldRequestRequest,
-        userId: Long,
+        requester: Requester,
     ): CreateGroupMatchingFieldRequestResponse {
         val saved =
             groupMatchingFieldRequestService.createGroupMatchingFieldRequest(
                 fieldName = request.fieldName,
                 requestReason = request.requestReason,
-                requesterUserId = userId,
+                requesterUserId = requester.userId,
             )
 
         return CreateGroupMatchingFieldRequestResponse(

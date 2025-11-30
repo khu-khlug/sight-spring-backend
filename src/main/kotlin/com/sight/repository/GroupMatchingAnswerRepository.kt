@@ -7,6 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository
 interface GroupMatchingAnswerRepository : JpaRepository<GroupMatchingAnswer, String> {
     fun findAllByGroupMatchingId(groupMatchingId: String): List<GroupMatchingAnswer>
 
+    fun existsByUserIdAndGroupMatchingId(
+        userId: Long,
+        groupMatchingId: String,
+    ): Boolean
+
     fun findAllByGroupMatchingIdAndGroupType(
         groupMatchingId: String,
         groupType: GroupCategory,

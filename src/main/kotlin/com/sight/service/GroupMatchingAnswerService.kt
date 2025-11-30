@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
@@ -9,15 +10,12 @@ import com.sight.domain.groupmatching.GroupMatchingSubject
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.GroupMatchingSubjectRepository
+import com.sight.service.dto.GroupMatchingAnswerResult
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-
-data class GroupMatchingAnswerResult(
-    val answer: GroupMatchingAnswer,
-    val fieldIds: List<String>,
-    val subjectIds: List<String>,
-)
+import java.time.LocalDateTime
 
 @Service
 class GroupMatchingAnswerService(
@@ -25,6 +23,7 @@ class GroupMatchingAnswerService(
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
+    private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional
     fun createGroupMatchingAnswer(
@@ -36,11 +35,19 @@ class GroupMatchingAnswerService(
         groupMatchingSubjects: List<String>,
     ): GroupMatchingAnswerResult {
         // [Logic Added] 1. 중복 제출 검증
+        val groupMatching =
+            groupMatchingRepository.findById(groupMatchingId)
+                .orElseThrow { NotFoundException("해당 그룹 매칭을 찾을 수 없습니다.") }
+
+        val now = LocalDateTime.now()
+
+        if (groupMatching.closedAt.isBefore(now) || groupMatching.closedAt.isEqual(now)) {
+            throw UnprocessableEntityException("그룹 매칭 응답 기간이 마감되었습니다. (마감일시: ${groupMatching.closedAt})")
+        }
+
         if (groupMatchingAnswerRepository.existsByUserIdAndGroupMatchingId(userId, groupMatchingId)) {
             throw UnprocessableEntityException("이미 응답을 제출했습니다.")
         }
-
-        // 2. 답변 엔티티 생성 및 저장
         val fieldRequest =
             GroupMatchingAnswer(
                 id = UlidCreator.getUlid().toString(),
@@ -50,8 +57,7 @@ class GroupMatchingAnswerService(
                 groupMatchingId = groupMatchingId,
             )
         val savedAnswer = groupMatchingAnswerRepository.save(fieldRequest)
-
-        // 3. 필드 선택지 저장
+        //  필드 선택지 저장
         val fieldEntities =
             groupMatchingFieldIds.map { fieldId ->
 
@@ -66,8 +72,9 @@ class GroupMatchingAnswerService(
                 }
             }
         groupMatchingAnswerFieldRepository.saveAll(fieldEntities)
+        //  답변 엔티티 생성 및 저장
 
-        // 4. 서브젝트 저장 (Optional)
+        //  주제 저장
         var createdSubjectIds: List<String> = emptyList()
         if (groupMatchingSubjects.isNotEmpty()) {
             val subjectEntities =

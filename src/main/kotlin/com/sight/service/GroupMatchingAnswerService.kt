@@ -27,32 +27,20 @@ class GroupMatchingAnswerService(
 
     fun getAllAnswers(
         groupMatchingId: String,
-        groupType: String? = null,
+        groupType: GroupCategory? = null,
         fieldId: String? = null,
         offset: Int = DEFAULT_OFFSET,
         limit: Int = DEFAULT_LIMIT,
     ): GetAnswersResponse {
-        // groupType 검증 - STUDY와 PROJECT만 허용
-        val groupTypeEnum: GroupCategory? =
-            groupType?.let {
-                when (it.uppercase()) {
-                    "STUDY" -> GroupCategory.STUDY
-                    "PROJECT" -> GroupCategory.PROJECT
-                    else -> throw BadRequestException("유효하지 않은 그룹 타입입니다")
-                }
+        // fieldId 검증 - 비즈니스 로직 검증 (존재 여부 및 obsoleted 체크)
+        if (fieldId != null) {
+            val field =
+                fieldRepository.findById(fieldId)
+                    .orElseThrow { BadRequestException("유효하지 않은 관심분야입니다") }
+
+            if (field.obsoletedAt != null) {
+                throw BadRequestException("유효하지 않은 관심분야입니다")
             }
-
-        // fieldId 검증
-        if (fieldId != null && !fieldRepository.existsById(fieldId)) {
-            throw BadRequestException("유효하지 않은 fieldId입니다")
-        }
-
-        // offset/limit 검증
-        if (offset < 0) {
-            throw BadRequestException("offset은 0 이상이어야 합니다")
-        }
-        if (limit <= 0) {
-            throw BadRequestException("limit은 양의 정수여야 합니다")
         }
 
         // Pageable 생성 (offset 기반)
@@ -60,7 +48,7 @@ class GroupMatchingAnswerService(
         val pageable = PageRequest.of(pageNumber, limit)
 
         // DB 쿼리로 필터링 및 페이지네이션
-        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupTypeEnum, fieldId, pageable)
+        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, fieldId, pageable)
 
         // DTO 변환
         val answerDtos =

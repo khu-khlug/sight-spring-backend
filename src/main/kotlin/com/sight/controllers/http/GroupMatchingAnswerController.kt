@@ -3,13 +3,18 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.GetAnswersResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
+import com.sight.core.exception.BadRequestException
+import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingAnswerService
+import jakarta.validation.constraints.Min
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
+@Validated
 class GroupMatchingAnswerController(
     private val answerService: GroupMatchingAnswerService,
 ) {
@@ -19,9 +24,23 @@ class GroupMatchingAnswerController(
         @PathVariable groupMatchingId: String,
         @RequestParam(required = false) groupType: String?,
         @RequestParam(required = false) fieldId: String?,
-        @RequestParam(required = false, defaultValue = "0") offset: Int,
-        @RequestParam(required = false, defaultValue = "20") limit: Int,
+        @RequestParam(required = false, defaultValue = "0")
+        @Min(0, message = "offset은 0 이상이어야 합니다")
+        offset: Int,
+        @RequestParam(required = false, defaultValue = "20")
+        @Min(1, message = "limit은 양의 정수여야 합니다")
+        limit: Int,
     ): GetAnswersResponse {
-        return answerService.getAllAnswers(groupMatchingId, groupType, fieldId, offset, limit)
+        // Controller에서 groupType 검증 및 변환
+        val groupCategory: GroupCategory? =
+            groupType?.let {
+                when (it.uppercase()) {
+                    "STUDY" -> GroupCategory.STUDY
+                    "PROJECT" -> GroupCategory.PROJECT
+                    else -> throw BadRequestException("유효하지 않은 그룹 타입입니다")
+                }
+            }
+
+        return answerService.getAllAnswers(groupMatchingId, groupCategory, fieldId, offset, limit)
     }
 }

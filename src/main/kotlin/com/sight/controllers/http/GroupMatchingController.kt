@@ -3,13 +3,18 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
+import com.sight.controllers.http.dto.GroupMatchingResponse
+import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
@@ -78,6 +83,23 @@ class GroupMatchingController(
                 },
             createdAt = answerDto.createdAt,
             updatedAt = answerDto.updatedAt,
+        )
+    }
+
+    @Auth(roles = [UserRole.MANAGER])
+    @PatchMapping("/group-matchings/{groupMatchingId}/closed-at")
+    fun updateClosedAt(
+        @PathVariable groupMatchingId: String,
+        @Valid @RequestBody request: UpdateGroupMatchingClosedAtRequest,
+    ): GroupMatchingResponse {
+        val groupMatching = groupMatchingService.updateClosedAt(groupMatchingId, request.closedAt)
+
+        return GroupMatchingResponse(
+            groupMatchingId = groupMatching.id,
+            year = groupMatching.year,
+            semester = groupMatching.semester,
+            closedAt = groupMatching.closedAt,
+            createdAt = groupMatching.createdAt,
         )
     }
 }

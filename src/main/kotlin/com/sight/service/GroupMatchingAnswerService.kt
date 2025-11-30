@@ -8,6 +8,7 @@ import com.sight.domain.groupmatching.GroupMatchingAnswerField
 import com.sight.domain.groupmatching.GroupMatchingSubject
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -22,6 +23,7 @@ data class GroupMatchingAnswerResult(
 class GroupMatchingAnswerService(
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
 ) {
     @Transactional
@@ -34,7 +36,6 @@ class GroupMatchingAnswerService(
         groupMatchingSubjects: List<String>,
     ): GroupMatchingAnswerResult {
         // [Logic Added] 1. 중복 제출 검증
-        // Repository에 existsByUserIdAndGroupMatchingId 메소드가 필요하다고 가정합니다.
         if (groupMatchingAnswerRepository.existsByUserIdAndGroupMatchingId(userId, groupMatchingId)) {
             throw UnprocessableEntityException("이미 응답을 제출했습니다.")
         }
@@ -53,11 +54,16 @@ class GroupMatchingAnswerService(
         // 3. 필드 선택지 저장
         val fieldEntities =
             groupMatchingFieldIds.map { fieldId ->
-                GroupMatchingAnswerField(
-                    id = UlidCreator.getUlid().toString(),
-                    answerId = savedAnswer.id,
-                    fieldId = fieldId,
-                )
+
+                if (!groupMatchingFieldRepository.existsById(fieldId)) {
+                    throw UnprocessableEntityException("유효하지 않은 필드 선택지 ID: $fieldId")
+                } else {
+                    GroupMatchingAnswerField(
+                        id = UlidCreator.getUlid().toString(),
+                        answerId = savedAnswer.id,
+                        fieldId = fieldId,
+                    )
+                }
             }
         groupMatchingAnswerFieldRepository.saveAll(fieldEntities)
 

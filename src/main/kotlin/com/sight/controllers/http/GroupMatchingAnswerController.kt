@@ -3,6 +3,7 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.CreateGroupMatchingAnswerRequest
 import com.sight.controllers.http.dto.CreateGroupMatchingAnswerResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingAnswerService
@@ -24,13 +25,13 @@ class GroupMatchingAnswerController(
     fun createGroupMatchingAnswer(
         @Valid @RequestBody request: CreateGroupMatchingAnswerRequest,
         @PathVariable groupMatchingId: String,
-        userId: Long,
+        requester: Requester,
     ): CreateGroupMatchingAnswerResponse {
         val result =
             groupMatchingAnswerService.createGroupMatchingAnswer(
                 groupType = GroupCategory.valueOf(request.groupType),
                 isPreferOnline = request.isPreferOnline,
-                userId = userId,
+                userId = requester.userId,
                 groupMatchingFieldIds = request.groupMatchingFieldIds,
                 groupMatchingSubjects = request.groupMatchingSubjects,
                 groupMatchingId = groupMatchingId,

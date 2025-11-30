@@ -39,7 +39,7 @@ class GroupMatchingAnswerServiceTest {
 
         // when & then
         assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, fieldId = invalidFieldId)
+            service.getAllAnswers(groupMatchingId, fieldId = invalidFieldId, offset = 0, limit = 20)
         }
     }
 
@@ -59,7 +59,7 @@ class GroupMatchingAnswerServiceTest {
 
         // when & then
         assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, fieldId = obsoletedFieldId)
+            service.getAllAnswers(groupMatchingId, fieldId = obsoletedFieldId, offset = 0, limit = 20)
         }
     }
 }

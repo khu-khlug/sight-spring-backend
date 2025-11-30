@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.AnswerDto
 import com.sight.controllers.http.dto.GetAnswersResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
@@ -41,6 +42,25 @@ class GroupMatchingAnswerController(
                 }
             }
 
-        return answerService.getAllAnswers(groupMatchingId, groupCategory, fieldId, offset, limit)
+        val result = answerService.getAllAnswers(groupMatchingId, groupCategory, fieldId, offset, limit)
+
+        // service.dto를 controllers.http.dto로 변환
+        return GetAnswersResponse(
+            answers =
+                result.answers.map { summary ->
+                    AnswerDto(
+                        answerId = summary.answerId,
+                        answerUserId = summary.answerUserId,
+                        createdAt = summary.createdAt,
+                        updatedAt = summary.updatedAt,
+                        groupType = summary.groupType,
+                        isPreferOnline = summary.isPreferOnline,
+                        selectedFields = summary.selectedFields,
+                        subjectIdeas = summary.subjectIdeas,
+                        matchedGroupIds = summary.matchedGroupIds,
+                    )
+                },
+            total = result.total,
+        )
     }
 }

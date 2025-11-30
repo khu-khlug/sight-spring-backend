@@ -1,7 +1,5 @@
 package com.sight.service
 
-import com.sight.controllers.http.dto.AnswerDto
-import com.sight.controllers.http.dto.GetAnswersResponse
 import com.sight.core.exception.BadRequestException
 import com.sight.domain.group.GroupCategory
 import com.sight.repository.GroupMatchingAnswerFieldRepository
@@ -9,6 +7,8 @@ import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
+import com.sight.service.dto.AnswerSummary
+import com.sight.service.dto.ListAnswersResult
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 
@@ -20,18 +20,13 @@ class GroupMatchingAnswerService(
     private val matchedGroupRepository: MatchedGroupRepository,
     private val fieldRepository: GroupMatchingFieldRepository,
 ) {
-    companion object {
-        private const val DEFAULT_OFFSET = 0
-        private const val DEFAULT_LIMIT = 20
-    }
-
     fun getAllAnswers(
         groupMatchingId: String,
         groupType: GroupCategory? = null,
         fieldId: String? = null,
-        offset: Int = DEFAULT_OFFSET,
-        limit: Int = DEFAULT_LIMIT,
-    ): GetAnswersResponse {
+        offset: Int,
+        limit: Int,
+    ): ListAnswersResult {
         // fieldId 검증 - 비즈니스 로직 검증 (존재 여부 및 obsoleted 체크)
         if (fieldId != null) {
             val field =
@@ -51,9 +46,9 @@ class GroupMatchingAnswerService(
         val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, fieldId, pageable)
 
         // DTO 변환
-        val answerDtos =
+        val answerSummaries =
             page.content.map { answer ->
-                AnswerDto(
+                AnswerSummary(
                     answerId = answer.id,
                     answerUserId = answer.userId,
                     createdAt = answer.createdAt,
@@ -66,20 +61,20 @@ class GroupMatchingAnswerService(
                 )
             }
 
-        return GetAnswersResponse(
-            answers = answerDtos,
+        return ListAnswersResult(
+            answers = answerSummaries,
             total = page.totalElements.toInt(),
         )
     }
 
     private fun getSelectedFields(answerId: String): List<String> {
-        val fields =
+        val fieldIds =
             answerFieldRepository.findAllByAnswerId(answerId)
                 .map { it.fieldId }
-        if (fields.isEmpty()) {
+        if (fieldIds.isEmpty()) {
             throw BadRequestException("선택한 관심분야가 존재하지 않습니다")
         }
-        return fields
+        return fieldIds
     }
 
     private fun getSubjectIdeas(answerId: String): List<String> {

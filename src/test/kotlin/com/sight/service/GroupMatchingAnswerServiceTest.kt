@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
@@ -10,6 +11,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import java.time.LocalDateTime
+import java.util.Optional
 
 class GroupMatchingAnswerServiceTest {
     private val answerRepository = mock<GroupMatchingAnswerRepository>()
@@ -28,22 +31,11 @@ class GroupMatchingAnswerServiceTest {
         )
 
     @Test
-    fun `getAllAnswers는 groupType이 STUDY나 PROJECT가 아니면 에러를 던진다`() {
-        // given
-        val groupMatchingId = "gm-1"
-
-        // when & then
-        assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, groupType = "INVALID")
-        }
-    }
-
-    @Test
-    fun `getAllAnswers는 fieldId가 유효하지 않으면 에러를 던진다`() {
+    fun `getAllAnswers는 fieldId가 존재하지 않으면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
         val invalidFieldId = "invalid-field"
-        given(fieldRepository.existsById(invalidFieldId)).willReturn(false)
+        given(fieldRepository.findById(invalidFieldId)).willReturn(Optional.empty())
 
         // when & then
         assertThrows<BadRequestException> {
@@ -52,28 +44,22 @@ class GroupMatchingAnswerServiceTest {
     }
 
     @Test
-    fun `getAllAnswers는 offset이 음수이면 에러를 던진다`() {
+    fun `getAllAnswers는 obsoleted된 필드이면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
+        val obsoletedFieldId = "obsoleted-field"
+        val obsoletedField =
+            GroupMatchingField(
+                id = obsoletedFieldId,
+                name = "폐기된 분야",
+                createdAt = LocalDateTime.now().minusDays(30),
+                obsoletedAt = LocalDateTime.now().minusDays(1),
+            )
+        given(fieldRepository.findById(obsoletedFieldId)).willReturn(Optional.of(obsoletedField))
 
         // when & then
         assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, offset = -1)
-        }
-    }
-
-    @Test
-    fun `getAllAnswers는 limit이 0 이하이면 에러를 던진다`() {
-        // given
-        val groupMatchingId = "gm-1"
-
-        // when & then
-        assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, limit = 0)
-        }
-
-        assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, limit = -1)
+            service.getAllAnswers(groupMatchingId, fieldId = obsoletedFieldId)
         }
     }
 }

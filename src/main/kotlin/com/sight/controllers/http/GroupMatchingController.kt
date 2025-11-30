@@ -10,6 +10,7 @@ import com.sight.core.auth.UserRole
 import com.sight.domain.group.GroupCategory
 import com.sight.service.GroupMatchingService
 import com.sight.service.dto.UpdateGroupMatchingAnswerDto
+import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
@@ -89,7 +90,7 @@ class GroupMatchingController(
     @PutMapping("/group-matchings/{groupMatchingId}/answers/@me")
     fun updateAnswer(
         @PathVariable groupMatchingId: String,
-        @RequestBody request: UpdateGroupMatchingAnswerRequest,
+        @Valid @RequestBody request: UpdateGroupMatchingAnswerRequest,
         requester: Requester,
     ): GetGroupMatchingAnswerResponse {
         val updateDto =

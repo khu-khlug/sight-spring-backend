@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.controllers.http.dto.AddGroupMatchingFieldRequest
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingField
@@ -110,5 +111,64 @@ class GroupMatchingFieldServiceTest {
         }
         verify(groupMatchingFieldRepository).findById(fieldId)
         verify(groupMatchingFieldRepository, never()).save(any())
+    }
+
+    @Test
+    fun `USER 권한인 경우 삭제되지 않은 필드만 조회하는 메소드를 호출한다`() {
+        // given
+        val activeField =
+            GroupMatchingField(
+                id = "field-1",
+                name = "Active Field",
+                obsoletedAt = null,
+            )
+        // USER 요청 시 findAllByObsoletedAtIsNull()이 호출될 것임
+        given(groupMatchingFieldRepository.findAllByObsoletedAtIsNull())
+            .willReturn(listOf(activeField))
+
+        // when
+        val result = groupMatchingFieldService.getGroupMatchingFields(UserRole.USER)
+
+        // then
+        assertEquals(1, result.size)
+        assertEquals(activeField.id, result[0].id)
+        assertEquals(activeField.name, result[0].name)
+
+        // [핵심 검증] 올바른 리포지토리 메서드가 호출되었는지 확인
+        verify(groupMatchingFieldRepository).findAllByObsoletedAtIsNull()
+        verify(groupMatchingFieldRepository, never()).findAll()
+    }
+
+    @Test
+    fun `MANAGER 권한인 경우 모든 필드를 조회하는 메소드를 호출한다`() {
+        // given
+        val activeField =
+            GroupMatchingField(
+                id = "field-1",
+                name = "Active Field",
+                obsoletedAt = null,
+            )
+        val obsoletedField =
+            GroupMatchingField(
+                id = "field-2",
+                name = "Obsoleted Field",
+                obsoletedAt = LocalDateTime.now(),
+            )
+
+        // MANAGER 요청 시 findAll()이 호출될 것임
+        given(groupMatchingFieldRepository.findAll())
+            .willReturn(listOf(activeField, obsoletedField))
+
+        // when
+        val result = groupMatchingFieldService.getGroupMatchingFields(UserRole.MANAGER)
+
+        // then
+        assertEquals(2, result.size)
+        assertEquals(activeField.id, result[0].id)
+        assertEquals(obsoletedField.id, result[1].id)
+        // [핵심 검증] findAll()이 호출되었는지 확인
+        verify(groupMatchingFieldRepository).findAll()
+        // [핵심 검증] findAllByObsoletedAtIsNull()은 호출되지 않았는지 확인
+        verify(groupMatchingFieldRepository, never()).findAllByObsoletedAtIsNull()
     }
 }

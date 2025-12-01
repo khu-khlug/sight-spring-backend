@@ -479,6 +479,10 @@ class GroupMatchingServiceTest {
         // when & then
         assertThrows<NotFoundException> {
             groupMatchingService.updateClosedAt(groupMatchingId, newClosedAt)
+        }
+    }
+
+    @Test
     fun `createGroupFromGroupMatching은 모든 답변이 존재하고 리더가 멤버에 포함되면 그룹 ID를 반환한다`() {
         val title = "New Group"
         val answerIds = listOf("ans1", "ans2")
@@ -533,6 +537,10 @@ class GroupMatchingServiceTest {
         // when & then
         assertThrows<BadRequestException> {
             groupMatchingService.updateClosedAt(groupMatchingId, dayBeforeYesterday)
+        }
+    }
+
+    @Test
     fun `createGroupFromGroupMatching은 리더가 멤버에 포함되지 않으면 예외를 던진다`() {
         val title = "New Group"
         val answerIds = listOf("ans1", "ans2")

@@ -6,8 +6,8 @@ import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
 import com.sight.controllers.http.dto.GroupMatchingResponse
-import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.controllers.http.dto.UpdateGroupMatchingAnswerRequest
+import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -108,6 +108,9 @@ class GroupMatchingController(
             semester = groupMatching.semester,
             closedAt = groupMatching.closedAt,
             createdAt = groupMatching.createdAt,
+        )
+    }
+
     @Auth(roles = [UserRole.USER, UserRole.MANAGER])
     @PutMapping("/group-matchings/{groupMatchingId}/answers/@me")
     fun updateAnswer(

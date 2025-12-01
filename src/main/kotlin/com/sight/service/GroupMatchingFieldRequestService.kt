@@ -1,17 +1,14 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.controllers.http.dto.AddGroupMatchingFieldRequest
-import com.sight.controllers.http.dto.ApproveFieldRequestResponse
-import com.sight.controllers.http.dto.FieldInfo
-import com.sight.controllers.http.dto.FieldRequestStatus
-import com.sight.controllers.http.dto.GetFieldRequestsResponse
-import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
+import com.sight.service.dto.GroupMatchingFieldDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -19,15 +16,14 @@ import java.time.LocalDateTime
 @Service
 class GroupMatchingFieldRequestService(
     private val groupMatchingFieldRequestRepository: GroupMatchingFieldRequestRepository,
-    private val groupMatchingFieldService: GroupMatchingFieldService,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
 ) {
-    fun getAllFieldRequests(): List<GetFieldRequestsResponse> {
-        val requests = groupMatchingFieldRequestRepository.findAll()
-        return requests.map { it.toResponse() }
+    fun getAllFieldRequests(): List<GroupMatchingFieldRequest> {
+        return groupMatchingFieldRequestRepository.findAll()
     }
 
     @Transactional
-    fun approveFieldRequest(fieldRequestId: String): ApproveFieldRequestResponse {
+    fun approveFieldRequest(fieldRequestId: String): GroupMatchingFieldDto {
         // 1. FieldRequest 조회
         // TODO: 동시성 처리 (규모가 커지거나 문제 발생 빈도가 높아지면 Lock 사용)
         val fieldRequest =
@@ -43,13 +39,39 @@ class GroupMatchingFieldRequestService(
             throw BadRequestException("이미 거절된 요청입니다")
         }
 
-        // 3. GroupMatchingField 생성
-        val createdField =
-            groupMatchingFieldService.addGroupMatchingField(
-                AddGroupMatchingFieldRequest(fieldName = fieldRequest.fieldName),
-            )
+        // 3. 필드명 유효성 검증
+        val trimmedFieldName = fieldRequest.fieldName.trim()
+        if (trimmedFieldName.isBlank()) {
+            throw BadRequestException("필드명이 비어있습니다")
+        }
+        if (trimmedFieldName.length > 100) {
+            throw BadRequestException("필드명이 너무 깁니다")
+        }
 
-        // 4. FieldRequest 업데이트 (approvedAt 설정)
+        // 4. GroupMatchingField 생성 (Repository 직접 사용)
+        val existing = groupMatchingFieldRepository.findByName(trimmedFieldName)
+
+        // 활성 상태 중복
+        if (existing != null && existing.obsoletedAt == null) {
+            throw UnprocessableEntityException("이미 존재하는 관심분야 이름입니다")
+        }
+
+        val createdField: GroupMatchingField =
+            if (existing != null && existing.obsoletedAt != null) {
+                // 폐기 상태 → 재활성화
+                existing.obsoletedAt = null
+                groupMatchingFieldRepository.save(existing)
+            } else {
+                // 새로 생성
+                val field =
+                    GroupMatchingField(
+                        id = com.github.f4b6a3.ulid.UlidCreator.getUlid().toString(),
+                        name = trimmedFieldName,
+                    )
+                groupMatchingFieldRepository.save(field)
+            }
+
+        // 5. FieldRequest 업데이트 (approvedAt 설정)
         val now = LocalDateTime.now()
         val updatedRequest =
             fieldRequest.copy(
@@ -57,49 +79,11 @@ class GroupMatchingFieldRequestService(
             )
         groupMatchingFieldRequestRepository.save(updatedRequest)
 
-        // 5. Response 반환
-        return ApproveFieldRequestResponse(
-            field =
-                FieldInfo(
-                    id = createdField.id,
-                    name = createdField.name,
-                    createdAt = createdField.createdAt,
-                ),
-            approvedAt = now,
-        )
-    }
-
-    private fun GroupMatchingFieldRequest.toResponse(): GetFieldRequestsResponse {
-        val status =
-            when {
-                approvedAt != null -> FieldRequestStatus.APPROVED
-                rejectedAt != null -> FieldRequestStatus.REJECTED
-                else -> FieldRequestStatus.PENDING
-            }
-
-        val processDetails =
-            when (status) {
-                FieldRequestStatus.APPROVED ->
-                    ProcessDetails(
-                        processedAt = approvedAt!!,
-                        rejectReason = null,
-                    )
-                FieldRequestStatus.REJECTED ->
-                    ProcessDetails(
-                        processedAt = rejectedAt!!,
-                        rejectReason = rejectReason,
-                    )
-                FieldRequestStatus.PENDING -> null
-            }
-
-        return GetFieldRequestsResponse(
-            id = id,
-            fieldName = fieldName,
-            requestedBy = requesterUserId,
-            requestedAt = createdAt,
-            requestReason = requestReason,
-            status = status,
-            processDetails = processDetails,
+        // 6. Service DTO 반환
+        return GroupMatchingFieldDto(
+            id = createdField.id,
+            name = createdField.name,
+            createdAt = createdField.createdAt,
         )
     }
 
@@ -109,8 +93,8 @@ class GroupMatchingFieldRequestService(
         requestReason: String,
         requesterUserId: Long,
     ): GroupMatchingFieldRequest {
-        // Service 계층을 통해 필드 존재 여부 확인
-        val existingField = groupMatchingFieldService.findByName(fieldName)
+        // Repository를 직접 사용하여 필드 존재 여부 확인
+        val existingField = groupMatchingFieldRepository.findByName(fieldName)
         if (existingField != null && existingField.obsoletedAt == null) {
             throw UnprocessableEntityException("이미 등록된 관심분야 이름입니다.")
         }

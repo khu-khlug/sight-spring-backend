@@ -3,7 +3,10 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.ApproveFieldRequestResponse
 import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestResponse
+import com.sight.controllers.http.dto.FieldInfo
+import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
+import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.controllers.http.dto.RejectGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.RejectGroupMatchingFieldRequestResponse
 import com.sight.core.auth.Auth
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDateTime
 
 @RestController
 class GroupMatchingFieldRequestController(
@@ -26,7 +30,40 @@ class GroupMatchingFieldRequestController(
     @Auth(roles = [UserRole.MANAGER])
     @GetMapping("/field-requests")
     fun getFieldRequests(): List<GetFieldRequestsResponse> {
-        return groupMatchingFieldRequestService.getAllFieldRequests()
+        val requests = groupMatchingFieldRequestService.getAllFieldRequests()
+        return requests.map { request ->
+            val status =
+                when {
+                    request.approvedAt != null -> FieldRequestStatus.APPROVED
+                    request.rejectedAt != null -> FieldRequestStatus.REJECTED
+                    else -> FieldRequestStatus.PENDING
+                }
+
+            val processDetails =
+                when (status) {
+                    FieldRequestStatus.APPROVED ->
+                        ProcessDetails(
+                            processedAt = request.approvedAt!!,
+                            rejectReason = null,
+                        )
+                    FieldRequestStatus.REJECTED ->
+                        ProcessDetails(
+                            processedAt = request.rejectedAt!!,
+                            rejectReason = request.rejectReason,
+                        )
+                    FieldRequestStatus.PENDING -> null
+                }
+
+            GetFieldRequestsResponse(
+                id = request.id,
+                fieldName = request.fieldName,
+                requestedBy = request.requesterUserId,
+                requestedAt = request.createdAt,
+                requestReason = request.requestReason,
+                status = status,
+                processDetails = processDetails,
+            )
+        }
     }
 
     @Auth(roles = [UserRole.MANAGER])
@@ -35,7 +72,17 @@ class GroupMatchingFieldRequestController(
     fun approveFieldRequest(
         @PathVariable fieldRequestId: String,
     ): ApproveFieldRequestResponse {
-        return groupMatchingFieldRequestService.approveFieldRequest(fieldRequestId)
+        val fieldDto = groupMatchingFieldRequestService.approveFieldRequest(fieldRequestId)
+
+        return ApproveFieldRequestResponse(
+            field =
+                FieldInfo(
+                    id = fieldDto.id,
+                    name = fieldDto.name,
+                    createdAt = fieldDto.createdAt,
+                ),
+            approvedAt = LocalDateTime.now(),
+        )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])

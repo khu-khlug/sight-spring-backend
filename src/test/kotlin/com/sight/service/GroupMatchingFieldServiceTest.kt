@@ -34,7 +34,7 @@ class GroupMatchingFieldServiceTest {
         }
 
         // when
-        val result = groupMatchingFieldService.addGroupMatchingField(request)
+        val result = groupMatchingFieldService.addGroupMatchingField(request.fieldName)
 
         // then
         assertEquals(request.fieldName, result.name)
@@ -51,7 +51,7 @@ class GroupMatchingFieldServiceTest {
 
         // when & then
         assertThrows<UnprocessableEntityException> {
-            groupMatchingFieldService.addGroupMatchingField(request)
+            groupMatchingFieldService.addGroupMatchingField(request.fieldName)
         }
         verify(groupMatchingFieldRepository).findByName(request.fieldName)
     }
@@ -72,11 +72,10 @@ class GroupMatchingFieldServiceTest {
         }
 
         // when
-        val result = groupMatchingFieldService.addGroupMatchingField(request)
+        val result = groupMatchingFieldService.addGroupMatchingField(request.fieldName)
 
         // then
         assertEquals("백엔드", result.name)
-        assertEquals(null, result.obsoletedAt)
         verify(groupMatchingFieldRepository).findByName(request.fieldName)
         verify(groupMatchingFieldRepository).save(obsoletedField)
     }
@@ -129,7 +128,8 @@ class GroupMatchingFieldServiceTest {
                 name = "백엔드",
                 obsoletedAt = LocalDateTime.now(),
             )
-        given(groupMatchingFieldRepository.findById(fieldId)).willReturn(Optional.of(obsoletedField))
+        given(groupMatchingFieldRepository.findById(fieldId))
+            .willReturn(Optional.of(obsoletedField))
 
         // when & then
         assertThrows<NotFoundException> {

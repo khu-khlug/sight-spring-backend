@@ -28,12 +28,12 @@ class GroupMatchingFieldController(
     fun addGroupMatchingField(
         @Valid @RequestBody request: AddGroupMatchingFieldRequest,
     ): AddGroupMatchingFieldResponse {
-        val field = groupMatchingFieldService.addGroupMatchingField(request)
+        val fieldDto = groupMatchingFieldService.addGroupMatchingField(request.fieldName)
 
         return AddGroupMatchingFieldResponse(
-            fieldId = field.id,
-            fieldName = field.name,
-            createdAt = field.createdAt,
+            fieldId = fieldDto.id,
+            fieldName = fieldDto.name,
+            createdAt = fieldDto.createdAt,
         )
     }
 
@@ -49,7 +49,8 @@ class GroupMatchingFieldController(
     @Auth(roles = [UserRole.MANAGER, UserRole.USER])
     @GetMapping("/fields")
     fun getGroupMatchingFields(requester: Requester): List<GetGroupMatchingFieldResponse> {
-        val fields: List<GroupMatchingFieldAnswer> = groupMatchingFieldService.getGroupMatchingFields(requester.role)
+        val fields: List<GroupMatchingFieldAnswer> =
+            groupMatchingFieldService.getGroupMatchingFields(requester.role)
 
         return fields.map { field ->
             GetGroupMatchingFieldResponse(

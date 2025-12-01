@@ -2,6 +2,8 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.AddGroupDiscordChannelMemberRequest
 import com.sight.controllers.http.dto.CreateGroupDiscordChannelResponse
+import com.sight.controllers.http.dto.CreateGroupRequest
+import com.sight.controllers.http.dto.CreateGroupResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -67,5 +69,23 @@ class GroupController(
                 answerId = request.groupMatchingParams!!.answerId,
             )
         }
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/groups")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createGroup(
+        @Valid @RequestBody request: CreateGroupRequest,
+    ): CreateGroupResponse {
+        if (request.method == "GROUP_MATCHING") {
+            val id =
+                groupMatchingService.createGroupFromGroupMatching(
+                    title = request.title,
+                    answerIds = request.groupMatchingParams!!.answerIds,
+                    leaderUserId = request.groupMatchingParams.leaderUserId,
+                )
+            return CreateGroupResponse(id)
+        }
+        throw IllegalArgumentException("Unsupported method: ${request.method}")
     }
 }

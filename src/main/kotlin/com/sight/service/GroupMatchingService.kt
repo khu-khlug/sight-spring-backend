@@ -25,6 +25,7 @@ import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
 import com.sight.service.dto.GroupMatchingSubjectResponse
 import com.sight.service.dto.MatchedGroupResponse
+import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -148,6 +149,80 @@ class GroupMatchingService(
     }
 
     @Transactional
+    fun updateAnswer(
+        groupMatchingId: String,
+        userId: Long,
+        updateDto: UpdateGroupMatchingAnswerDto,
+    ): GroupMatchingAnswerDto {
+        // 1. 기존 답변 조회
+        val existingAnswer =
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            )
+                ?: throw NotFoundException("Answer not found")
+
+        // 2. fieldIds 유효성 검증
+        // 2-1. 중복 확인
+        val uniqueFieldIds = updateDto.fieldIds.distinct()
+        if (uniqueFieldIds.size != updateDto.fieldIds.size) {
+            throw BadRequestException("중복된 관심분야가 포함되어 있습니다")
+        }
+
+        // 2-2. 존재 여부 확인
+        if (updateDto.fieldIds.isNotEmpty()) {
+            val existingFields = groupMatchingFieldRepository.findAllById(updateDto.fieldIds)
+            val existingFieldIds = existingFields.map { it.id }.toSet()
+            val invalidFieldIds = updateDto.fieldIds.filter { it !in existingFieldIds }
+
+            if (invalidFieldIds.isNotEmpty()) {
+                throw BadRequestException("존재하지 않는 관심분야입니다: ${invalidFieldIds.joinToString(", ")}")
+            }
+        }
+
+        // 3. subjects 유효성 검증 (빈 리스트는 허용하지만, 요소가 있다면 공백이 아니어야 함)
+        val invalidSubjects = updateDto.subjects.filter { it.isBlank() }
+        if (invalidSubjects.isNotEmpty()) {
+            throw BadRequestException("주제는 공백일 수 없습니다")
+        }
+
+        // 4. GroupMatchingAnswer 업데이트
+        val updatedAnswer =
+            existingAnswer.copy(
+                groupType = updateDto.groupType,
+                isPreferOnline = updateDto.isPreferOnline,
+            )
+        groupMatchingAnswerRepository.save(updatedAnswer)
+
+        // 5. 연관 fields 업데이트 (삭제 후 재생성)
+        groupMatchingAnswerFieldRepository.deleteAllByAnswerId(existingAnswer.id)
+        val answerFields =
+            updateDto.fieldIds.map { fieldId ->
+                com.sight.domain.groupmatching.GroupMatchingAnswerField(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    fieldId = fieldId,
+                )
+            }
+        groupMatchingAnswerFieldRepository.saveAll(answerFields)
+
+        // 6. 연관 subjects 업데이트 (삭제 후 재생성)
+        groupMatchingSubjectRepository.deleteAllByAnswerId(existingAnswer.id)
+        val subjects =
+            updateDto.subjects.map { subject ->
+                com.sight.domain.groupmatching.GroupMatchingSubject(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = existingAnswer.id,
+                    subject = subject,
+                )
+            }
+        groupMatchingSubjectRepository.saveAll(subjects)
+
+        // 7. 업데이트된 데이터 조회 후 반환
+        return getAnswer(groupMatchingId, userId)
+    }
+
+    @Transactional
     fun addMemberToGroup(
         groupId: Long,
         answerId: String,
@@ -172,7 +247,7 @@ class GroupMatchingService(
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(
                 MatchedGroup(
-                    id = java.util.UUID.randomUUID().toString(),
+                    id = UlidCreator.getUlid().toString(),
                     groupId = groupId,
                     answerId = answerId,
                 ),

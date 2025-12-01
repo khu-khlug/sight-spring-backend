@@ -20,7 +20,7 @@ class GroupMatchingAnswerService(
     private val matchedGroupRepository: MatchedGroupRepository,
     private val fieldRepository: GroupMatchingFieldRepository,
 ) {
-    fun getAllAnswers(
+    fun listAnswers(
         groupMatchingId: String,
         groupType: GroupCategory? = null,
         fieldId: String? = null,
@@ -55,7 +55,7 @@ class GroupMatchingAnswerService(
                     updatedAt = answer.updatedAt,
                     groupType = answer.groupType,
                     isPreferOnline = answer.isPreferOnline,
-                    selectedFields = getSelectedFields(answer.id),
+                    selectedFields = getSelectedFieldIds(answer.id),
                     subjectIdeas = getSubjectIdeas(answer.id),
                     matchedGroupIds = getMatchedGroupIds(answer.id),
                 )
@@ -67,7 +67,7 @@ class GroupMatchingAnswerService(
         )
     }
 
-    private fun getSelectedFields(answerId: String): List<String> {
+    private fun getSelectedFieldIds(answerId: String): List<String> {
         val fieldIds =
             answerFieldRepository.findAllByAnswerId(answerId)
                 .map { it.fieldId }

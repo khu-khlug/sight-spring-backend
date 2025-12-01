@@ -42,7 +42,7 @@ class GroupMatchingAnswerController(
                 }
             }
 
-        val result = answerService.getAllAnswers(groupMatchingId, groupCategory, fieldId, offset, limit)
+        val result = answerService.listAnswers(groupMatchingId, groupCategory, fieldId, offset, limit)
 
         // service.dto를 controllers.http.dto로 변환
         return GetAnswersResponse(

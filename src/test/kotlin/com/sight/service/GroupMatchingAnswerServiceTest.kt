@@ -31,7 +31,7 @@ class GroupMatchingAnswerServiceTest {
         )
 
     @Test
-    fun `getAllAnswers는 fieldId가 존재하지 않으면 에러를 던진다`() {
+    fun `listAnswers는 fieldId가 존재하지 않으면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
         val invalidFieldId = "invalid-field"
@@ -39,12 +39,12 @@ class GroupMatchingAnswerServiceTest {
 
         // when & then
         assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, fieldId = invalidFieldId, offset = 0, limit = 20)
+            service.listAnswers(groupMatchingId, fieldId = invalidFieldId, offset = 0, limit = 20)
         }
     }
 
     @Test
-    fun `getAllAnswers는 obsoleted된 필드이면 에러를 던진다`() {
+    fun `listAnswers는 obsoleted된 필드이면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
         val obsoletedFieldId = "obsoleted-field"
@@ -59,7 +59,7 @@ class GroupMatchingAnswerServiceTest {
 
         // when & then
         assertThrows<BadRequestException> {
-            service.getAllAnswers(groupMatchingId, fieldId = obsoletedFieldId, offset = 0, limit = 20)
+            service.listAnswers(groupMatchingId, fieldId = obsoletedFieldId, offset = 0, limit = 20)
         }
     }
 }

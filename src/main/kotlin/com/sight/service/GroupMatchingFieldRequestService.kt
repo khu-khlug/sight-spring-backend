@@ -8,7 +8,13 @@ import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.controllers.http.dto.FieldRequestStatus
+import com.sight.controllers.http.dto.GetFieldRequestsResponse
+import com.sight.controllers.http.dto.ProcessDetails
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
+import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,6 +24,7 @@ import java.time.LocalDateTime
 class GroupMatchingFieldRequestService(
     private val groupMatchingFieldRequestRepository: GroupMatchingFieldRequestRepository,
     private val groupMatchingFieldService: GroupMatchingFieldService,
+    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
 ) {
     fun getAllFieldRequests(): List<GetFieldRequestsResponse> {
         val requests = groupMatchingFieldRequestRepository.findAll()
@@ -99,5 +106,29 @@ class GroupMatchingFieldRequestService(
             status = status,
             processDetails = processDetails,
         )
+    }
+
+    @Transactional
+    fun createGroupMatchingFieldRequest(
+        fieldName: String,
+        requestReason: String,
+        requesterUserId: Long,
+    ): GroupMatchingFieldRequest {
+        val existingField = groupMatchingFieldRepository.findByName(fieldName)
+        if (existingField != null && existingField.obsoletedAt == null) {
+            throw UnprocessableEntityException("이미 등록된 관심분야 이름입니다.")
+        }
+        if (groupMatchingFieldRequestRepository.existsByFieldName(fieldName)) {
+            throw UnprocessableEntityException("이미 승인 대기 중인 요청이 존재합니다.")
+        }
+        val fieldRequest =
+            GroupMatchingFieldRequest(
+                id = UlidCreator.getUlid().toString(),
+                fieldName = fieldName,
+                requestReason = requestReason,
+                requesterUserId = requesterUserId,
+            )
+
+        return groupMatchingFieldRequestRepository.save(fieldRequest)
     }
 }

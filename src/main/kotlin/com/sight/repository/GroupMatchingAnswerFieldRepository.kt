@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface GroupMatchingAnswerFieldRepository : JpaRepository<GroupMatchingAnswerField, String> {
     fun findAllByAnswerId(answerId: String): List<GroupMatchingAnswerField>
+
+    fun deleteAllByAnswerId(answerId: String)
 }

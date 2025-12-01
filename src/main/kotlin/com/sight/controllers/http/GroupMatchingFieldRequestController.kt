@@ -1,14 +1,22 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.ApproveFieldRequestResponse
+import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
+import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestResponse
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.GroupMatchingFieldRequestService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
@@ -29,5 +37,27 @@ class GroupMatchingFieldRequestController(
         @PathVariable fieldRequestId: String,
     ): ApproveFieldRequestResponse {
         return groupMatchingFieldRequestService.approveFieldRequest(fieldRequestId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/field-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createGroupMatchingFieldRequest(
+        @Valid @RequestBody request: CreateGroupMatchingFieldRequestRequest,
+        requester: Requester,
+    ): CreateGroupMatchingFieldRequestResponse {
+        val saved =
+            groupMatchingFieldRequestService.createGroupMatchingFieldRequest(
+                fieldName = request.fieldName,
+                requestReason = request.requestReason,
+                requesterUserId = requester.userId,
+            )
+
+        return CreateGroupMatchingFieldRequestResponse(
+            id = saved.id,
+            fieldName = saved.fieldName,
+            requestReason = saved.requestReason,
+            createdAt = saved.createdAt,
+        )
     }
 }

@@ -7,8 +7,6 @@ import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
-import java.time.LocalDateTime
-import java.util.Optional
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -19,6 +17,8 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.time.LocalDateTime
+import java.util.Optional
 
 class GroupMatchingFieldRequestServiceTest {
     private val repository = mock<GroupMatchingFieldRequestRepository>()
@@ -41,15 +41,15 @@ class GroupMatchingFieldRequestServiceTest {
     fun `getAllFieldRequests는 PENDING 요청을 올바르게 매핑한다`() {
         // given
         val request =
-                GroupMatchingFieldRequest(
-                        id = "req-1",
-                        requesterUserId = 1L,
-                        fieldName = "백엔드",
-                        requestReason = "필요해서",
-                        approvedAt = null,
-                        rejectedAt = null,
-                        rejectReason = null,
-                )
+            GroupMatchingFieldRequest(
+                id = "req-1",
+                requesterUserId = 1L,
+                fieldName = "백엔드",
+                requestReason = "필요해서",
+                approvedAt = null,
+                rejectedAt = null,
+                rejectReason = null,
+            )
         given(repository.findAll()).willReturn(listOf(request))
 
         // when
@@ -67,15 +67,15 @@ class GroupMatchingFieldRequestServiceTest {
         // given
         val approvedAt = LocalDateTime.now()
         val request =
-                GroupMatchingFieldRequest(
-                        id = "req-1",
-                        requesterUserId = 1L,
-                        fieldName = "백엔드",
-                        requestReason = "필요해서",
-                        approvedAt = approvedAt,
-                        rejectedAt = null,
-                        rejectReason = null,
-                )
+            GroupMatchingFieldRequest(
+                id = "req-1",
+                requesterUserId = 1L,
+                fieldName = "백엔드",
+                requestReason = "필요해서",
+                approvedAt = approvedAt,
+                rejectedAt = null,
+                rejectReason = null,
+            )
         given(repository.findAll()).willReturn(listOf(request))
 
         // when
@@ -94,15 +94,15 @@ class GroupMatchingFieldRequestServiceTest {
         // given
         val rejectedAt = LocalDateTime.now()
         val request =
-                GroupMatchingFieldRequest(
-                        id = "req-1",
-                        requesterUserId = 1L,
-                        fieldName = "백엔드",
-                        requestReason = "필요해서",
-                        approvedAt = null,
-                        rejectedAt = rejectedAt,
-                        rejectReason = "중복됨",
-                )
+            GroupMatchingFieldRequest(
+                id = "req-1",
+                requesterUserId = 1L,
+                fieldName = "백엔드",
+                requestReason = "필요해서",
+                approvedAt = null,
+                rejectedAt = rejectedAt,
+                rejectReason = "중복됨",
+            )
         given(repository.findAll()).willReturn(listOf(request))
 
         // when
@@ -123,12 +123,12 @@ class GroupMatchingFieldRequestServiceTest {
         val fieldRequestId = "req-1"
         val fieldName = "New Field"
         val request =
-                GroupMatchingFieldRequest(
-                        id = fieldRequestId,
-                        requesterUserId = 1L,
-                        fieldName = fieldName,
-                        requestReason = "Reason",
-                )
+            GroupMatchingFieldRequest(
+                id = fieldRequestId,
+                requesterUserId = 1L,
+                fieldName = fieldName,
+                requestReason = "Reason",
+            )
 
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(request))
         given(groupMatchingFieldRepository.findByName(fieldName)).willReturn(null)
@@ -161,13 +161,13 @@ class GroupMatchingFieldRequestServiceTest {
         // given
         val fieldRequestId = "req-1"
         val request =
-                GroupMatchingFieldRequest(
-                        id = fieldRequestId,
-                        requesterUserId = 1L,
-                        fieldName = "Field",
-                        requestReason = "Reason",
-                        approvedAt = LocalDateTime.now(),
-                )
+            GroupMatchingFieldRequest(
+                id = fieldRequestId,
+                requesterUserId = 1L,
+                fieldName = "Field",
+                requestReason = "Reason",
+                approvedAt = LocalDateTime.now(),
+            )
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(request))
 
         // when & then
@@ -179,13 +179,13 @@ class GroupMatchingFieldRequestServiceTest {
         // given
         val fieldRequestId = "req-1"
         val request =
-                GroupMatchingFieldRequest(
-                        id = fieldRequestId,
-                        requesterUserId = 1L,
-                        fieldName = "Field",
-                        requestReason = "Reason",
-                        rejectedAt = LocalDateTime.now(),
-                )
+            GroupMatchingFieldRequest(
+                id = fieldRequestId,
+                requesterUserId = 1L,
+                fieldName = "Field",
+                requestReason = "Reason",
+                rejectedAt = LocalDateTime.now(),
+            )
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(request))
 
         // when & then
@@ -208,7 +208,7 @@ class GroupMatchingFieldRequestServiceTest {
 
         // when
         val result =
-                service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
+            service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
 
         // then
         assertEquals(fieldName, result.fieldName)
@@ -235,9 +235,9 @@ class GroupMatchingFieldRequestServiceTest {
         // when & then
         assertThrows<UnprocessableEntityException> {
             service.createGroupMatchingFieldRequest(
-                    fieldName = fieldName,
-                    requestReason = requestReason,
-                    requesterUserId = requesterUserId,
+                fieldName = fieldName,
+                requestReason = requestReason,
+                requesterUserId = requesterUserId,
             )
         }
 
@@ -266,7 +266,7 @@ class GroupMatchingFieldRequestServiceTest {
 
         // when
         val result =
-                service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
+            service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
 
         // then
         // 예외 없이 저장 성공 확인
@@ -287,9 +287,9 @@ class GroupMatchingFieldRequestServiceTest {
         // when & then
         assertThrows<UnprocessableEntityException> {
             service.createGroupMatchingFieldRequest(
-                    fieldName = fieldName,
-                    requestReason = requestReason,
-                    requesterUserId = requesterUserId,
+                fieldName = fieldName,
+                requestReason = requestReason,
+                requesterUserId = requesterUserId,
             )
         }
 
@@ -303,15 +303,15 @@ class GroupMatchingFieldRequestServiceTest {
         val fieldRequestId = "req-123"
         val rejectReason = "중복된 관심분야입니다"
         val existingRequest =
-                GroupMatchingFieldRequest(
-                        id = fieldRequestId,
-                        requesterUserId = 1L,
-                        fieldName = "백엔드",
-                        requestReason = "필요해서",
-                        approvedAt = null,
-                        rejectedAt = null,
-                        rejectReason = null,
-                )
+            GroupMatchingFieldRequest(
+                id = fieldRequestId,
+                requesterUserId = 1L,
+                fieldName = "백엔드",
+                requestReason = "필요해서",
+                approvedAt = null,
+                rejectedAt = null,
+                rejectReason = null,
+            )
 
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(existingRequest))
         given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {

@@ -36,9 +36,8 @@ class GroupMatchingServiceTest {
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository = mock()
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository = mock()
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository = mock()
-    private val groupMatchingRepository: GroupMatchingRepository = mock()
     private val groupMemberRepository: com.sight.repository.GroupMemberRepository = mock()
-    private val groupMatchingRepository: com.sight.repository.GroupMatchingRepository = mock()
+    private val groupMatchingRepository: GroupMatchingRepository = mock()
     private lateinit var groupMatchingService: GroupMatchingService
 
     @BeforeEach
@@ -371,6 +370,7 @@ class GroupMatchingServiceTest {
         verify(groupMatchingRepository).save(any<com.sight.domain.groupmatching.GroupMatching>())
     }
 
+    @Test
     fun `createGroupMatching은 중복이 없으면 성공적으로 그룹매칭을 생성한다`() {
         // Given
         val year = 2025
@@ -378,8 +378,7 @@ class GroupMatchingServiceTest {
         val closedAt = LocalDateTime.now().plusDays(7)
 
         // 연도와 학기가 중복되지 않는다고 가정
-        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
-            .willReturn(false)
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(false)
 
         // save 호출 시 전달된 객체를 그대로 반환하도록 설정
         given(groupMatchingRepository.save(any<GroupMatching>())).willAnswer {
@@ -407,8 +406,7 @@ class GroupMatchingServiceTest {
         val closedAt = LocalDateTime.now().plusDays(7)
 
         // 이미 해당 연도와 학기가 존재한다고 가정
-        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
-            .willReturn(true)
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(true)
 
         // When & Then
         assertThrows<UnprocessableEntityException> {

@@ -32,10 +32,9 @@ class GroupMatchingService(
     private val groupRepository: GroupRepository,
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
-    private val groupMatchingRepository: GroupMatchingRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
     private val groupMemberRepository: GroupMemberRepository,
-    private val groupMatchingRepository: com.sight.repository.GroupMatchingRepository,
+    private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroups(

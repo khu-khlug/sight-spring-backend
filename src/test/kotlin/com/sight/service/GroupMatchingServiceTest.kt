@@ -712,7 +712,7 @@ class GroupMatchingServiceTest {
     }
 
     @Test
-    fun `getOngoingGroupMatching은 createdAt이 더 과거인 그룹 매칭을 반환한다`() {
+    fun `getOngoingGroupMatching은 createdAt이 더 미래인 그룹 매칭을 반환한다`() {
         // Given: closedAt이 현재 시점보다 이후인 그룹 매칭 정보가 2개이다
         val now = LocalDateTime.now()
         val olderGroupMatching =
@@ -739,8 +739,8 @@ class GroupMatchingServiceTest {
         val result = groupMatchingService.getOngoingGroupMatching()
 
         // Then: createdAt이 더 과거인 것을 반환한다
-        assertEquals("older-id", result.id)
+        assertEquals("newer-id", result.id)
         assertEquals(2025, result.year)
-        assertEquals(1, result.semester)
+        assertEquals(2, result.semester)
     }
 }

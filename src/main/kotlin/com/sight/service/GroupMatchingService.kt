@@ -376,7 +376,7 @@ class GroupMatchingService(
         val ongoingGroupMatchings = groupMatchingRepository.findAllByClosedAtAfter(now)
 
         return ongoingGroupMatchings
-            .minByOrNull { it.createdAt }
+            .maxByOrNull { it.createdAt }
             ?: throw NotFoundException("진행 중인 그룹 매칭이 없습니다")
     }
 }

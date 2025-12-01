@@ -179,10 +179,14 @@ class GroupMatchingService(
                 NotFoundException("Group matching not found")
             }
 
-        // 2. closedAt 유효성 검증 (과거 시점인지 확인)
-        val now = java.time.LocalDateTime.now()
-        if (closedAt.isBefore(now)) {
-            throw BadRequestException("마감일은 현재 시점보다 과거일 수 없습니다")
+        // 2. closedAt 유효성 검증 (어제 이전 날짜인지 확인)
+        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val now = java.time.ZonedDateTime.now(kst)
+        val today = now.toLocalDate()
+        val closedAtDate = closedAt.toLocalDate()
+        val yesterday = today.minusDays(1)
+        if (closedAtDate.isBefore(yesterday)) {
+            throw BadRequestException("마감일은 어제 이전 날짜로 설정할 수 없습니다")
         }
 
         // 3. closedAt 업데이트

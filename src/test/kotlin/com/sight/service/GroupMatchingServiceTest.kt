@@ -126,6 +126,210 @@ class GroupMatchingServiceTest {
     }
 
     @Test
+    fun `updateAnswer는 답변이 없으면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1"),
+                subjects = listOf("subject1"),
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(null)
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 답변을 성공적으로 업데이트한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updatedAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1", "field2"),
+                subjects = listOf("subject1"),
+            )
+
+        val field1 =
+            com.sight.domain.groupmatching.GroupMatchingField(
+                id = "field1",
+                name = "Field 1",
+            )
+        val field2 =
+            com.sight.domain.groupmatching.GroupMatchingField(
+                id = "field2",
+                name = "Field 2",
+            )
+
+        // Mock for initial findByGroupMatchingIdAndUserId (in updateAnswer)
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+            .thenReturn(updatedAnswer) // For getAnswer call at the end
+        whenever(groupMatchingAnswerFieldRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingFieldRepository.findAllById(listOf("field1", "field2")))
+            .thenReturn(listOf(field1, field2))
+        whenever(matchedGroupRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+        whenever(groupMatchingSubjectRepository.findAllByAnswerId(answerId))
+            .thenReturn(emptyList())
+
+        // when
+        val result = groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+
+        // then
+        verify(groupMatchingAnswerRepository).save(any<GroupMatchingAnswer>())
+        verify(groupMatchingAnswerFieldRepository).deleteAllByAnswerId(answerId)
+        verify(groupMatchingSubjectRepository).deleteAllByAnswerId(answerId)
+        assertEquals(answerId, result.id)
+        assertEquals(GroupCategory.STUDY, result.groupType)
+        assertEquals(true, result.isPreferOnline)
+    }
+
+    @Test
+    fun `updateAnswer는 중복된 fieldIds가 있으면 BadRequestException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                // 중복된 fieldId
+                fieldIds = listOf("field1", "field1"),
+                subjects = emptyList(),
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 존재하지 않는 fieldId가 있으면 BadRequestException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1", "nonexistent"),
+                subjects = emptyList(),
+            )
+
+        val field1 =
+            com.sight.domain.groupmatching.GroupMatchingField(
+                id = "field1",
+                name = "Field 1",
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+        whenever(groupMatchingFieldRepository.findAllById(listOf("field1", "nonexistent")))
+            .thenReturn(listOf(field1)) // field1만 존재, nonexistent는 없음
+
+        // when & then
+        assertThrows<BadRequestException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
+    fun `updateAnswer는 공백 subject가 있으면 BadRequestException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val userId = 1L
+        val answerId = "ans1"
+        val existingAnswer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = userId,
+                groupType = GroupCategory.PROJECT,
+                isPreferOnline = false,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val updateDto =
+            com.sight.service.dto.UpdateGroupMatchingAnswerDto(
+                groupType = GroupCategory.STUDY,
+                isPreferOnline = true,
+                fieldIds = listOf("field1"),
+                // 공백 포함
+                subjects = listOf("subject1", "  "),
+            )
+
+        val field1 =
+            com.sight.domain.groupmatching.GroupMatchingField(
+                id = "field1",
+                name = "Field 1",
+            )
+
+        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+            .thenReturn(existingAnswer)
+        whenever(groupMatchingFieldRepository.findAllById(listOf("field1")))
+            .thenReturn(listOf(field1))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
+        }
+    }
+
+    @Test
     fun `addMemberToGroup은 그룹이 존재하지 않으면 예외를 던진다`() {
         // given
         val groupId = 100L

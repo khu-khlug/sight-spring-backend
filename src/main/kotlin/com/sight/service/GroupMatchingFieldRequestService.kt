@@ -27,6 +27,7 @@ class GroupMatchingFieldRequestService(
     @Transactional
     fun approveFieldRequest(fieldRequestId: String): ApproveFieldRequestResponse {
         // 1. FieldRequest 조회
+        // TODO: 동시성 처리 (규모가 커지거나 문제 발생 빈도가 높아지면 Lock 사용)
         val fieldRequest =
             groupMatchingFieldRequestRepository.findById(fieldRequestId).orElseThrow {
                 NotFoundException("Field request not found")

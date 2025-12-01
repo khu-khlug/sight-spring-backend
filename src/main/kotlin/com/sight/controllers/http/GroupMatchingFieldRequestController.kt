@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 class GroupMatchingFieldRequestController(
     private val groupMatchingFieldRequestService: GroupMatchingFieldRequestService,
 ) {
-    @Auth([UserRole.MANAGER])
+    @Auth(roles = [UserRole.MANAGER])
     @GetMapping("/field-requests")
     fun getFieldRequests(): List<GetFieldRequestsResponse> {
         return groupMatchingFieldRequestService.getAllFieldRequests()

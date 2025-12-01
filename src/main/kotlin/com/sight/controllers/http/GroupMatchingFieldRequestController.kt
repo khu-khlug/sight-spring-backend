@@ -59,7 +59,7 @@ class GroupMatchingFieldRequestController(
         val rejected =
             groupMatchingFieldRequestService.rejectGroupMatchingFieldRequest(
                 id = fieldRequestId,
-                rejectReason = request.requestReason,
+                rejectReason = request.rejectReason,
             )
 
         return RejectGroupMatchingFieldRequestResponse(

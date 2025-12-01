@@ -4,12 +4,14 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.controllers.http.dto.FieldRequestStatus
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.controllers.http.dto.ProcessDetails
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 class GroupMatchingFieldRequestService(
@@ -77,5 +79,24 @@ class GroupMatchingFieldRequestService(
             )
 
         return groupMatchingFieldRequestRepository.save(fieldRequest)
+    }
+
+    @Transactional
+    fun rejectGroupMatchingFieldRequest(
+        id: String,
+        rejectReason: String,
+    ): GroupMatchingFieldRequest {
+        val fieldRequest =
+            groupMatchingFieldRequestRepository.findById(id).orElseThrow {
+                NotFoundException("관심분야 추가 요청을 찾을 수 없습니다.")
+            }
+
+        val rejectedRequest =
+            fieldRequest.copy(
+                rejectedAt = LocalDateTime.now(),
+                rejectReason = rejectReason,
+            )
+
+        return groupMatchingFieldRequestRepository.save(rejectedRequest)
     }
 }

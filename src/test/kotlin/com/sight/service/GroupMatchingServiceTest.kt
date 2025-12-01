@@ -2,12 +2,15 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.MatchedGroup
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
@@ -16,10 +19,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.time.LocalDateTime
 import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -31,6 +36,7 @@ class GroupMatchingServiceTest {
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository = mock()
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository = mock()
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository = mock()
+    private val groupMatchingRepository: GroupMatchingRepository = mock()
     private val groupMemberRepository: com.sight.repository.GroupMemberRepository = mock()
     private lateinit var groupMatchingService: GroupMatchingService
 
@@ -45,6 +51,7 @@ class GroupMatchingServiceTest {
                 groupMatchingFieldRepository = groupMatchingFieldRepository,
                 groupMatchingSubjectRepository = groupMatchingSubjectRepository,
                 groupMemberRepository = groupMemberRepository,
+                groupMatchingRepository = groupMatchingRepository,
             )
     }
 
@@ -413,5 +420,54 @@ class GroupMatchingServiceTest {
         // then
         verify(groupMemberRepository).save(groupId, memberId)
         verify(matchedGroupRepository, never()).save(any<MatchedGroup>())
+    }
+
+    @Test
+    fun `createGroupMatching은 중복이 없으면 성공적으로 그룹매칭을 생성한다`() {
+        // Given
+        val year = 2025
+        val semester = 1
+        val closedAt = LocalDateTime.now().plusDays(7)
+
+        // 연도와 학기가 중복되지 않는다고 가정
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
+            .willReturn(false)
+
+        // save 호출 시 전달된 객체를 그대로 반환하도록 설정
+        given(groupMatchingRepository.save(any<GroupMatching>())).willAnswer {
+            it.arguments[0] as GroupMatching
+        }
+
+        // When
+        val result = groupMatchingService.createGroupMatching(year, semester, closedAt)
+
+        // Then
+        assertEquals(year, result.year)
+        assertEquals(semester, result.semester)
+        assertEquals(closedAt, result.closedAt)
+
+        // save가 1번 호출되었는지 검증
+        verify(groupMatchingRepository).save(any<GroupMatching>())
+    }
+
+    // [시나리오 3: 연도와 학기가 중복인 그룹이 있을 때 -> 에러]
+    @Test
+    fun `createGroupMatching은 이미 존재하는 연도와 학기일 경우 UnprocessableEntityException을 던진다`() {
+        // Given
+        val year = 2025
+        val semester = 1
+        val closedAt = LocalDateTime.now().plusDays(7)
+
+        // 이미 해당 연도와 학기가 존재한다고 가정
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
+            .willReturn(true)
+
+        // When & Then
+        assertThrows<UnprocessableEntityException> {
+            groupMatchingService.createGroupMatching(year, semester, closedAt)
+        }
+
+        // 예외가 발생했으므로 save는 호출되지 않아야 함
+        verify(groupMatchingRepository, never()).save(any())
     }
 }

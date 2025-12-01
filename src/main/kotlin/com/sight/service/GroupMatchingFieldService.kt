@@ -43,14 +43,19 @@ class GroupMatchingFieldService(
     @Transactional
     fun deleteGroupMatchingField(fieldId: String) {
         val field =
-            groupMatchingFieldRepository.findById(fieldId)
-                .orElseThrow { NotFoundException("존재하지 않는 관심분야입니다") }
+            groupMatchingFieldRepository.findById(fieldId).orElseThrow {
+                NotFoundException("존재하지 않는 관심분야입니다")
+            }
 
         if (isObsolete(field)) {
             throw NotFoundException("존재하지 않는 관심분야입니다")
         }
 
         makeFieldObsolete(field)
+    }
+
+    fun findByName(name: String): GroupMatchingField? {
+        return groupMatchingFieldRepository.findByName(name)
     }
 
     private fun isObsolete(field: GroupMatchingField): Boolean {

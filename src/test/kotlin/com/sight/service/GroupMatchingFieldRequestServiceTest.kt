@@ -7,7 +7,6 @@ import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
-import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -26,8 +25,6 @@ class GroupMatchingFieldRequestServiceTest {
     private val repository = mock<GroupMatchingFieldRequestRepository>()
     private val groupMatchingFieldService = mock<GroupMatchingFieldService>()
     private val service = GroupMatchingFieldRequestService(repository, groupMatchingFieldService)
-    private val fieldRepository = mock<GroupMatchingFieldRepository>()
-    private val service = GroupMatchingFieldRequestService(repository, fieldRepository)
 
     @Test
     fun `getAllFieldRequests는 빈 목록을 반환한다`() {
@@ -148,9 +145,10 @@ class GroupMatchingFieldRequestServiceTest {
         assertEquals(createdField.name, result.field.name)
         assertNotNull(result.approvedAt)
         verify(repository).save(any())
-        verify(groupMatchingFieldService).addGroupMatchingField(
-            com.sight.controllers.http.dto.AddGroupMatchingFieldRequest(fieldName),
-        )
+        verify(groupMatchingFieldService)
+            .addGroupMatchingField(
+                com.sight.controllers.http.dto.AddGroupMatchingFieldRequest(fieldName),
+            )
     }
 
     @Test
@@ -160,9 +158,7 @@ class GroupMatchingFieldRequestServiceTest {
         given(repository.findById(fieldRequestId)).willReturn(Optional.empty())
 
         // when & then
-        assertThrows<NotFoundException> {
-            service.approveFieldRequest(fieldRequestId)
-        }
+        assertThrows<NotFoundException> { service.approveFieldRequest(fieldRequestId) }
     }
 
     @Test
@@ -180,9 +176,7 @@ class GroupMatchingFieldRequestServiceTest {
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(request))
 
         // when & then
-        assertThrows<BadRequestException> {
-            service.approveFieldRequest(fieldRequestId)
-        }
+        assertThrows<BadRequestException> { service.approveFieldRequest(fieldRequestId) }
     }
 
     @Test
@@ -200,9 +194,7 @@ class GroupMatchingFieldRequestServiceTest {
         given(repository.findById(fieldRequestId)).willReturn(Optional.of(request))
 
         // when & then
-        assertThrows<BadRequestException> {
-            service.approveFieldRequest(fieldRequestId)
-        }
+        assertThrows<BadRequestException> { service.approveFieldRequest(fieldRequestId) }
     }
 
     fun `createGroupMatchingFieldRequest는 요청을 받아 성공적으로 저장한다`() {
@@ -212,7 +204,7 @@ class GroupMatchingFieldRequestServiceTest {
         val requestReason = "관심분야 추가 요청"
 
         // 중복이 없음을 가정
-        given(fieldRepository.existsByName(fieldName)).willReturn(false)
+        given(groupMatchingFieldService.findByName(fieldName)).willReturn(null)
         given(repository.existsByFieldName(fieldName)).willReturn(false)
 
         given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
@@ -220,7 +212,8 @@ class GroupMatchingFieldRequestServiceTest {
         }
 
         // when
-        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
+        val result =
+            service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
 
         // then
         assertEquals(fieldName, result.fieldName)
@@ -241,7 +234,7 @@ class GroupMatchingFieldRequestServiceTest {
         val activeField = mock<GroupMatchingField>()
         given(activeField.obsoletedAt).willReturn(null)
 
-        given(fieldRepository.findByName(fieldName)).willReturn(activeField)
+        given(groupMatchingFieldService.findByName(fieldName)).willReturn(activeField)
         given(repository.existsByFieldName(fieldName)).willReturn(false)
 
         // when & then
@@ -269,7 +262,7 @@ class GroupMatchingFieldRequestServiceTest {
         given(obsoletedField.obsoletedAt).willReturn(LocalDateTime.now()) // 삭제됨
 
         // findByName 호출 시 폐기된 필드 반환 -> 서비스는 이를 '없는 것'과 동일하게 취급해야 함
-        given(fieldRepository.findByName(fieldName)).willReturn(obsoletedField)
+        given(groupMatchingFieldService.findByName(fieldName)).willReturn(obsoletedField)
 
         given(repository.existsByFieldName(fieldName)).willReturn(false)
         given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
@@ -277,7 +270,8 @@ class GroupMatchingFieldRequestServiceTest {
         }
 
         // when
-        val result = service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
+        val result =
+            service.createGroupMatchingFieldRequest(fieldName, requestReason, requesterUserId)
 
         // then
         // 예외 없이 저장 성공 확인
@@ -292,7 +286,7 @@ class GroupMatchingFieldRequestServiceTest {
         val fieldName = "프론트엔드_요청"
         val requestReason = "관심분야 추가 요청"
 
-        given(fieldRepository.existsByName(fieldName)).willReturn(false)
+        given(groupMatchingFieldService.findByName(fieldName)).willReturn(null)
         given(repository.existsByFieldName(fieldName)).willReturn(true)
 
         // when & then

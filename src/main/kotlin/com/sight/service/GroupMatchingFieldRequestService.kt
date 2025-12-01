@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.controllers.http.dto.AddGroupMatchingFieldRequest
 import com.sight.controllers.http.dto.ApproveFieldRequestResponse
 import com.sight.controllers.http.dto.FieldInfo
@@ -8,13 +9,8 @@ import com.sight.controllers.http.dto.GetFieldRequestsResponse
 import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
-import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.controllers.http.dto.FieldRequestStatus
-import com.sight.controllers.http.dto.GetFieldRequestsResponse
-import com.sight.controllers.http.dto.ProcessDetails
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.groupmatching.GroupMatchingFieldRequest
-import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingFieldRequestRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,7 +20,6 @@ import java.time.LocalDateTime
 class GroupMatchingFieldRequestService(
     private val groupMatchingFieldRequestRepository: GroupMatchingFieldRequestRepository,
     private val groupMatchingFieldService: GroupMatchingFieldService,
-    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
 ) {
     fun getAllFieldRequests(): List<GetFieldRequestsResponse> {
         val requests = groupMatchingFieldRequestRepository.findAll()
@@ -114,7 +109,8 @@ class GroupMatchingFieldRequestService(
         requestReason: String,
         requesterUserId: Long,
     ): GroupMatchingFieldRequest {
-        val existingField = groupMatchingFieldRepository.findByName(fieldName)
+        // Service 계층을 통해 필드 존재 여부 확인
+        val existingField = groupMatchingFieldService.findByName(fieldName)
         if (existingField != null && existingField.obsoletedAt == null) {
             throw UnprocessableEntityException("이미 등록된 관심분야 이름입니다.")
         }

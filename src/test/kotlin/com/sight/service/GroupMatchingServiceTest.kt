@@ -36,8 +36,8 @@ class GroupMatchingServiceTest {
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository = mock()
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository = mock()
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository = mock()
-    private val groupMatchingRepository: GroupMatchingRepository = mock()
     private val groupMemberRepository: com.sight.repository.GroupMemberRepository = mock()
+    private val groupMatchingRepository: GroupMatchingRepository = mock()
     private lateinit var groupMatchingService: GroupMatchingService
 
     @BeforeEach
@@ -90,7 +90,12 @@ class GroupMatchingServiceTest {
         whenever(projection.memberRealName).thenReturn("Test User")
         whenever(projection.memberNumber).thenReturn(2020123456L)
 
-        whenever(groupMatchingAnswerRepository.findAllByGroupMatchingIdAndGroupType(groupMatchingId, groupType))
+        whenever(
+            groupMatchingAnswerRepository.findAllByGroupMatchingIdAndGroupType(
+                groupMatchingId,
+                groupType,
+            ),
+        )
             .thenReturn(listOf(answer))
         whenever(matchedGroupRepository.findAllByAnswerIdIn(listOf(answerId)))
             .thenReturn(listOf(matchedGroup))
@@ -116,7 +121,12 @@ class GroupMatchingServiceTest {
         val groupMatchingId = "gm1"
         val userId = 1L
 
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(null)
 
         // when & then
@@ -338,9 +348,7 @@ class GroupMatchingServiceTest {
         whenever(groupRepository.findById(groupId)).thenReturn(Optional.empty())
 
         // when & then
-        assertThrows<NotFoundException> {
-            groupMatchingService.addMemberToGroup(groupId, answerId)
-        }
+        assertThrows<NotFoundException> { groupMatchingService.addMemberToGroup(groupId, answerId) }
     }
 
     @Test
@@ -353,9 +361,7 @@ class GroupMatchingServiceTest {
         whenever(groupMatchingAnswerRepository.findById(answerId)).thenReturn(Optional.empty())
 
         // when & then
-        assertThrows<NotFoundException> {
-            groupMatchingService.addMemberToGroup(groupId, answerId)
-        }
+        assertThrows<NotFoundException> { groupMatchingService.addMemberToGroup(groupId, answerId) }
     }
 
     @Test
@@ -369,8 +375,10 @@ class GroupMatchingServiceTest {
 
         whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(mock()))
         whenever(groupMatchingAnswerRepository.findById(answerId)).thenReturn(Optional.of(answer))
-        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)).thenReturn(false)
-        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId)).thenReturn(true)
+        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId))
+            .thenReturn(false)
+        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId))
+            .thenReturn(true)
 
         // when & then
         assertThrows<BadRequestException> {
@@ -389,8 +397,10 @@ class GroupMatchingServiceTest {
 
         whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(mock()))
         whenever(groupMatchingAnswerRepository.findById(answerId)).thenReturn(Optional.of(answer))
-        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId)).thenReturn(false)
-        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)).thenReturn(false)
+        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId))
+            .thenReturn(false)
+        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId))
+            .thenReturn(false)
 
         // when
         groupMatchingService.addMemberToGroup(groupId, answerId)
@@ -411,8 +421,10 @@ class GroupMatchingServiceTest {
 
         whenever(groupRepository.findById(groupId)).thenReturn(Optional.of(mock()))
         whenever(groupMatchingAnswerRepository.findById(answerId)).thenReturn(Optional.of(answer))
-        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId)).thenReturn(false)
-        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)).thenReturn(true)
+        whenever(groupMemberRepository.existsByGroupIdAndMemberId(groupId, memberId))
+            .thenReturn(false)
+        whenever(matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId))
+            .thenReturn(true)
 
         // when
         groupMatchingService.addMemberToGroup(groupId, answerId)
@@ -420,6 +432,54 @@ class GroupMatchingServiceTest {
         // then
         verify(groupMemberRepository).save(groupId, memberId)
         verify(matchedGroupRepository, never()).save(any<MatchedGroup>())
+    }
+
+    @Test
+    fun `updateClosedAt은 마감일을 성공적으로 업데이트한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        val currentClosedAt = java.time.LocalDateTime.now().plusDays(1)
+        val newClosedAt = java.time.LocalDateTime.now().plusDays(7)
+
+        val groupMatching =
+            com.sight.domain.groupmatching.GroupMatching(
+                id = groupMatchingId,
+                year = 2024,
+                semester = 2,
+                closedAt = currentClosedAt,
+            )
+
+        val updatedGroupMatching =
+            groupMatching.copy(
+                closedAt = newClosedAt,
+            )
+
+        whenever(groupMatchingRepository.findById(groupMatchingId))
+            .thenReturn(Optional.of(groupMatching))
+        whenever(groupMatchingRepository.save(any<com.sight.domain.groupmatching.GroupMatching>()))
+            .thenReturn(updatedGroupMatching)
+
+        // when
+        val result = groupMatchingService.updateClosedAt(groupMatchingId, newClosedAt)
+
+        // then
+        assertEquals(groupMatchingId, result.id)
+        assertEquals(newClosedAt, result.closedAt)
+        verify(groupMatchingRepository).save(any<com.sight.domain.groupmatching.GroupMatching>())
+    }
+
+    @Test
+    fun `updateClosedAt은 존재하지 않는 그룹 매칭이면 NotFoundException을 던진다`() {
+        // given
+        val groupMatchingId = "nonexistent"
+        val newClosedAt = java.time.LocalDateTime.now().plusDays(7)
+
+        whenever(groupMatchingRepository.findById(groupMatchingId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            groupMatchingService.updateClosedAt(groupMatchingId, newClosedAt)
+        }
     }
 
     @Test
@@ -457,6 +517,30 @@ class GroupMatchingServiceTest {
     }
 
     @Test
+    fun `updateClosedAt은 어제 이전 날짜의 마감일이면 BadRequestException을 던진다`() {
+        // given
+        val groupMatchingId = "gm1"
+        // 그제 (어제 이전)
+        val dayBeforeYesterday = java.time.LocalDateTime.now().minusDays(2)
+
+        val groupMatching =
+            com.sight.domain.groupmatching.GroupMatching(
+                id = groupMatchingId,
+                year = 2024,
+                semester = 2,
+                closedAt = java.time.LocalDateTime.now().plusDays(1),
+            )
+
+        whenever(groupMatchingRepository.findById(groupMatchingId))
+            .thenReturn(Optional.of(groupMatching))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            groupMatchingService.updateClosedAt(groupMatchingId, dayBeforeYesterday)
+        }
+    }
+
+    @Test
     fun `createGroupFromGroupMatching은 리더가 멤버에 포함되지 않으면 예외를 던진다`() {
         val title = "New Group"
         val answerIds = listOf("ans1", "ans2")
@@ -474,6 +558,74 @@ class GroupMatchingServiceTest {
     }
 
     @Test
+    fun `updateClosedAt은 어제 날짜의 마감일을 허용한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        // 어제
+        val yesterday = java.time.LocalDateTime.now().minusDays(1)
+
+        val groupMatching =
+            com.sight.domain.groupmatching.GroupMatching(
+                id = groupMatchingId,
+                year = 2024,
+                semester = 2,
+                closedAt = java.time.LocalDateTime.now().plusDays(1),
+            )
+
+        val updatedGroupMatching =
+            groupMatching.copy(
+                closedAt = yesterday,
+            )
+
+        whenever(groupMatchingRepository.findById(groupMatchingId))
+            .thenReturn(Optional.of(groupMatching))
+        whenever(groupMatchingRepository.save(any<com.sight.domain.groupmatching.GroupMatching>()))
+            .thenReturn(updatedGroupMatching)
+
+        // when
+        val result = groupMatchingService.updateClosedAt(groupMatchingId, yesterday)
+
+        // then
+        assertEquals(groupMatchingId, result.id)
+        assertEquals(yesterday, result.closedAt)
+        verify(groupMatchingRepository).save(any<com.sight.domain.groupmatching.GroupMatching>())
+    }
+
+    @Test
+    fun `updateClosedAt은 오늘 날짜의 마감일을 허용한다`() {
+        // given
+        val groupMatchingId = "gm1"
+        // 오늘
+        val today = java.time.LocalDateTime.now()
+
+        val groupMatching =
+            com.sight.domain.groupmatching.GroupMatching(
+                id = groupMatchingId,
+                year = 2024,
+                semester = 2,
+                closedAt = java.time.LocalDateTime.now().plusDays(1),
+            )
+
+        val updatedGroupMatching =
+            groupMatching.copy(
+                closedAt = today,
+            )
+
+        whenever(groupMatchingRepository.findById(groupMatchingId))
+            .thenReturn(Optional.of(groupMatching))
+        whenever(groupMatchingRepository.save(any<com.sight.domain.groupmatching.GroupMatching>()))
+            .thenReturn(updatedGroupMatching)
+
+        // when
+        val result = groupMatchingService.updateClosedAt(groupMatchingId, today)
+
+        // then
+        assertEquals(groupMatchingId, result.id)
+        assertEquals(today, result.closedAt)
+        verify(groupMatchingRepository).save(any<com.sight.domain.groupmatching.GroupMatching>())
+    }
+
+    @Test
     fun `createGroupMatching은 중복이 없으면 성공적으로 그룹매칭을 생성한다`() {
         // Given
         val year = 2025
@@ -481,8 +633,7 @@ class GroupMatchingServiceTest {
         val closedAt = LocalDateTime.now().plusDays(7)
 
         // 연도와 학기가 중복되지 않는다고 가정
-        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
-            .willReturn(false)
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(false)
 
         // save 호출 시 전달된 객체를 그대로 반환하도록 설정
         given(groupMatchingRepository.save(any<GroupMatching>())).willAnswer {
@@ -510,8 +661,7 @@ class GroupMatchingServiceTest {
         val closedAt = LocalDateTime.now().plusDays(7)
 
         // 이미 해당 연도와 학기가 존재한다고 가정
-        given(groupMatchingRepository.existsByYearAndSemester(year, semester))
-            .willReturn(true)
+        given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(true)
 
         // When & Then
         assertThrows<UnprocessableEntityException> {

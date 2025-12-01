@@ -40,9 +40,9 @@ class GroupMatchingService(
     private val groupRepository: GroupRepository,
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
-    private val groupMatchingRepository: GroupMatchingRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
     private val groupMemberRepository: GroupMemberRepository,
+    private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroups(
@@ -256,6 +256,35 @@ class GroupMatchingService(
     }
 
     @Transactional
+    fun updateClosedAt(
+        groupMatchingId: String,
+        closedAt: java.time.LocalDateTime,
+    ): com.sight.domain.groupmatching.GroupMatching {
+        // 1. 그룹 매칭 조회
+        val groupMatching =
+            groupMatchingRepository.findById(groupMatchingId).orElseThrow {
+                NotFoundException("Group matching not found")
+            }
+
+        // 2. closedAt 유효성 검증 (어제 이전 날짜인지 확인)
+        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val now = java.time.ZonedDateTime.now(kst)
+        val today = now.toLocalDate()
+        val closedAtDate = closedAt.toLocalDate()
+        val yesterday = today.minusDays(1)
+        if (closedAtDate.isBefore(yesterday)) {
+            throw BadRequestException("마감일은 어제 이전 날짜로 설정할 수 없습니다")
+        }
+
+        // 3. closedAt 업데이트
+        val updatedGroupMatching =
+            groupMatching.copy(
+                closedAt = closedAt,
+            )
+
+        return groupMatchingRepository.save(updatedGroupMatching)
+    }
+
     fun createGroupFromGroupMatching(
         title: String,
         answerIds: List<String>,

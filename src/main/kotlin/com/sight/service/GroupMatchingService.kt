@@ -203,7 +203,7 @@ class GroupMatchingService(
 
         return groupMatchingRepository.save(updatedGroupMatching)
     }
-    
+
     fun createGroupMatching(
         year: Int,
         semester: Int,

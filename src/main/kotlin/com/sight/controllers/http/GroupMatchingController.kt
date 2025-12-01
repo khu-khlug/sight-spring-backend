@@ -105,9 +105,9 @@ class GroupMatchingController(
             semester = groupMatching.semester,
             closedAt = groupMatching.closedAt,
             createdAt = groupMatching.createdAt,
-          )
+        )
     }
-    
+
     @Auth([UserRole.MANAGER])
     @PostMapping("/group-matchings")
     @ResponseStatus(HttpStatus.CREATED)

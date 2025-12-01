@@ -370,7 +370,7 @@ class GroupMatchingServiceTest {
         assertEquals(today, result.closedAt)
         verify(groupMatchingRepository).save(any<com.sight.domain.groupmatching.GroupMatching>())
     }
-    
+
     fun `createGroupMatching은 중복이 없으면 성공적으로 그룹매칭을 생성한다`() {
         // Given
         val year = 2025

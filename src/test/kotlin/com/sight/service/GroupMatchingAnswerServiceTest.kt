@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupCategory
@@ -13,6 +14,7 @@ import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
 import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.GroupMatchingSubjectRepository
+import com.sight.repository.MatchedGroupRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -27,17 +29,19 @@ import java.util.Optional
 
 class GroupMatchingAnswerServiceTest {
     private val answerRepository = mock<GroupMatchingAnswerRepository>()
-    private val fieldRepository = mock<GroupMatchingAnswerFieldRepository>()
-    private val fieldMetaRepository = mock<GroupMatchingFieldRepository>()
+    private val answerFieldRepository = mock<GroupMatchingAnswerFieldRepository>()
     private val subjectRepository = mock<GroupMatchingSubjectRepository>()
+    private val matchedGroupRepository = mock<MatchedGroupRepository>()
+    private val fieldRepository = mock<GroupMatchingFieldRepository>()
     private val groupMatchingRepository = mock<GroupMatchingRepository>()
 
     private val service =
         GroupMatchingAnswerService(
             answerRepository,
-            fieldRepository,
-            fieldMetaRepository,
+            answerFieldRepository,
             subjectRepository,
+            matchedGroupRepository,
+            fieldRepository,
             groupMatchingRepository,
         )
 
@@ -93,7 +97,7 @@ class GroupMatchingAnswerServiceTest {
             }
 
         // 에러 메시지 검증 (선택 사항)
-        assertTrue(exception.message?.contains("마감되었습니다") == true)
+        assertTrue(exception.message.contains("마감되었습니다"))
     }
 
     @Test
@@ -134,7 +138,7 @@ class GroupMatchingAnswerServiceTest {
             .willReturn(false)
         val mockField = mock<GroupMatchingField>()
         given(mockField.id).willReturn(fieldId)
-        given(fieldMetaRepository.findAllById(fields)).willReturn(listOf(mockField))
+        given(fieldRepository.findAllById(fields)).willReturn(listOf(mockField))
         // save 호출 시 전달된 객체를 그대로 반환하도록 설정 (ID는 서비스 내부에서 생성됨)
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
         given(subjectRepository.saveAll(any<List<GroupMatchingSubject>>())).willAnswer { it.arguments[0] }
@@ -155,9 +159,9 @@ class GroupMatchingAnswerServiceTest {
         assertEquals(subjects.size, result.subjectIds.size)
 
         verify(answerRepository).save(any())
-        verify(fieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
+        verify(answerFieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
         verify(subjectRepository).saveAll(any<List<GroupMatchingSubject>>())
-        verify(fieldMetaRepository).findAllById(fields)
+        verify(fieldRepository).findAllById(fields)
     }
 
     @Test
@@ -176,7 +180,7 @@ class GroupMatchingAnswerServiceTest {
 
         val mockField = mock<GroupMatchingField>()
         given(mockField.id).willReturn(fieldId)
-        given(fieldMetaRepository.findAllById(fields)).willReturn(listOf(mockField))
+        given(fieldRepository.findAllById(fields)).willReturn(listOf(mockField))
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
 
         // when
@@ -194,7 +198,7 @@ class GroupMatchingAnswerServiceTest {
         assertTrue(result.subjectIds.isEmpty())
 
         verify(answerRepository).save(any())
-        verify(fieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
+        verify(answerFieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
         // 핵심 검증: subjectRepository는 호출되지 않아야 함
         verify(subjectRepository, never()).saveAll(any<List<GroupMatchingSubject>>())
     }
@@ -213,7 +217,7 @@ class GroupMatchingAnswerServiceTest {
             (it.arguments[0] as GroupMatchingAnswer).copy(id = "temp-id")
         }
 
-        given(fieldMetaRepository.findAllById(invalidFields)).willReturn(emptyList())
+        given(fieldRepository.findAllById(invalidFields)).willReturn(emptyList())
 
         // when & then
         assertThrows<UnprocessableEntityException> {
@@ -227,7 +231,40 @@ class GroupMatchingAnswerServiceTest {
             )
         }
 
-        verify(fieldMetaRepository).findAllById(invalidFields)
-        verify(fieldRepository, never()).saveAll(any<List<GroupMatchingAnswerField>>())
+        verify(fieldRepository).findAllById(invalidFields)
+        verify(answerFieldRepository, never()).saveAll(any<List<GroupMatchingAnswerField>>())
+    }
+
+    @Test
+    fun `listAnswers는 fieldId가 존재하지 않으면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val invalidFieldId = "invalid-field"
+        given(fieldRepository.findById(invalidFieldId)).willReturn(Optional.empty())
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.listAnswers(groupMatchingId, fieldId = invalidFieldId, offset = 0, limit = 20)
+        }
+    }
+
+    @Test
+    fun `listAnswers는 obsoleted된 필드이면 에러를 던진다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val obsoletedFieldId = "obsoleted-field"
+        val obsoletedField =
+            GroupMatchingField(
+                id = obsoletedFieldId,
+                name = "폐기된 분야",
+                createdAt = LocalDateTime.now().minusDays(30),
+                obsoletedAt = LocalDateTime.now().minusDays(1),
+            )
+        given(fieldRepository.findById(obsoletedFieldId)).willReturn(Optional.of(obsoletedField))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            service.listAnswers(groupMatchingId, fieldId = obsoletedFieldId, offset = 0, limit = 20)
+        }
     }
 }

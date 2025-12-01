@@ -340,4 +340,14 @@ class GroupMatchingService(
 
         return groupMatchingRepository.save(groupMatching)
     }
+
+    @Transactional(readOnly = true)
+    fun getOngoingGroupMatching(): GroupMatching {
+        val now = LocalDateTime.now()
+        val ongoingGroupMatchings = groupMatchingRepository.findAllByClosedAtAfter(now)
+
+        return ongoingGroupMatchings
+            .minByOrNull { it.createdAt }
+            ?: throw NotFoundException("진행 중인 그룹 매칭이 없습니다")
+    }
 }

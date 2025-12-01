@@ -521,4 +521,76 @@ class GroupMatchingServiceTest {
         // 예외가 발생했으므로 save는 호출되지 않아야 함
         verify(groupMatchingRepository, never()).save(any())
     }
+
+    @Test
+    fun `getOngoingGroupMatching은 진행 중인 그룹 매칭 정보를 조회해야 한다`() {
+        // Given: closedAt이 현재 시점보다 1달 뒤인 그룹 매칭 정보가 존재한다
+        val now = LocalDateTime.now()
+        val futureClosedAt = now.plusMonths(1)
+        val groupMatching =
+            GroupMatching(
+                id = "test-id",
+                year = 2025,
+                semester = 2,
+                closedAt = futureClosedAt,
+                createdAt = now,
+            )
+        whenever(groupMatchingRepository.findAllByClosedAtAfter(any()))
+            .thenReturn(listOf(groupMatching))
+
+        // When: API를 호출한다
+        val result = groupMatchingService.getOngoingGroupMatching()
+
+        // Then: 해당 그룹 매칭 정보를 반환한다
+        assertEquals(groupMatching.id, result.id)
+        assertEquals(groupMatching.year, result.year)
+        assertEquals(groupMatching.semester, result.semester)
+        assertEquals(groupMatching.closedAt, result.closedAt)
+        assertEquals(groupMatching.createdAt, result.createdAt)
+    }
+
+    @Test
+    fun `getOngoingGroupMatching은 진행 중인 그룹 매칭 정보가 없다면 NotFoundException을 던진다`() {
+        // Given: closedAt이 현재 시점보다 이후인 그룹 매칭 정보가 존재하지 않는다
+        whenever(groupMatchingRepository.findAllByClosedAtAfter(any()))
+            .thenReturn(emptyList())
+
+        // When & Then: API를 호출하면 404 에러가 발생한다
+        assertFailsWith<NotFoundException> {
+            groupMatchingService.getOngoingGroupMatching()
+        }
+    }
+
+    @Test
+    fun `getOngoingGroupMatching은 createdAt이 더 과거인 그룹 매칭을 반환한다`() {
+        // Given: closedAt이 현재 시점보다 이후인 그룹 매칭 정보가 2개이다
+        val now = LocalDateTime.now()
+        val olderGroupMatching =
+            GroupMatching(
+                id = "older-id",
+                year = 2025,
+                semester = 1,
+                closedAt = now.plusMonths(2),
+                createdAt = now.minusDays(10),
+            )
+        val newerGroupMatching =
+            GroupMatching(
+                id = "newer-id",
+                year = 2025,
+                semester = 2,
+                closedAt = now.plusMonths(1),
+                createdAt = now.minusDays(5),
+            )
+
+        whenever(groupMatchingRepository.findAllByClosedAtAfter(any()))
+            .thenReturn(listOf(newerGroupMatching, olderGroupMatching))
+
+        // When: API를 호출한다
+        val result = groupMatchingService.getOngoingGroupMatching()
+
+        // Then: createdAt이 더 과거인 것을 반환한다
+        assertEquals("older-id", result.id)
+        assertEquals(2025, result.year)
+        assertEquals(1, result.semester)
+    }
 }

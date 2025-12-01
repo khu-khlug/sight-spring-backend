@@ -738,7 +738,7 @@ class GroupMatchingServiceTest {
         // When: API를 호출한다
         val result = groupMatchingService.getOngoingGroupMatching()
 
-        // Then: createdAt이 더 과거인 것을 반환한다
+        // Then: createdAt이 더 미래인 것을 반환한다
         assertEquals("newer-id", result.id)
         assertEquals(2025, result.year)
         assertEquals(2, result.semester)

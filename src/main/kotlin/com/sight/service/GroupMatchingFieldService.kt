@@ -62,11 +62,6 @@ class GroupMatchingFieldService(
         groupMatchingFieldRepository.save(field)
     }
 
-    private fun makeFieldActive(field: GroupMatchingField): GroupMatchingField {
-        field.obsoletedAt = null
-        return groupMatchingFieldRepository.save(field)
-    }
-
     fun getGroupMatchingFields(userRole: UserRole): List<GroupMatchingFieldAnswer> {
         val fields: List<GroupMatchingField> =
             when (userRole) {
@@ -84,5 +79,9 @@ class GroupMatchingFieldService(
                 obsoletedAt = field.obsoletedAt,
             )
         }
+    }
+    private fun makeFieldActive(field: GroupMatchingField): GroupMatchingField {
+        field.obsoletedAt = null
+        return groupMatchingFieldRepository.save(field)
     }
 }

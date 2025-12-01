@@ -58,18 +58,20 @@ class GroupMatchingAnswerService(
             )
         val savedAnswer = groupMatchingAnswerRepository.save(fieldRequest)
         //  필드 선택지 저장
+        val foundFields = groupMatchingFieldRepository.findAllById(groupMatchingFieldIds)
+        val validFieldIds = foundFields.map { it.id }.toSet()
+
         val fieldEntities =
             groupMatchingFieldIds.map { fieldId ->
-
-                if (!groupMatchingFieldRepository.existsById(fieldId)) {
+                if (!validFieldIds.contains(fieldId)) {
                     throw UnprocessableEntityException("유효하지 않은 필드 선택지 ID: $fieldId")
-                } else {
-                    GroupMatchingAnswerField(
-                        id = UlidCreator.getUlid().toString(),
-                        answerId = savedAnswer.id,
-                        fieldId = fieldId,
-                    )
                 }
+
+                GroupMatchingAnswerField(
+                    id = UlidCreator.getUlid().toString(),
+                    answerId = savedAnswer.id,
+                    fieldId = fieldId,
+                )
             }
         groupMatchingAnswerFieldRepository.saveAll(fieldEntities)
         //  답변 엔티티 생성 및 저장

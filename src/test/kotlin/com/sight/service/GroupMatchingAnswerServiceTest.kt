@@ -6,6 +6,7 @@ import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.GroupMatchingAnswerField
+import com.sight.domain.groupmatching.GroupMatchingField
 import com.sight.domain.groupmatching.GroupMatchingSubject
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
@@ -123,6 +124,7 @@ class GroupMatchingAnswerServiceTest {
     fun `모든 데이터가 유효하면 정상적으로 저장된다`() {
         // given
         val subjects = listOf("Java", "Kotlin")
+        val fieldId = "Backend"
         val fields = listOf("Backend")
 
         val validMatching = mock<GroupMatching>()
@@ -130,7 +132,9 @@ class GroupMatchingAnswerServiceTest {
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
-        given(fieldMetaRepository.existsById(any())).willReturn(true)
+        val mockField = mock<GroupMatchingField>()
+        given(mockField.id).willReturn(fieldId)
+        given(fieldMetaRepository.findAllById(fields)).willReturn(listOf(mockField))
         // save 호출 시 전달된 객체를 그대로 반환하도록 설정 (ID는 서비스 내부에서 생성됨)
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
         given(subjectRepository.saveAll(any<List<GroupMatchingSubject>>())).willAnswer { it.arguments[0] }
@@ -153,13 +157,15 @@ class GroupMatchingAnswerServiceTest {
         verify(answerRepository).save(any())
         verify(fieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
         verify(subjectRepository).saveAll(any<List<GroupMatchingSubject>>())
-        verify(fieldMetaRepository).existsById("Backend")
+        verify(fieldMetaRepository).findAllById(fields)
     }
 
     @Test
     fun `subject가 없는 경우 subjectIds는 emptyList로 들어간다`() {
         // given
         val emptySubjects = emptyList<String>()
+        val fieldId = "Backend"
+        val fields = listOf(fieldId)
 
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
@@ -167,7 +173,10 @@ class GroupMatchingAnswerServiceTest {
 
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
-        given(fieldMetaRepository.existsById(any())).willReturn(true)
+
+        val mockField = mock<GroupMatchingField>()
+        given(mockField.id).willReturn(fieldId)
+        given(fieldMetaRepository.findAllById(fields)).willReturn(listOf(mockField))
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
 
         // when
@@ -193,22 +202,18 @@ class GroupMatchingAnswerServiceTest {
     @Test
     fun `존재하지 않는 필드 ID가 포함된 경우 UnprocessableEntityException이 발생한다`() {
         // given
-        val invalidFields = listOf("InvalidFieldID")
+        val invalidFieldId = "InvalidFieldID"
+        val invalidFields = listOf(invalidFieldId)
 
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
-
-        given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
-            .willReturn(false)
-
-        // [Added] 필드 ID가 존재하지 않음(false)을 리턴하도록 설정
-        given(fieldMetaRepository.existsById("InvalidFieldID")).willReturn(false)
-
-        // Answer 저장을 위해 필요한 mock 설정 (Service 코드 순서상 Answer 저장 후 필드 검사함)
+        given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId)).willReturn(false)
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer {
             (it.arguments[0] as GroupMatchingAnswer).copy(id = "temp-id")
         }
+
+        given(fieldMetaRepository.findAllById(invalidFields)).willReturn(emptyList())
 
         // when & then
         assertThrows<UnprocessableEntityException> {
@@ -222,9 +227,7 @@ class GroupMatchingAnswerServiceTest {
             )
         }
 
-        // [Added] 필드 검증 메서드가 호출되었는지 확인
-        verify(fieldMetaRepository).existsById("InvalidFieldID")
-        // 예외 발생 시 중간 테이블(AnswerField) 저장은 호출되지 않아야 함 (map 내부에서 예외 발생)
+        verify(fieldMetaRepository).findAllById(invalidFields)
         verify(fieldRepository, never()).saveAll(any<List<GroupMatchingAnswerField>>())
     }
 }

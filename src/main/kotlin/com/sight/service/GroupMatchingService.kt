@@ -1,12 +1,16 @@
 package com.sight.service
 
+import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.MatchedGroup
 import com.sight.repository.GroupMatchingAnswerFieldRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -19,6 +23,7 @@ import com.sight.service.dto.GroupMatchingSubjectResponse
 import com.sight.service.dto.MatchedGroupResponse
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 class GroupMatchingService(
@@ -27,6 +32,7 @@ class GroupMatchingService(
     private val groupRepository: GroupRepository,
     private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
     private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
+    private val groupMatchingRepository: GroupMatchingRepository,
     private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val groupMatchingRepository: com.sight.repository.GroupMatchingRepository,
@@ -196,5 +202,25 @@ class GroupMatchingService(
             )
 
         return groupMatchingRepository.save(updatedGroupMatching)
+    }
+    
+    fun createGroupMatching(
+        year: Int,
+        semester: Int,
+        closedAt: LocalDateTime,
+    ): GroupMatching {
+        if (groupMatchingRepository.existsByYearAndSemester(year, semester)) {
+            throw UnprocessableEntityException("해당 연도($year)와 학기($semester)의 그룹 매칭은 이미 존재합니다.")
+        }
+
+        val groupMatching =
+            GroupMatching(
+                id = UlidCreator.getUlid().toString(),
+                year = year,
+                semester = semester,
+                closedAt = closedAt,
+            )
+
+        return groupMatchingRepository.save(groupMatching)
     }
 }

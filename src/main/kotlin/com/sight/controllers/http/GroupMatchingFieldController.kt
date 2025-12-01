@@ -7,6 +7,8 @@ import com.sight.core.auth.UserRole
 import com.sight.service.GroupMatchingFieldService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -29,5 +31,14 @@ class GroupMatchingFieldController(
             fieldName = field.name,
             createdAt = field.createdAt,
         )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/fields/{fieldId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun deleteGroupMatchingField(
+        @PathVariable fieldId: String,
+    ) {
+        groupMatchingFieldService.deleteGroupMatchingField(fieldId)
     }
 }

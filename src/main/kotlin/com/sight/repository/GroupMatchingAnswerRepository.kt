@@ -11,6 +11,11 @@ import org.springframework.data.repository.query.Param
 interface GroupMatchingAnswerRepository : JpaRepository<GroupMatchingAnswer, String> {
     fun findAllByGroupMatchingId(groupMatchingId: String): List<GroupMatchingAnswer>
 
+    fun existsByUserIdAndGroupMatchingId(
+        userId: Long,
+        groupMatchingId: String,
+    ): Boolean
+
     fun findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId: String): List<GroupMatchingAnswer>
 
     fun findAllByGroupMatchingIdAndGroupType(

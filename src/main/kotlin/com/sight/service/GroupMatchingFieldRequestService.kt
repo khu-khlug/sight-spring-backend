@@ -127,4 +127,23 @@ class GroupMatchingFieldRequestService(
 
         return groupMatchingFieldRequestRepository.save(fieldRequest)
     }
+
+    @Transactional
+    fun rejectGroupMatchingFieldRequest(
+        id: String,
+        rejectReason: String,
+    ): GroupMatchingFieldRequest {
+        val fieldRequest =
+            groupMatchingFieldRequestRepository.findById(id).orElseThrow {
+                NotFoundException("관심분야 추가 요청을 찾을 수 없습니다.")
+            }
+
+        val rejectedRequest =
+            fieldRequest.copy(
+                rejectedAt = LocalDateTime.now(),
+                rejectReason = rejectReason,
+            )
+
+        return groupMatchingFieldRequestRepository.save(rejectedRequest)
+    }
 }

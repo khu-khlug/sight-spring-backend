@@ -301,4 +301,50 @@ class GroupMatchingFieldRequestServiceTest {
         // 예외가 발생했으므로 저장 로직은 호출되지 않아야 함
         verify(repository, never()).save(any())
     }
+
+    @Test
+    fun `rejectGroupMatchingFieldRequest는 존재하는 요청을 거절하고 거절 정보를 저장해야 한다`() {
+        // given
+        val fieldRequestId = "req-123"
+        val rejectReason = "중복된 관심분야입니다"
+        val existingRequest =
+            GroupMatchingFieldRequest(
+                id = fieldRequestId,
+                requesterUserId = 1L,
+                fieldName = "백엔드",
+                requestReason = "필요해서",
+                approvedAt = null,
+                rejectedAt = null,
+                rejectReason = null,
+            )
+
+        given(repository.findById(fieldRequestId)).willReturn(Optional.of(existingRequest))
+        given(repository.save(any<GroupMatchingFieldRequest>())).willAnswer {
+            it.arguments[0] as GroupMatchingFieldRequest
+        }
+
+        // when
+        val result = service.rejectGroupMatchingFieldRequest(fieldRequestId, rejectReason)
+
+        // then
+        assertNotNull(result.rejectedAt)
+        assertEquals(rejectReason, result.rejectReason)
+        verify(repository).save(any<GroupMatchingFieldRequest>())
+    }
+
+    @Test
+    fun `rejectGroupMatchingFieldRequest는 존재하지 않는 요청이면 예외를 발생시켜야 한다`() {
+        // given
+        val fieldRequestId = "not-exists"
+        val rejectReason = "거절 사유"
+
+        given(repository.findById(fieldRequestId)).willReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            service.rejectGroupMatchingFieldRequest(fieldRequestId, rejectReason)
+        }
+
+        verify(repository, never()).save(any())
+    }
 }

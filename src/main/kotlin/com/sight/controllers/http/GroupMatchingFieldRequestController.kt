@@ -4,6 +4,8 @@ import com.sight.controllers.http.dto.ApproveFieldRequestResponse
 import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestRequest
 import com.sight.controllers.http.dto.CreateGroupMatchingFieldRequestResponse
 import com.sight.controllers.http.dto.GetFieldRequestsResponse
+import com.sight.controllers.http.dto.RejectGroupMatchingFieldRequestRequest
+import com.sight.controllers.http.dto.RejectGroupMatchingFieldRequestResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -55,6 +57,30 @@ class GroupMatchingFieldRequestController(
             fieldName = saved.fieldName,
             requestReason = saved.requestReason,
             createdAt = saved.createdAt,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/field-requests/{fieldRequestId}/reject")
+    fun rejectGroupMatchingFieldRequest(
+        @PathVariable fieldRequestId: String,
+        @Valid @RequestBody request: RejectGroupMatchingFieldRequestRequest,
+    ): RejectGroupMatchingFieldRequestResponse {
+        val rejected =
+            groupMatchingFieldRequestService.rejectGroupMatchingFieldRequest(
+                id = fieldRequestId,
+                rejectReason = request.rejectReason,
+            )
+
+        return RejectGroupMatchingFieldRequestResponse(
+            id = rejected.id,
+            requesterUserId = rejected.requesterUserId,
+            fieldName = rejected.fieldName,
+            requestReason = rejected.requestReason,
+            approvedAt = rejected.approvedAt,
+            rejectedAt = rejected.rejectedAt,
+            rejectReason = rejected.rejectReason,
+            createdAt = rejected.createdAt,
         )
     }
 }

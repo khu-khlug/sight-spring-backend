@@ -4,6 +4,7 @@ import com.sight.controllers.http.dto.CreateGroupMatchingRequest
 import com.sight.controllers.http.dto.CreateGroupMatchingResponse
 import com.sight.controllers.http.dto.GetGroupMatchingAnswerResponse
 import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
+import com.sight.controllers.http.dto.GetOngoingGroupMatchingResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
 import com.sight.controllers.http.dto.GroupMatchingResponse
 import com.sight.controllers.http.dto.UpdateGroupMatchingAnswerRequest
@@ -180,6 +181,19 @@ class GroupMatchingController(
             semester = saved.semester,
             createdAt = saved.createdAt,
             closedAt = saved.closedAt,
+        )
+    }
+
+    @Auth(roles = [UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/group-matchings/ongoing")
+    fun getOngoingGroupMatching(): GetOngoingGroupMatchingResponse {
+        val groupMatching = groupMatchingService.getOngoingGroupMatching()
+        return GetOngoingGroupMatchingResponse(
+            id = groupMatching.id,
+            year = groupMatching.year,
+            semester = groupMatching.semester,
+            closedAt = groupMatching.closedAt,
+            createdAt = groupMatching.createdAt,
         )
     }
 }

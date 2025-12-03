@@ -33,19 +33,25 @@ class SecurityConfig {
         val httpSecurity =
             http
                 .csrf { it.disable() }
-                .cors { }
-                .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+                .cors {}
+                .sessionManagement {
+                    it.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                }
                 .authorizeHttpRequests { auth ->
-                    auth
-                        .requestMatchers("/ping", "/actuator/**", "/test/public").permitAll()
-                        .anyRequest().authenticated()
+                    auth.requestMatchers("/ping", "/actuator/**", "/test/public", "/error")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated()
                 }
                 .exceptionHandling { exceptions ->
                     exceptions
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                 }
-                .addFilterBefore(internalApiAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+                .addFilterBefore(
+                    internalApiAuthenticationFilter,
+                    UsernamePasswordAuthenticationFilter::class.java,
+                )
 
         cookieAuthenticationFilter?.let { filter ->
             httpSecurity.addFilterAfter(filter, InternalApiAuthenticationFilter::class.java)

@@ -148,7 +148,12 @@ class GroupMatchingServiceTest {
                 subjects = listOf("subject1"),
             )
 
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(null)
 
         // when & then
@@ -201,17 +206,20 @@ class GroupMatchingServiceTest {
             )
 
         // Mock for initial findByGroupMatchingIdAndUserId (in updateAnswer)
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(existingAnswer)
             .thenReturn(updatedAnswer) // For getAnswer call at the end
         whenever(groupMatchingAnswerFieldRepository.findAllByAnswerId(answerId))
             .thenReturn(emptyList())
         whenever(groupMatchingFieldRepository.findAllById(listOf("field1", "field2")))
             .thenReturn(listOf(field1, field2))
-        whenever(matchedGroupRepository.findAllByAnswerId(answerId))
-            .thenReturn(emptyList())
-        whenever(groupMatchingSubjectRepository.findAllByAnswerId(answerId))
-            .thenReturn(emptyList())
+        whenever(matchedGroupRepository.findAllByAnswerId(answerId)).thenReturn(emptyList())
+        whenever(groupMatchingSubjectRepository.findAllByAnswerId(answerId)).thenReturn(emptyList())
 
         // when
         val result = groupMatchingService.updateAnswer(groupMatchingId, userId, updateDto)
@@ -249,7 +257,12 @@ class GroupMatchingServiceTest {
                 subjects = emptyList(),
             )
 
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(existingAnswer)
 
         // when & then
@@ -287,7 +300,12 @@ class GroupMatchingServiceTest {
                 name = "Field 1",
             )
 
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(existingAnswer)
         whenever(groupMatchingFieldRepository.findAllById(listOf("field1", "nonexistent")))
             .thenReturn(listOf(field1)) // field1만 존재, nonexistent는 없음
@@ -328,7 +346,12 @@ class GroupMatchingServiceTest {
                 name = "Field 1",
             )
 
-        whenever(groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(groupMatchingId, userId))
+        whenever(
+            groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
+                groupMatchingId,
+                userId,
+            ),
+        )
             .thenReturn(existingAnswer)
         whenever(groupMatchingFieldRepository.findAllById(listOf("field1")))
             .thenReturn(listOf(field1))
@@ -493,9 +516,11 @@ class GroupMatchingServiceTest {
         whenever(answer1.userId).thenReturn(1L)
         whenever(answer1.groupType).thenReturn(GroupCategory.STUDY)
         whenever(answer2.userId).thenReturn(2L)
-        whenever(groupMatchingAnswerRepository.findAllById(answerIds)).thenReturn(listOf(answer1, answer2))
+        whenever(groupMatchingAnswerRepository.findAllById(answerIds))
+            .thenReturn(listOf(answer1, answer2))
 
-        val result = groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
+        val result =
+            groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
 
         assert(result >= 1000000L)
         verify(groupRepository).save(any())
@@ -521,7 +546,8 @@ class GroupMatchingServiceTest {
         // given
         val groupMatchingId = "gm1"
         // 그제 (어제 이전)
-        val dayBeforeYesterday = java.time.LocalDateTime.now().minusDays(2)
+        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val dayBeforeYesterday = java.time.ZonedDateTime.now(kst).toLocalDateTime().minusDays(2)
 
         val groupMatching =
             com.sight.domain.groupmatching.GroupMatching(
@@ -550,7 +576,8 @@ class GroupMatchingServiceTest {
 
         whenever(answer1.userId).thenReturn(1L)
         whenever(answer2.userId).thenReturn(2L)
-        whenever(groupMatchingAnswerRepository.findAllById(answerIds)).thenReturn(listOf(answer1, answer2))
+        whenever(groupMatchingAnswerRepository.findAllById(answerIds))
+            .thenReturn(listOf(answer1, answer2))
 
         assertThrows<BadRequestException> {
             groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
@@ -562,7 +589,8 @@ class GroupMatchingServiceTest {
         // given
         val groupMatchingId = "gm1"
         // 어제
-        val yesterday = java.time.LocalDateTime.now().minusDays(1)
+        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val yesterday = java.time.ZonedDateTime.now(kst).toLocalDateTime().minusDays(1)
 
         val groupMatching =
             com.sight.domain.groupmatching.GroupMatching(
@@ -596,7 +624,8 @@ class GroupMatchingServiceTest {
         // given
         val groupMatchingId = "gm1"
         // 오늘
-        val today = java.time.LocalDateTime.now()
+        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val today = java.time.ZonedDateTime.now(kst).toLocalDateTime()
 
         val groupMatching =
             com.sight.domain.groupmatching.GroupMatching(
@@ -702,13 +731,10 @@ class GroupMatchingServiceTest {
     @Test
     fun `getOngoingGroupMatching은 진행 중인 그룹 매칭 정보가 없다면 NotFoundException을 던진다`() {
         // Given: closedAt이 현재 시점보다 이후인 그룹 매칭 정보가 존재하지 않는다
-        whenever(groupMatchingRepository.findAllByClosedAtAfter(any()))
-            .thenReturn(emptyList())
+        whenever(groupMatchingRepository.findAllByClosedAtAfter(any())).thenReturn(emptyList())
 
         // When & Then: API를 호출하면 404 에러가 발생한다
-        assertFailsWith<NotFoundException> {
-            groupMatchingService.getOngoingGroupMatching()
-        }
+        assertFailsWith<NotFoundException> { groupMatchingService.getOngoingGroupMatching() }
     }
 
     @Test

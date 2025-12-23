@@ -14,6 +14,7 @@ description: Spring Boot 백엔드의 REST API 엔드포인트 정보를 추출�
 ### 1. Controller 파일 찾기
 - `src/main/kotlin/com/sight/controllers/http/` 디렉토리에서 모든 `*Controller.kt` 파일을 찾습니다
 - `InternalApiController`나 `TestController` 같은 내부용 API는 제외할 수 있습니다
+- 찾은 컨트롤러 파일 중 주어진 프롬프트와 관련된 컨트롤러만 추출합니다
 
 ### 2. 각 Controller 분석
 각 Controller 파일에서 다음 정보를 추출합니다:

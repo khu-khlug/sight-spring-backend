@@ -379,4 +379,10 @@ class GroupMatchingService(
             .maxByOrNull { it.createdAt }
             ?: throw NotFoundException("진행 중인 그룹 매칭이 없습니다")
     }
+
+    @Transactional(readOnly = true)
+    fun listGroupMatchings(): List<GroupMatching> {
+        return groupMatchingRepository.findAll()
+            .sortedByDescending { it.createdAt }
+    }
 }

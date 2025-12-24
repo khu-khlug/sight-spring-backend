@@ -769,4 +769,60 @@ class GroupMatchingServiceTest {
         assertEquals(2025, result.year)
         assertEquals(2, result.semester)
     }
+
+    @Test
+    fun `listGroupMatchings는 목록이 없으면 빈 리스트를 반환한다`() {
+        // Given
+        given(groupMatchingRepository.findAll()).willReturn(emptyList())
+
+        // When
+        val result = groupMatchingService.listGroupMatchings()
+
+        // Then
+        assertEquals(0, result.size)
+        verify(groupMatchingRepository).findAll()
+    }
+
+    @Test
+    fun `listGroupMatchings는 그룹 매칭 목록을 성공적으로 내림차순으로 조회한다`() {
+        // Given
+        val now = LocalDateTime.now()
+        val oldestGroupMatching =
+            GroupMatching(
+                id = "gm1",
+                year = 2024,
+                semester = 1,
+                closedAt = now.plusDays(7),
+                createdAt = now.minusDays(30),
+            )
+        val middleGroupMatching =
+            GroupMatching(
+                id = "gm2",
+                year = 2024,
+                semester = 2,
+                closedAt = now.plusDays(14),
+                createdAt = now.minusDays(15),
+            )
+        val newestGroupMatching =
+            GroupMatching(
+                id = "gm3",
+                year = 2025,
+                semester = 1,
+                closedAt = now.plusDays(21),
+                createdAt = now.minusDays(5),
+            )
+
+        given(groupMatchingRepository.findAll())
+            .willReturn(listOf(oldestGroupMatching, middleGroupMatching, newestGroupMatching))
+
+        // When
+        val result = groupMatchingService.listGroupMatchings()
+
+        // Then
+        assertEquals(3, result.size)
+        assertEquals("gm3", result[0].id)
+        assertEquals("gm2", result[1].id)
+        assertEquals("gm1", result[2].id)
+        verify(groupMatchingRepository).findAll()
+    }
 }

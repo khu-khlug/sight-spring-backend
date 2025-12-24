@@ -7,6 +7,7 @@ import com.sight.controllers.http.dto.GetGroupMatchingGroupsResponse
 import com.sight.controllers.http.dto.GetOngoingGroupMatchingResponse
 import com.sight.controllers.http.dto.GroupMatchingGroupMemberResponse
 import com.sight.controllers.http.dto.GroupMatchingResponse
+import com.sight.controllers.http.dto.ListGroupMatchingsResponse
 import com.sight.controllers.http.dto.UpdateGroupMatchingAnswerRequest
 import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.core.auth.Auth
@@ -194,6 +195,25 @@ class GroupMatchingController(
             semester = groupMatching.semester,
             closedAt = groupMatching.closedAt,
             createdAt = groupMatching.createdAt,
+        )
+    }
+
+    @Auth(roles = [UserRole.MANAGER])
+    @GetMapping("/group-matchings")
+    fun listGroupMatchings(): ListGroupMatchingsResponse {
+        val groupMatchings = groupMatchingService.listGroupMatchings()
+        return ListGroupMatchingsResponse(
+            count = groupMatchings.size,
+            groupMatchings =
+                groupMatchings.map { groupMatching ->
+                    ListGroupMatchingsResponse.GroupMatchingResponse(
+                        id = groupMatching.id,
+                        year = groupMatching.year,
+                        semester = groupMatching.semester,
+                        closedAt = groupMatching.closedAt,
+                        createdAt = groupMatching.createdAt,
+                    )
+                },
         )
     }
 }

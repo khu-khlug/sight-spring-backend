@@ -28,14 +28,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Run ktlint check
-        run: ./gradlew ktlintCheck
-
-      - name: Build with Gradle
-        run: ./gradlew build --no-daemon
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
+      - name: Run check
+        run: ./gradlew check --no-daemon
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

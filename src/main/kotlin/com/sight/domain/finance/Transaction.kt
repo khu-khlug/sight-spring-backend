@@ -30,8 +30,8 @@ data class Transaction(
     @Column(name = "type", nullable = false)
     val type: TransactionType,
 
-    @Column(name = "item", length = 255)
-    val item: String?,
+    @Column(name = "item", length = 255, nullable = false)
+    val item: String,
 
     @Column(name = "price", nullable = false)
     val price: Long,

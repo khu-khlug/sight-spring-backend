@@ -31,7 +31,8 @@ class TransactionService(
         val pageable = PageRequest.of(pageNumber, limit)
         val startDate = LocalDate.of(year, 1, 1)
         val endDate = LocalDate.of(year + 1, 1, 1)
-        val page: Page<Transaction> = transactionRepository.findByUsedAtBetween(startDate, endDate, pageable)
+        val page: Page<Transaction> =
+            transactionRepository.findByUsedAtBetween(startDate, endDate, pageable)
 
         return TransactionListResult(
             count = page.totalElements,

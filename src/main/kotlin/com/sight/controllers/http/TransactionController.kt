@@ -41,6 +41,7 @@ class TransactionController(
                 ListTransactionResponse(
                     id = transaction.id,
                     author = transaction.author,
+                    type = transaction.type,
                     item = transaction.item,
                     price = transaction.price,
                     quantity = transaction.quantity,

@@ -10,7 +10,7 @@ data class CreateTransactionRequest(
     val type: TransactionType,
 
     @field:JsonProperty("item")
-    val item: String?,
+    val item: String,
 
     @field:Min(value = 0, message = "가격은 0 이상이어야 합니다")
     @field:JsonProperty("price")

@@ -1,12 +1,14 @@
 package com.sight.controllers.http.dto
 
+import com.sight.domain.finance.TransactionType
 import java.time.LocalDate
 import java.time.LocalDateTime
 
 data class ListTransactionResponse(
     val id: String,
     val author: Long,
-    val item: String?,
+    val type: TransactionType,
+    val item: String,
     val price: Long,
     val quantity: Long,
     val total: Long,

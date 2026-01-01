@@ -22,7 +22,7 @@ interface TransactionRepository : JpaRepository<Transaction, String> {
     ): Page<Transaction>
 
     @Query(
-        "SELECT t FROM Transaction t ORDER BY t.usedAt DESC, t.createdAt DESC",
+        "SELECT t FROM Transaction t ORDER BY t.usedAt DESC, t.createdAt DESC LIMIT 1",
     )
     fun findLatest(): Transaction?
 }

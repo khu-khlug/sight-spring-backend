@@ -2,6 +2,7 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.CreateTransactionRequest
 import com.sight.controllers.http.dto.CreateTransactionResponse
+import com.sight.controllers.http.dto.GetCurrentCumulativeResponse
 import com.sight.controllers.http.dto.ListTransactionResponse
 import com.sight.controllers.http.dto.ListTransactionsResponse
 import com.sight.core.auth.Auth
@@ -28,6 +29,13 @@ import org.springframework.web.bind.annotation.RestController
 class TransactionController(
     private val transactionService: TransactionService,
 ) {
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/current-cumulative")
+    fun getCurrentCumulative(): GetCurrentCumulativeResponse {
+        val result = transactionService.getCurrentCumulative()
+        return GetCurrentCumulativeResponse(result)
+    }
+
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/transactions")
     fun getTransactions(

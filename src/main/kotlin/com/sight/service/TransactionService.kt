@@ -5,6 +5,7 @@ import com.sight.controllers.http.dto.CreateTransactionRequest
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.finance.Transaction
+import com.sight.domain.finance.TransactionType
 import com.sight.repository.TransactionRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
@@ -21,6 +22,15 @@ data class TransactionListResult(
 class TransactionService(
     private val transactionRepository: TransactionRepository,
 ) {
+    @Transactional(readOnly = true)
+    fun getCurrentCumulative(): Long {
+        val latestTransaction =
+            transactionRepository.findLatest()
+                ?: throw NotFoundException("No transaction exists")
+
+        return latestTransaction.cumulative
+    }
+
     @Transactional(readOnly = true)
     fun listTransactions(
         year: Int,
@@ -40,6 +50,7 @@ class TransactionService(
         )
     }
 
+    @Transactional
     fun deleteTransaction(id: String) {
         val transaction =
             transactionRepository.findById(id).orElseThrow {
@@ -61,8 +72,12 @@ class TransactionService(
 
         val total = request.price * request.quantity
 
-        val previousTransaction = transactionRepository.findLatest()
-        val cumulative = (previousTransaction?.cumulative ?: 0L) + total
+        val prevCumulative = transactionRepository.findLatest()?.cumulative ?: 0L
+        val cumulative =
+            when (request.type) {
+                TransactionType.INCOME -> prevCumulative + total
+                TransactionType.EXPENSE -> prevCumulative - total
+            }
 
         val transaction =
             Transaction(

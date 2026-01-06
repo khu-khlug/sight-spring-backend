@@ -27,6 +27,39 @@ class TransactionServiceTest {
     }
 
     @Test
+    fun `getCurrentCumulative는 장부 내역이 하나도 존재하지 않는다면 예외를 발생시켜야 한다`() {
+        given(transactionRepository.findLatest()).willReturn(null)
+
+        assertThrows<NotFoundException> { transactionService.getCurrentCumulative() }
+    }
+
+    @Test
+    fun `getCurrentCumlative는 마지막 장부 내역의 누계 값을 반환해야 한다`() {
+        val transaction =
+            Transaction(
+                id = "1234",
+                author = 1L,
+                type = TransactionType.EXPENSE,
+                item = "테스트 항목",
+                price = 10000L,
+                quantity = 1L,
+                total = 10000L,
+                cumulative = 10000L,
+                place = "테스트 수급처",
+                note = "테스트 노트",
+                usedAt = LocalDate.of(2024, 1, 15),
+                createdAt = LocalDateTime.of(2024, 1, 15, 10, 0),
+                updatedAt = LocalDateTime.of(2024, 1, 15, 10, 0),
+            )
+
+        given(transactionRepository.findLatest()).willReturn(transaction)
+
+        val result = transactionService.getCurrentCumulative()
+
+        assertEquals(transaction.cumulative, result)
+    }
+
+    @Test
     fun `deleteTransaction은 존재하는 거래 내역을 삭제한다`() {
         // given
         val transactionId = "transactionId"
@@ -71,7 +104,7 @@ class TransactionServiceTest {
         val authorId = 1L
         val request =
             CreateTransactionRequest(
-                type = TransactionType.EXPENSE,
+                type = TransactionType.INCOME,
                 item = "테스트 항목",
                 price = 10000L,
                 quantity = 2L,
@@ -99,7 +132,7 @@ class TransactionServiceTest {
         val authorId = 1L
         val request =
             CreateTransactionRequest(
-                type = TransactionType.EXPENSE,
+                type = TransactionType.INCOME,
                 item = "테스트 항목",
                 price = 5000L,
                 quantity = 1L,
@@ -112,7 +145,7 @@ class TransactionServiceTest {
             Transaction(
                 id = "transactionId",
                 author = 1L,
-                type = TransactionType.EXPENSE,
+                type = TransactionType.INCOME,
                 item = "이전 항목",
                 price = 10000L,
                 quantity = 1L,
@@ -136,6 +169,52 @@ class TransactionServiceTest {
         // then
         assertEquals(5000L, result.total) // 5000 * 1
         assertEquals(15000L, result.cumulative) // 10000 + 5000
+    }
+
+    @Test
+    fun `createTransaction에서 출금 거래가 발생하면 이전 장부 내역의 cumulative에서 현재 거래의 총합을 빼야 한다`() {
+        // given
+        val authorId = 1L
+        val currentPrice = 5000L
+        val request =
+            CreateTransactionRequest(
+                type = TransactionType.EXPENSE,
+                item = "테스트 항목",
+                price = currentPrice,
+                quantity = 1L,
+                place = null,
+                note = null,
+                usedAt = LocalDate.of(2024, 1, 20),
+            )
+
+        val previousTransaction =
+            Transaction(
+                id = "transactionId",
+                author = 1L,
+                type = TransactionType.INCOME,
+                item = "이전 항목",
+                price = 10000L,
+                quantity = 1L,
+                total = 10000L,
+                cumulative = 10000L,
+                place = null,
+                note = null,
+                usedAt = LocalDate.of(2024, 1, 15),
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+
+        given(transactionRepository.findLatest()).willReturn(previousTransaction)
+        given(transactionRepository.save(any<Transaction>())).willAnswer {
+            it.arguments[0] as Transaction
+        }
+
+        // when
+        val result = transactionService.createTransaction(request, authorId)
+
+        // then
+        assertEquals(currentPrice, result.total) // 5000 * 1
+        assertEquals(previousTransaction.cumulative - currentPrice, result.cumulative) // 10000 - 5000
     }
 
     @Test

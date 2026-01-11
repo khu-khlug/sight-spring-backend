@@ -60,6 +60,10 @@ discord:
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
 
+khlug:
+  phone:
+    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+
 ---
 spring:
   config:
@@ -100,3 +104,7 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
+
+khlug:
+  phone:
+    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}

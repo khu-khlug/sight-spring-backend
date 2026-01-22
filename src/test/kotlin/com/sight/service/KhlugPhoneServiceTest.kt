@@ -28,12 +28,12 @@ class KhlugPhoneServiceTest {
     }
 
     @Test
-    fun `reportPhoneStatus는 웹훅을 호출한다`() {
+    fun `reportPhoneStatus는 배터리 20% 이하이고 충전 중이 아닐 때 웹훅을 호출한다`() {
         // given
         val request =
             ReportPhoneStatusRequest(
-                batteryPercent = 80,
-                batteryStatus = BatteryStatus.CHARGING,
+                batteryPercent = 20,
+                batteryStatus = BatteryStatus.NOT_CHARGING,
             )
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willReturn(ResponseEntity.ok("success"))
@@ -47,6 +47,38 @@ class KhlugPhoneServiceTest {
             any<HttpEntity<*>>(),
             eq(String::class.java),
         )
+    }
+
+    @Test
+    fun `reportPhoneStatus는 배터리 20% 초과이면 웹훅을 호출하지 않는다`() {
+        // given
+        val request =
+            ReportPhoneStatusRequest(
+                batteryPercent = 21,
+                batteryStatus = BatteryStatus.NOT_CHARGING,
+            )
+
+        // when
+        service.reportPhoneStatus(request)
+
+        // then
+        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
+    }
+
+    @Test
+    fun `reportPhoneStatus는 충전 중이면 웹훅을 호출하지 않는다`() {
+        // given
+        val request =
+            ReportPhoneStatusRequest(
+                batteryPercent = 10,
+                batteryStatus = BatteryStatus.CHARGING,
+            )
+
+        // when
+        service.reportPhoneStatus(request)
+
+        // then
+        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
     }
 
     @Test
@@ -74,8 +106,8 @@ class KhlugPhoneServiceTest {
             )
         val request =
             ReportPhoneStatusRequest(
-                batteryPercent = 50,
-                batteryStatus = BatteryStatus.CHARGING,
+                batteryPercent = 15,
+                batteryStatus = BatteryStatus.NOT_CHARGING,
             )
 
         // when

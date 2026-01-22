@@ -22,6 +22,10 @@ class KhlugPhoneService(
     private val logger = LoggerFactory.getLogger(KhlugPhoneService::class.java)
 
     fun reportPhoneStatus(request: ReportPhoneStatusRequest) {
+        if (request.batteryPercent > 20 || request.batteryStatus == BatteryStatus.CHARGING) {
+            return
+        }
+
         if (webhookUrl.isBlank()) {
             logger.warn("웹훅 URL이 설정되지 않았습니다")
             return

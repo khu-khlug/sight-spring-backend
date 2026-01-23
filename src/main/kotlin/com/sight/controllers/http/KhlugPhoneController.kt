@@ -25,7 +25,7 @@ class KhlugPhoneController(
     }
 
     @Auth(roles = [UserRole.SYSTEM])
-    @PostMapping("/internal/khlug-phone/notifications")
+    @PostMapping("/internal/khlug-phone/notification")
     fun forwardNotification(
         @Valid @RequestBody request: ForwardNotificationRequest,
     ): ResponseEntity<Void> {

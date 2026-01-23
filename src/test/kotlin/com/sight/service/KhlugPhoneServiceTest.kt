@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.controllers.http.dto.ForwardNotificationRequest
 import com.sight.controllers.http.dto.ReportPhoneStatusRequest
 import com.sight.domain.device.BatteryStatus
 import org.junit.jupiter.api.BeforeEach
@@ -13,6 +14,7 @@ import org.mockito.kotlin.verify
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestTemplate
+import java.time.Instant
 
 class KhlugPhoneServiceTest {
     private val restTemplate = mock<RestTemplate>()
@@ -115,5 +117,69 @@ class KhlugPhoneServiceTest {
 
         // then
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
+    }
+
+    @Test
+    fun `forwardNotification은 웹훅을 호출한다`() {
+        // given
+        val request =
+            ForwardNotificationRequest(
+                appName = "카카오톡",
+                title = "홍길동",
+                content = "안녕하세요",
+                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+            )
+        given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
+            .willReturn(ResponseEntity.ok("success"))
+
+        // when
+        service.forwardNotification(request)
+
+        // then
+        verify(restTemplate).postForEntity(
+            eq("https://discord.com/api/webhooks/test"),
+            any<HttpEntity<*>>(),
+            eq(String::class.java),
+        )
+    }
+
+    @Test
+    fun `forwardNotification은 웹훅 URL이 비어있으면 호출하지 않는다`() {
+        // given
+        val emptyWebhookService =
+            KhlugPhoneService(
+                webhookUrl = "",
+                restTemplate = restTemplate,
+            )
+        val request =
+            ForwardNotificationRequest(
+                appName = "카카오톡",
+                title = "홍길동",
+                content = "안녕하세요",
+                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+            )
+
+        // when
+        emptyWebhookService.forwardNotification(request)
+
+        // then
+        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
+    }
+
+    @Test
+    fun `forwardNotification은 웹훅 실패시 예외를 던지지 않는다`() {
+        // given
+        val request =
+            ForwardNotificationRequest(
+                appName = "카카오톡",
+                title = "홍길동",
+                content = "안녕하세요",
+                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+            )
+        given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
+            .willThrow(RuntimeException("Webhook failed"))
+
+        // when & then (예외가 발생하지 않으면 성공)
+        service.forwardNotification(request)
     }
 }

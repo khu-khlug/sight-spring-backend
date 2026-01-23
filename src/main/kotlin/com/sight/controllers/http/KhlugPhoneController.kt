@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.ForwardNotificationRequest
 import com.sight.controllers.http.dto.ReportPhoneStatusRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
@@ -20,6 +21,15 @@ class KhlugPhoneController(
         @Valid @RequestBody request: ReportPhoneStatusRequest,
     ): ResponseEntity<Void> {
         khlugPhoneService.reportPhoneStatus(request)
+        return ResponseEntity.noContent().build()
+    }
+
+    @Auth(roles = [UserRole.SYSTEM])
+    @PostMapping("/internal/khlug-phone/notifications")
+    fun forwardNotification(
+        @Valid @RequestBody request: ForwardNotificationRequest,
+    ): ResponseEntity<Void> {
+        khlugPhoneService.forwardNotification(request)
         return ResponseEntity.noContent().build()
     }
 }

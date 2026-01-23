@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.controllers.http.dto.ForwardNotificationRequest
 import com.sight.controllers.http.dto.ReportPhoneStatusRequest
 import com.sight.domain.device.BatteryStatus
 import org.slf4j.LoggerFactory
@@ -26,24 +27,54 @@ class KhlugPhoneService(
             return
         }
 
+        try {
+            val payload = createDiscordWebhookPayload(request)
+            sendWebhook(payload)
+        } catch (e: Exception) {
+            logger.error("쿠러그 폰 상태 알림 전송 실패", e)
+        }
+    }
+
+    fun forwardNotification(request: ForwardNotificationRequest) {
+        try {
+            val payload = createNotificationWebhookPayload(request)
+            sendWebhook(payload)
+        } catch (e: Exception) {
+            logger.error("푸시 알림 포워딩 실패", e)
+        }
+    }
+
+    private fun sendWebhook(payload: Map<String, Any>) {
         if (webhookUrl.isBlank()) {
             logger.warn("웹훅 URL이 설정되지 않았습니다")
             return
         }
 
-        try {
-            val webhookPayload = createDiscordWebhookPayload(request)
-            val headers =
-                HttpHeaders().apply {
-                    contentType = MediaType.APPLICATION_JSON
-                }
-            val httpEntity = HttpEntity(webhookPayload, headers)
+        val headers =
+            HttpHeaders().apply {
+                contentType = MediaType.APPLICATION_JSON
+            }
+        val httpEntity = HttpEntity(payload, headers)
 
-            restTemplate.postForEntity(webhookUrl, httpEntity, String::class.java)
-        } catch (e: Exception) {
-            // Fire-and-forget: 로그만 남기고 예외를 던지지 않음
-            logger.error("쿠러그 폰 상태 알림 전송 실패", e)
-        }
+        restTemplate.postForEntity(webhookUrl, httpEntity, String::class.java)
+    }
+
+    private fun createNotificationWebhookPayload(request: ForwardNotificationRequest): Map<String, Any> {
+        val description =
+            listOf(
+                "**${request.title}**",
+                request.content,
+            ).joinToString("\n")
+
+        val embed =
+            mapOf(
+                "title" to "📱 ${request.appName} 알림",
+                "description" to description,
+                "color" to 0x3498DB,
+                "timestamp" to request.receivedAt.toString(),
+            )
+
+        return mapOf("embeds" to listOf(embed))
     }
 
     private fun createDiscordWebhookPayload(request: ReportPhoneStatusRequest): Map<String, Any> {

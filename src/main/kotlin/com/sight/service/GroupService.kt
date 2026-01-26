@@ -55,11 +55,13 @@ class GroupService(
     private fun GroupListProjection.toGroupListItem(): GroupListItem {
         return GroupListItem(
             id = this.id,
-            category = GroupCategory.entries.firstOrNull { it.value == this.category }
-                ?: throw InternalServerErrorException("알 수 없는 그룹 카테고리입니다: ${this.category}"),
+            category =
+                GroupCategory.entries.firstOrNull { it.value == this.category }
+                    ?: throw InternalServerErrorException("알 수 없는 그룹 카테고리입니다: ${this.category}"),
             title = this.title,
-            state = GroupState.entries.firstOrNull { it.value == this.state }
-                ?: throw InternalServerErrorException("알 수 없는 그룹 상태입니다: ${this.state}"),
+            state =
+                GroupState.entries.firstOrNull { it.value == this.state }
+                    ?: throw InternalServerErrorException("알 수 없는 그룹 상태입니다: ${this.state}"),
             countMember = this.countMember,
             allowJoin = this.allowJoin,
             createdAt = this.createdAt,

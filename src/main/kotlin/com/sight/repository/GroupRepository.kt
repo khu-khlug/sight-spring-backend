@@ -68,7 +68,7 @@ interface GroupRepository : JpaRepository<Group, Long> {
         FROM khlug_group g
         JOIN khlug_group_bookmark b ON g.id = b.`group`
         WHERE b.member = :memberId
-        ORDER BY b.group_order ASC, g.created_at DESC
+        ORDER BY g.created_at DESC
         LIMIT :limit OFFSET :offset
     """,
         nativeQuery = true,

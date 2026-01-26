@@ -8,6 +8,6 @@ interface GroupListProjection {
     val title: String
     val state: String
     val countMember: Long
-    val allowJoin: Boolean
+    val allowJoin: Byte
     val createdAt: LocalDateTime
 }

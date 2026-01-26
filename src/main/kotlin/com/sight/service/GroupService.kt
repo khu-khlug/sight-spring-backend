@@ -5,6 +5,7 @@ import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupState
 import com.sight.repository.GroupRepository
 import com.sight.repository.projection.GroupListProjection
+import com.sight.service.util.ByteBooleanMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -52,8 +53,8 @@ class GroupService(
         )
     }
 
-    private fun GroupListProjection.toGroupListItem(): GroupListItem {
-        return GroupListItem(
+    private fun GroupListProjection.toGroupListItem(): GroupListItem =
+        GroupListItem(
             id = this.id,
             category =
                 GroupCategory.entries.firstOrNull { it.value == this.category }
@@ -63,8 +64,7 @@ class GroupService(
                 GroupState.entries.firstOrNull { it.value == this.state }
                     ?: throw InternalServerErrorException("알 수 없는 그룹 상태입니다: ${this.state}"),
             countMember = this.countMember,
-            allowJoin = this.allowJoin,
+            allowJoin = ByteBooleanMapper.map(this.allowJoin),
             createdAt = this.createdAt,
         )
-    }
 }

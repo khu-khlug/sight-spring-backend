@@ -33,7 +33,7 @@ class GroupServiceTest {
                 title = "Test Group",
                 state = GroupState.PROGRESS.value,
                 countMember = 5L,
-                allowJoin = true,
+                allowJoin = 1,
                 createdAt = LocalDateTime.of(2024, 1, 1, 0, 0),
             )
         given(groupRepository.findAllGroups(offset, limit)).willReturn(listOf(mockProjection))
@@ -80,7 +80,7 @@ class GroupServiceTest {
                 title = "Bookmarked Group",
                 state = GroupState.PENDING.value,
                 countMember = 3L,
-                allowJoin = false,
+                allowJoin = 0,
                 createdAt = LocalDateTime.of(2024, 2, 1, 0, 0),
             )
         given(groupRepository.findBookmarkedGroups(requesterId, offset, limit)).willReturn(listOf(mockProjection))
@@ -134,17 +134,16 @@ class GroupServiceTest {
         title: String,
         state: String,
         countMember: Long,
-        allowJoin: Boolean,
+        allowJoin: Byte,
         createdAt: LocalDateTime,
-    ): GroupListProjection {
-        return object : GroupListProjection {
+    ): GroupListProjection =
+        object : GroupListProjection {
             override val id: Long = id
             override val category: String = category
             override val title: String = title
             override val state: String = state
             override val countMember: Long = countMember
-            override val allowJoin: Boolean = allowJoin
+            override val allowJoin: Byte = allowJoin
             override val createdAt: LocalDateTime = createdAt
         }
-    }
 }

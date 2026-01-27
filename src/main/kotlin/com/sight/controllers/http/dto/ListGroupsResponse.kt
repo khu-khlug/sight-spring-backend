@@ -9,6 +9,11 @@ data class ListGroupsResponse(
     val groups: List<GroupResponse>,
 )
 
+data class GroupLeaderResponse(
+    val userId: Long,
+    val name: String,
+)
+
 data class GroupResponse(
     val id: Long,
     val category: GroupCategory,
@@ -17,4 +22,5 @@ data class GroupResponse(
     val countMember: Long,
     val allowJoin: Boolean,
     val createdAt: LocalDateTime,
+    val leader: GroupLeaderResponse,
 )

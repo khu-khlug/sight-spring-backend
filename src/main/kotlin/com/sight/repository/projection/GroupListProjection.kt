@@ -10,4 +10,6 @@ interface GroupListProjection {
     val countMember: Long
     val allowJoin: Byte
     val createdAt: LocalDateTime
+    val leaderUserId: Long
+    val leaderName: String
 }

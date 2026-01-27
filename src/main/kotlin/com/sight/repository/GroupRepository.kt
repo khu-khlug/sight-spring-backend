@@ -35,8 +35,11 @@ interface GroupRepository : JpaRepository<Group, Long> {
             g.state as state,
             g.count_member as countMember,
             g.allow_join as allowJoin,
-            g.created_at as createdAt
+            g.created_at as createdAt,
+            m.id as leaderUserId,
+            m.realname as leaderName
         FROM khlug_group g
+        JOIN khlug_members m ON g.master = m.id
         ORDER BY g.created_at DESC
         LIMIT :limit OFFSET :offset
     """,
@@ -64,9 +67,12 @@ interface GroupRepository : JpaRepository<Group, Long> {
             g.state as state,
             g.count_member as countMember,
             g.allow_join as allowJoin,
-            g.created_at as createdAt
+            g.created_at as createdAt,
+            m.id as leaderUserId,
+            m.realname as leaderName
         FROM khlug_group g
         JOIN khlug_group_bookmark b ON g.id = b.`group`
+        JOIN khlug_members m ON g.master = m.id
         WHERE b.member = :memberId
         ORDER BY g.created_at DESC
         LIMIT :limit OFFSET :offset

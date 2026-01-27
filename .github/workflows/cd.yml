@@ -14,6 +14,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/sight-spring-backend
+  INFRA_REPO: khu-khlug/sight-infra
 
 jobs:
   build-and-push-image:
@@ -50,3 +51,35 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Checkout infra repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.INFRA_REPO }}
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          path: infra
+
+      - name: Update task-definition.json with new image
+        run: |
+          NEW_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+          TASK_DEF_PATH="infra/spring-backend/task-definition.json"
+
+          echo "Updating image to: ${NEW_IMAGE}"
+
+          # sed를 사용하여 image 값만 정확히 교체 (포맷 유지)
+          sed -i "s|ghcr.io/khu-khlug/sight-spring-backend:sha-[a-f0-9]*|${NEW_IMAGE}|" "${TASK_DEF_PATH}"
+
+      - name: Commit and push to infra repository
+        working-directory: infra
+        run: |
+          git config user.name "쿠러그"
+          git config user.email "we_are@khlug.org"
+
+          git add spring-backend/task-definition.json
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(spring-backend): update image to sha-${{ github.sha }}"
+            git push
+          fi

@@ -128,6 +128,36 @@ class GroupServiceTest {
         verify(groupRepository).findAllGroups(20, 50)
     }
 
+    @Test
+    fun `listGroups는 그룹장 정보를 포함하여 반환한다`() {
+        // given
+        val offset = 0
+        val limit = 10
+        val mockProjection =
+            createMockProjection(
+                id = 1L,
+                category = GroupCategory.STUDY.value,
+                title = "Test Group",
+                state = GroupState.PROGRESS.value,
+                countMember = 5L,
+                allowJoin = 1,
+                createdAt = LocalDateTime.of(2024, 1, 1, 0, 0),
+                leaderUserId = 100L,
+                leaderName = "홍길동",
+            )
+        given(groupRepository.findAllGroups(offset, limit)).willReturn(listOf(mockProjection))
+        given(groupRepository.countAllGroups()).willReturn(1L)
+
+        // when
+        val result = groupService.listGroups(offset, limit, bookmarked = null, requesterId = 1L)
+
+        // then
+        assertEquals(1, result.groups.size)
+        val group = result.groups[0]
+        assertEquals(100L, group.leader.userId)
+        assertEquals("홍길동", group.leader.name)
+    }
+
     private fun createMockProjection(
         id: Long,
         category: String,
@@ -136,6 +166,8 @@ class GroupServiceTest {
         countMember: Long,
         allowJoin: Byte,
         createdAt: LocalDateTime,
+        leaderUserId: Long = 1L,
+        leaderName: String = "테스트유저",
     ): GroupListProjection =
         object : GroupListProjection {
             override val id: Long = id
@@ -145,5 +177,7 @@ class GroupServiceTest {
             override val countMember: Long = countMember
             override val allowJoin: Byte = allowJoin
             override val createdAt: LocalDateTime = createdAt
+            override val leaderUserId: Long = leaderUserId
+            override val leaderName: String = leaderName
         }
 }

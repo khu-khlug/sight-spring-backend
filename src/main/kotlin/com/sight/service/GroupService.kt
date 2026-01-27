@@ -10,6 +10,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 
+data class GroupLeaderInfo(
+    val userId: Long,
+    val name: String,
+)
+
 data class GroupListItem(
     val id: Long,
     val category: GroupCategory,
@@ -18,6 +23,7 @@ data class GroupListItem(
     val countMember: Long,
     val allowJoin: Boolean,
     val createdAt: LocalDateTime,
+    val leader: GroupLeaderInfo,
 )
 
 data class GroupListResult(
@@ -66,5 +72,10 @@ class GroupService(
             countMember = this.countMember,
             allowJoin = ByteBooleanMapper.map(this.allowJoin),
             createdAt = this.createdAt,
+            leader =
+                GroupLeaderInfo(
+                    userId = this.leaderUserId,
+                    name = this.leaderName,
+                ),
         )
 }

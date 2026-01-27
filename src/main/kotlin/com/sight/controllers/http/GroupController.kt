@@ -4,6 +4,7 @@ import com.sight.controllers.http.dto.AddGroupDiscordChannelMemberRequest
 import com.sight.controllers.http.dto.CreateGroupDiscordChannelResponse
 import com.sight.controllers.http.dto.CreateGroupRequest
 import com.sight.controllers.http.dto.CreateGroupResponse
+import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
 import com.sight.core.auth.Auth
@@ -57,6 +58,11 @@ class GroupController(
                         countMember = group.countMember,
                         allowJoin = group.allowJoin,
                         createdAt = group.createdAt,
+                        leader =
+                            GroupLeaderResponse(
+                                userId = group.leader.userId,
+                                name = group.leader.name,
+                            ),
                     )
                 },
         )

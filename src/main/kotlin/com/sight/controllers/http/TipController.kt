@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.RestController
 class TipController(private val tipService: TipService) {
     @GetMapping("/tip")
     fun getCurrentTip(): GetCurrentTipResponse {
-        return GetCurrentTipResponse(content = tipService.getRandomTip())
+        return GetCurrentTipResponse(content = tipService.getRandomMention())
     }
 }

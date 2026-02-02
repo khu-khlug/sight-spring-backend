@@ -1,6 +1,8 @@
 package com.sight.service
 
 import org.springframework.stereotype.Service
+import java.time.LocalTime
+import kotlin.random.Random
 
 @Service
 class TipService {
@@ -21,5 +23,24 @@ class TipService {
             "휴학이나 복학, 전과, 다전공한 뒤에도 info21 인증을 부탁해요!",
         )
 
-    fun getRandomTip(): String = tips.random()
+    fun getRandomTip(): String = "TIP: ${tips.random()}"
+
+    fun getTimeBasedMention(): String {
+        val hour = LocalTime.now().hour
+        return when (hour) {
+            in 0..5 -> "오늘도 밤을 새나요?"
+            in 6..10 -> "좋은 아침입니다!"
+            in 11..15 -> "맑은 하루입니다."
+            in 16..20 -> "창 밖의 달이 보이나요?"
+            else -> "오늘도 하루가 끝나갑니다."
+        }
+    }
+
+    fun getRandomMention(): String {
+        return if (Random.nextDouble() < 0.6) {
+            getRandomTip()
+        } else {
+            getTimeBasedMention()
+        }
+    }
 }

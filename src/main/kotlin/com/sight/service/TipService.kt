@@ -1,11 +1,19 @@
 package com.sight.service
 
+import com.sight.repository.IdeaCloudRepository
 import org.springframework.stereotype.Service
 import java.time.LocalTime
+import java.time.ZoneId
 import kotlin.random.Random
 
 @Service
-class TipService {
+class TipService(
+    private val ideaCloudRepository: IdeaCloudRepository,
+) {
+    companion object {
+        private val KST = ZoneId.of("Asia/Seoul")
+    }
+
     private val tips =
         listOf(
             "그룹은 언제든지 만들 수 있어요. 심지어 방학에도요!",
@@ -26,7 +34,7 @@ class TipService {
     fun getRandomTip(): String = "TIP: ${tips.random()}"
 
     fun getTimeBasedMention(): String {
-        val hour = LocalTime.now().hour
+        val hour = LocalTime.now(KST).hour
         return when (hour) {
             in 0..5 -> "오늘도 밤을 새나요?"
             in 6..10 -> "좋은 아침입니다!"
@@ -36,11 +44,18 @@ class TipService {
         }
     }
 
+    fun getRandomIdea(): String {
+        return ideaCloudRepository.findRandomPublicIdea()?.let {
+            "이걸 만들어보는 건 어때요?: ${it.idea}"
+        } ?: "좋은 아이디어가 떠오르질 않네요..."
+    }
+
     fun getRandomMention(): String {
-        return if (Random.nextDouble() < 0.6) {
-            getRandomTip()
-        } else {
-            getTimeBasedMention()
+        val prob = Random.nextInt(100)
+        return when {
+            prob < 33 -> getRandomIdea()
+            prob < 66 -> getRandomTip()
+            else -> getTimeBasedMention()
         }
     }
 }

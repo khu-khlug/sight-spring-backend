@@ -28,13 +28,13 @@ data class Notification(
     @Column(name = "category", nullable = false)
     val category: NotificationCategory,
 
-    @Column(name = "title", length = 255, nullable = false)
+    @Column(name = "title", length = 200, nullable = false)
     val title: String,
 
-    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "content", length = 1000, nullable = false)
     val content: String,
 
-    @Column(name = "url")
+    @Column(name = "url", length = 500)
     val url: String? = null,
 
     @Column(name = "read_at")

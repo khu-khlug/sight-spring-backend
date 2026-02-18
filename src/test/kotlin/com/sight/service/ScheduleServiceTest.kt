@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.domain.schedule.Schedule
+import com.sight.domain.schedule.ScheduleState
 import com.sight.repository.ScheduleRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -33,6 +34,7 @@ class ScheduleServiceTest {
                     categoryCode = 7742L,
                     title = "동아리 정기 모임",
                     author = 1L,
+                    state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 2, 14, 0),
                 ),
                 Schedule(
@@ -40,6 +42,7 @@ class ScheduleServiceTest {
                     categoryCode = 32529L,
                     title = "405호 스터디",
                     author = 2L,
+                    state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 3, 18, 0),
                 ),
             )
@@ -82,6 +85,7 @@ class ScheduleServiceTest {
                     categoryCode = 7742L,
                     title = "일정1",
                     author = 1L,
+                    state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 2, 14, 0),
                 ),
                 Schedule(
@@ -89,6 +93,7 @@ class ScheduleServiceTest {
                     categoryCode = 7743L,
                     title = "일정2",
                     author = 1L,
+                    state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 3, 14, 0),
                 ),
             )

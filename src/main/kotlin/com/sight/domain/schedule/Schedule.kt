@@ -17,6 +17,8 @@ data class Schedule(
     val title: String,
     @Column(name = "author", nullable = false)
     val author: Long,
+    @Column(name = "state", nullable = false, length = 255)
+    val state: ScheduleState,
     @Column(name = "scheduled_at", nullable = false)
     val scheduledAt: LocalDateTime,
     @Column(name = "created_at", nullable = false)

@@ -7,5 +7,5 @@ import jakarta.persistence.Converter
 class ScheduleStateConverter : AttributeConverter<ScheduleState, String> {
     override fun convertToDatabaseColumn(attribute: ScheduleState): String = attribute.name
 
-    override fun convertToEntityAttribute(dbData: String): ScheduleState = ScheduleState.valueOf(dbData)
+    override fun convertToEntityAttribute(dbData: String): ScheduleState = ScheduleState.valueOf(dbData.uppercase())
 }

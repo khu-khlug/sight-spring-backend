@@ -22,7 +22,7 @@ data class Schedule(
     @Column(name = "author", nullable = false)
     val author: Long,
 
-    @Column(name = "state", columnDefinition = "varchar", nullable = false, length = 255)
+    @Column(name = "state", nullable = false, length = 255)
     @Convert(converter = ScheduleStateConverter::class)
     val state: ScheduleState,
 

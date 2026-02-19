@@ -10,6 +10,7 @@ import com.sight.controllers.http.dto.ListGroupsResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.domain.group.GroupOrderBy
 import com.sight.service.GroupDiscordChannelService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
@@ -36,6 +37,8 @@ class GroupController(
         @RequestParam(defaultValue = "0") @Min(0) offset: Int,
         @RequestParam(defaultValue = "10") @Min(1) @Max(100) limit: Int,
         @RequestParam(required = false) bookmarked: Boolean?,
+        @RequestParam(required = false) joined: Boolean?,
+        @RequestParam(required = false) orderBy: GroupOrderBy?,
         requester: Requester,
     ): ListGroupsResponse {
         val result =
@@ -43,6 +46,8 @@ class GroupController(
                 offset = offset,
                 limit = limit,
                 bookmarked = bookmarked,
+                joined = joined,
+                orderBy = orderBy,
                 requesterId = requester.userId,
             )
 

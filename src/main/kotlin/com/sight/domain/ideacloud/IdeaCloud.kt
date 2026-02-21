@@ -3,6 +3,8 @@ package com.sight.domain.ideacloud
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.LocalDateTime
@@ -11,8 +13,9 @@ import java.time.LocalDateTime
 @Table(name = "khlug_ideacloud")
 data class IdeaCloud(
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long,
+    val id: Long? = null,
 
     @Column(name = "idea", nullable = false, length = 255)
     val idea: String,

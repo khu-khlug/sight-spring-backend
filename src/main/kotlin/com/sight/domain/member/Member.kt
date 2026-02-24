@@ -5,6 +5,7 @@ import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.time.Instant
 import java.time.LocalDateTime
 
 @Entity
@@ -88,7 +89,7 @@ data class Member(
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
     @Column(name = "last_login", nullable = false)
-    val lastLogin: LocalDateTime = LocalDateTime.now(),
+    val lastLogin: Instant = Instant.now(),
 
     @Column(name = "last_enter", nullable = false)
     val lastEnter: LocalDateTime = LocalDateTime.now(),

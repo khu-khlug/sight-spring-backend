@@ -41,6 +41,14 @@ class UserController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/users/@me/check-first-today-login")
+    fun checkFirstTodayLogin(requester: Requester): ResponseEntity<Void> {
+        userService.checkFirstTodayLogin(requester.userId)
+
+        return ResponseEntity.noContent().build()
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/users/@me/discord-integration")
     fun getCurrentUserDiscordIntegration(requester: Requester): GetDiscordIntegrationResponse {
         val integration = userDiscordService.getDiscordIntegration(requester.userId)

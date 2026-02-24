@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.member.Member
-import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
@@ -17,7 +16,6 @@ class UserService(
     private val discordMemberService: DiscordMemberService,
     private val memberRepository: MemberRepository,
     private val pointService: PointService,
-    private val notificationService: NotificationService,
 ) {
     fun applyUserInfoToEnteredDiscordUser(discordUserId: String) {
         val discordIntegration = discordIntegrationRepository.findByDiscordUserId(discordUserId) ?: return

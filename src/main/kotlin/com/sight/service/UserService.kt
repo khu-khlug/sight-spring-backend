@@ -60,13 +60,6 @@ class UserService(
                 point = 1,
                 message = message,
             )
-
-            notificationService.createNotification(
-                userId = userId,
-                category = NotificationCategory.SYSTEM,
-                title = "일일 첫 방문",
-                content = "오늘의 첫 방문을 축하합니다! 포인트 1점이 지급되었습니다.",
-            )
         }
     }
 }

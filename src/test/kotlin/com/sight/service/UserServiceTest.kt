@@ -4,7 +4,6 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
-import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
@@ -30,7 +29,6 @@ class UserServiceTest {
     private val discordMemberService: DiscordMemberService = mock()
     private val memberRepository: MemberRepository = mock()
     private val pointService: PointService = mock()
-    private val notificationService: NotificationService = mock()
     private lateinit var userService: UserService
 
     @BeforeEach
@@ -41,7 +39,6 @@ class UserServiceTest {
                 discordMemberService = discordMemberService,
                 memberRepository = memberRepository,
                 pointService = pointService,
-                notificationService = notificationService,
             )
     }
 
@@ -91,7 +88,7 @@ class UserServiceTest {
     }
 
     @Test
-    fun `checkFirstTodayLogin은 오늘 첫 방문이면 포인트를 지급하고 알림을 생성한다`() {
+    fun `checkFirstTodayLogin은 오늘 첫 방문이면 포인트를 지급한다`() {
         // given
         val userId = 1L
         val member = createMember(userId, lastLogin = Instant.now().minus(1, ChronoUnit.DAYS))
@@ -106,17 +103,10 @@ class UserServiceTest {
             point = eq(1),
             message = any(),
         )
-        verify(notificationService).createNotification(
-            userId = eq(userId),
-            category = eq(NotificationCategory.SYSTEM),
-            title = eq("일일 첫 방문"),
-            content = eq("오늘의 첫 방문을 축하합니다! 포인트 1점이 지급되었습니다."),
-            url = eq(null),
-        )
     }
 
     @Test
-    fun `checkFirstTodayLogin은 오늘 이미 방문한 경우 포인트 지급과 알림 생성을 하지 않는다`() {
+    fun `checkFirstTodayLogin은 오늘 이미 방문한 경우 포인트 지급을 하지 않는다`() {
         // given
         val userId = 1L
         val member = createMember(userId, lastLogin = Instant.now())
@@ -127,7 +117,6 @@ class UserServiceTest {
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
-        verify(notificationService, never()).createNotification(any(), any(), any(), any(), any())
     }
 
     @Test

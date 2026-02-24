@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.member.Member
-import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
@@ -17,7 +16,6 @@ class UserService(
     private val discordMemberService: DiscordMemberService,
     private val memberRepository: MemberRepository,
     private val pointService: PointService,
-    private val notificationService: NotificationService,
 ) {
     fun applyUserInfoToEnteredDiscordUser(discordUserId: String) {
         val discordIntegration = discordIntegrationRepository.findByDiscordUserId(discordUserId) ?: return
@@ -59,13 +57,6 @@ class UserService(
                 targetUserId = userId,
                 point = 1,
                 message = message,
-            )
-
-            notificationService.createNotification(
-                userId = userId,
-                category = NotificationCategory.SYSTEM,
-                title = "일일 첫 방문",
-                content = "오늘의 첫 방문을 축하합니다! 포인트 1점이 지급되었습니다.",
             )
         }
     }

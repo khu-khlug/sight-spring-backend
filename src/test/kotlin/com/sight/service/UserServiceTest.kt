@@ -20,6 +20,7 @@ import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -48,7 +49,7 @@ class UserServiceTest {
     fun `getMemberById는 존재하는 사용자를 반환한다`() {
         // given
         val userId = 1L
-        val member = createMember(userId, lastLogin = LocalDateTime.now())
+        val member = createMember(userId, lastLogin = Instant.now())
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
 
         // when
@@ -74,7 +75,7 @@ class UserServiceTest {
     fun `checkFirstTodayLogin은 방문 여부와 관계없이 lastLogin을 갱신한다`() {
         // given
         val userId = 1L
-        val member = createMember(userId, lastLogin = LocalDateTime.now().minusDays(1))
+        val member = createMember(userId, lastLogin = Instant.now().minus(1, ChronoUnit.DAYS))
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
         val captor = argumentCaptor<Member>()
 
@@ -83,16 +84,17 @@ class UserServiceTest {
 
         // then
         verify(memberRepository).save(captor.capture())
-        val kst = ZoneId.of("Asia/Seoul")
-        val todayKst = Instant.now().atZone(kst).toLocalDate()
-        assertTrue(captor.firstValue.lastLogin.atZone(kst).toLocalDate() == todayKst)
+        assertTrue(
+            captor.firstValue.lastLogin.atZone(ZoneId.of("Asia/Seoul")).toLocalDate() ==
+                Instant.now().atZone(ZoneId.of("Asia/Seoul")).toLocalDate(),
+        )
     }
 
     @Test
     fun `checkFirstTodayLogin은 오늘 첫 방문이면 포인트를 지급하고 알림을 생성한다`() {
         // given
         val userId = 1L
-        val member = createMember(userId, lastLogin = LocalDateTime.now().minusDays(1))
+        val member = createMember(userId, lastLogin = Instant.now().minus(1, ChronoUnit.DAYS))
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
 
         // when
@@ -117,7 +119,7 @@ class UserServiceTest {
     fun `checkFirstTodayLogin은 오늘 이미 방문한 경우 포인트 지급과 알림 생성을 하지 않는다`() {
         // given
         val userId = 1L
-        val member = createMember(userId, lastLogin = LocalDateTime.now())
+        val member = createMember(userId, lastLogin = Instant.now())
         whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
 
         // when
@@ -142,7 +144,7 @@ class UserServiceTest {
 
     private fun createMember(
         userId: Long,
-        lastLogin: LocalDateTime,
+        lastLogin: Instant,
     ): Member =
         Member(
             id = userId,

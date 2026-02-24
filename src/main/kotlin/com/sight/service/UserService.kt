@@ -42,13 +42,13 @@ class UserService(
         val kst = ZoneId.of("Asia/Seoul")
         val nowInstant = Instant.now()
         val nowKst = nowInstant.atZone(kst)
-        val lastLoginKst = member.lastLogin.atZone(kst).toInstant().atZone(kst)
+        val lastLoginKst = member.lastLogin.atZone(kst)
         val isFirstEnterToday = lastLoginKst.toLocalDate() != nowKst.toLocalDate()
 
         memberRepository.save(
             member.copy(
-                lastLogin = LocalDateTime.ofInstant(nowInstant, kst),
-                updatedAt = LocalDateTime.ofInstant(nowInstant, kst),
+                lastLogin = nowInstant,
+                updatedAt = LocalDateTime.ofInstant(nowInstant, ZoneId.of("UTC")),
             ),
         )
 

@@ -1,7 +1,11 @@
 package com.sight.service
 
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.domain.notification.Notification
 import com.sight.domain.notification.NotificationCategory
+import com.sight.repository.MemberRepository
 import com.sight.repository.NotificationRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -18,11 +22,12 @@ import java.time.LocalDateTime
 
 class NotificationServiceTest {
     private val notificationRepository: NotificationRepository = mock()
+    private val memberRepository: MemberRepository = mock()
     private lateinit var notificationService: NotificationService
 
     @BeforeEach
     fun setUp() {
-        notificationService = NotificationService(notificationRepository)
+        notificationService = NotificationService(notificationRepository, memberRepository)
     }
 
     @Test
@@ -228,5 +233,78 @@ class NotificationServiceTest {
         assertEquals(url, result.url)
         assertNull(result.readAt)
         verify(notificationRepository).save(any<Notification>())
+    }
+
+    @Test
+    fun `createNotificationForManagers는 모든 운영진에게 알림을 생성한다`() {
+        // given
+        val category = NotificationCategory.SYSTEM
+        val title = "운영진 알림"
+        val content = "운영진에게 전달할 내용입니다."
+        val url = "/admin/dashboard"
+
+        val managers =
+            listOf(
+                Member(
+                    id = 10L,
+                    name = "manager1",
+                    studentStatus = StudentStatus.UNDERGRADUATE,
+                    status = UserStatus.ACTIVE,
+                    manager = true,
+                ),
+                Member(
+                    id = 20L,
+                    name = "manager2",
+                    studentStatus = StudentStatus.UNDERGRADUATE,
+                    status = UserStatus.ACTIVE,
+                    manager = true,
+                ),
+            )
+
+        whenever(memberRepository.findByManagerTrue()).thenReturn(managers)
+        whenever(notificationRepository.saveAll(any<List<Notification>>()))
+            .thenAnswer { invocation ->
+                invocation.getArgument<List<Notification>>(0)
+            }
+
+        // when
+        val result = notificationService.createNotificationForManagers(category, title, content, url)
+
+        // then
+        assertEquals(2, result.size)
+        assertEquals(10L, result[0].userId)
+        assertEquals(20L, result[1].userId)
+        result.forEach { notification ->
+            assertEquals(category, notification.category)
+            assertEquals(title, notification.title)
+            assertEquals(content, notification.content)
+            assertEquals(url, notification.url)
+            assertNotNull(notification.id)
+            assertNull(notification.readAt)
+        }
+        verify(memberRepository).findByManagerTrue()
+        verify(notificationRepository).saveAll(any<List<Notification>>())
+    }
+
+    @Test
+    fun `createNotificationForManagers는 운영진이 없으면 빈 리스트를 반환한다`() {
+        // given
+        val category = NotificationCategory.SYSTEM
+        val title = "운영진 알림"
+        val content = "운영진에게 전달할 내용입니다."
+
+        whenever(memberRepository.findByManagerTrue()).thenReturn(emptyList())
+        whenever(notificationRepository.saveAll(any<List<Notification>>()))
+            .thenAnswer { invocation ->
+                invocation.getArgument<List<Notification>>(0)
+            }
+
+        // when
+        val result = notificationService.createNotificationForManagers(category, title, content)
+
+        // then
+        assertEquals(0, result.size)
+        verify(memberRepository).findByManagerTrue()
+        verify(notificationRepository).saveAll(any<List<Notification>>())
     }
 }

@@ -3,6 +3,7 @@ package com.sight.service
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.domain.notification.Notification
 import com.sight.domain.notification.NotificationCategory
+import com.sight.repository.MemberRepository
 import com.sight.repository.NotificationRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -17,6 +18,7 @@ data class NotificationListResult(
 @Service
 class NotificationService(
     private val notificationRepository: NotificationRepository,
+    private val memberRepository: MemberRepository,
 ) {
     @Transactional(readOnly = true)
     fun listNotifications(
@@ -73,5 +75,29 @@ class NotificationService(
             )
 
         return notificationRepository.save(notification)
+    }
+
+    @Transactional
+    fun createNotificationForManagers(
+        category: NotificationCategory,
+        title: String,
+        content: String,
+        url: String? = null,
+    ): List<Notification> {
+        val managers = memberRepository.findByManagerTrue()
+
+        val notifications =
+            managers.map { manager ->
+                Notification(
+                    id = UlidCreator.getUlid().toString(),
+                    userId = manager.id,
+                    category = category,
+                    title = title,
+                    content = content,
+                    url = url,
+                )
+            }
+
+        return notificationRepository.saveAll(notifications)
     }
 }

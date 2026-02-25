@@ -6,6 +6,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.finance.Transaction
 import com.sight.domain.finance.TransactionType
+import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.TransactionRepository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
@@ -21,6 +22,7 @@ data class TransactionListResult(
 @Service
 class TransactionService(
     private val transactionRepository: TransactionRepository,
+    private val notificationService: NotificationService,
 ) {
     @Transactional(readOnly = true)
     fun getCurrentCumulative(): Long {
@@ -58,6 +60,18 @@ class TransactionService(
             }
 
         transactionRepository.delete(transaction)
+
+        val formattedTotal = "%,d".format(transaction.total)
+        val content =
+            when (transaction.type) {
+                TransactionType.INCOME -> "[동아리비] ${transaction.item} 항목에서 얻은 ${formattedTotal}원이 삭제되었습니다."
+                TransactionType.EXPENSE -> "[동아리비] ${transaction.item} 항목에 사용한 ${formattedTotal}원이 삭제되었습니다."
+            }
+        notificationService.createNotificationForManagers(
+            category = NotificationCategory.SYSTEM,
+            title = "장부 알림",
+            content = content,
+        )
     }
 
     @Transactional
@@ -94,6 +108,20 @@ class TransactionService(
                 usedAt = request.usedAt,
             )
 
-        return transactionRepository.save(transaction)
+        val saved = transactionRepository.save(transaction)
+
+        val formattedTotal = "%,d".format(saved.total)
+        val content =
+            when (saved.type) {
+                TransactionType.INCOME -> "[동아리비] ${saved.item} 항목으로 ${formattedTotal}원을 얻었습니다."
+                TransactionType.EXPENSE -> "[동아리비] ${saved.item} 항목으로 ${formattedTotal}원을 사용했습니다."
+            }
+        notificationService.createNotificationForManagers(
+            category = NotificationCategory.SYSTEM,
+            title = "장부 알림",
+            content = content,
+        )
+
+        return saved
     }
 }

@@ -19,11 +19,12 @@ import java.util.Optional
 
 class TransactionServiceTest {
     private val transactionRepository = mock<TransactionRepository>()
+    private val notificationService = mock<NotificationService>()
     private lateinit var transactionService: TransactionService
 
     @BeforeEach
     fun setUp() {
-        transactionService = TransactionService(transactionRepository)
+        transactionService = TransactionService(transactionRepository, notificationService)
     }
 
     @Test

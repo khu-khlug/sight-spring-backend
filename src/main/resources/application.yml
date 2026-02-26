@@ -50,6 +50,7 @@ internal:
   api-key: ${INTERNAL_API_KEY:}
 
 discord:
+  enabled: ${DISCORD_ENABLED:false}
   token: ${DISCORD_BOT_TOKEN:}
   guild-id: ${DISCORD_GUILD_ID:}
   oauth2:
@@ -95,6 +96,7 @@ internal:
   api-key: ${INTERNAL_API_KEY:}
 
 discord:
+  enabled: ${DISCORD_ENABLED:true}
   token: ${DISCORD_BOT_TOKEN:}
   guild-id: ${DISCORD_GUILD_ID:}
   oauth2:

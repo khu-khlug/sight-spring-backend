@@ -3,6 +3,7 @@ package com.sight.core.discord
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.ApplicationContext
 import org.springframework.context.event.ContextRefreshedEvent
 import org.springframework.context.event.EventListener
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Service
 @Service
 class DiscordEventListenerRegistry(
     private val applicationContext: ApplicationContext,
-    private val jda: JDA,
+    @Autowired(required = false) private val jda: JDA?,
 ) {
     private val logger = LoggerFactory.getLogger(DiscordEventListenerRegistry::class.java)
 
@@ -24,6 +25,11 @@ class DiscordEventListenerRegistry(
      */
     @EventListener(ContextRefreshedEvent::class)
     fun registerDiscordEventListeners() {
+        if (jda == null) {
+            logger.warn("DISCORD_ENABLED=false로 설정되어 Discord 이벤트 리스너를 등록하지 않습니다.")
+            return
+        }
+
         logger.info("Discord 이벤트 리스너 자동 등록을 시작합니다.")
 
         val listenerBeans = applicationContext.getBeansWithAnnotation(DiscordEventListener::class.java)

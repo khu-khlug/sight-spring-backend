@@ -1,8 +1,8 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile.Local
+    image: gradle:8.10.2-jdk17
+    working_dir: /app
+    command: ["gradle", "bootRun", "--no-daemon", "--continuous"]
     ports:
       - "8080:8080"
     volumes:
@@ -35,12 +35,12 @@ services:
       - mysql
 
   mock-auth:
-    build:
-      context: ./mock
+    image: mockoon/cli:9.3.0
     ports:
       - "3000:3000"
     volumes:
-      - ./mock:/app
+      - ./mock:/data
+    command: ["--data", "/data/mockoon-config.json", "--watch", "--port", "3000"]
 
   mysql:
     image: mysql:8.0.43

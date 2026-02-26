@@ -21,7 +21,6 @@
 
 ### Docker
 - `docker build -f Dockerfile.Build -t sight-spring-backend .` - 프로덕션 이미지 빌드
-- `docker build -f Dockerfile.Local .` - 로컬 개발 이미지 빌드
 
 ## 아키텍처
 

@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.requests.GatewayIntent
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.SimpleClientHttpRequestFactory
@@ -19,6 +20,7 @@ class DiscordConfig {
     private val timeout: Int = 5000
 
     @Bean
+    @ConditionalOnProperty(name = ["discord.enabled"], havingValue = "true", matchIfMissing = true)
     fun jda(
         @Value("\${discord.token}") token: String,
     ): JDA {

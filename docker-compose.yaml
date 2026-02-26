@@ -23,6 +23,9 @@ services:
       - MYSQL_DATABASE=sight
       - MYSQL_USER=root
       - MYSQL_PASSWORD=test
+
+      # Discord feature flag
+      - DISCORD_ENABLED=false
     env_file:
       - ".env"
     stdin_open: true

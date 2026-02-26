@@ -9,23 +9,26 @@ import net.dv8tion.jda.api.entities.Guild
 import net.dv8tion.jda.api.entities.Role
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.EnumSet
 
 @Component
 class JdaDiscordApiAdapter(
-    private val jda: JDA,
-    @param:Value("\${discord.guild-id}") private val guildId: String,
-    @param:Value("\${discord.categories.group}") private val groupCategoryId: String,
-
+    @Autowired(required = false) private val jda: JDA?,
+    @param:Value("\${discord.guild-id:}") private val guildId: String,
+    @param:Value("\${discord.categories.group:}") private val groupCategoryId: String,
     private val discordRoleRepository: DiscordRoleRepository,
 ) : DiscordApiAdapter {
     private val logger = LoggerFactory.getLogger(JdaDiscordApiAdapter::class.java)
 
+    private fun requireJda(): JDA =
+        jda ?: throw IllegalStateException("DISCORD_ENABLED=false로 설정되어 Discord 기능을 사용할 수 없습니다.")
+
     override fun hasMember(discordUserId: String): Boolean {
         return try {
-            val guild = jda.getGuildById(guildId) ?: return false
+            val guild = requireJda().getGuildById(guildId) ?: return false
             guild.retrieveMemberById(discordUserId).complete()
             true
         } catch (e: Exception) {
@@ -36,7 +39,7 @@ class JdaDiscordApiAdapter(
 
     override fun modifyMember(params: DiscordApiModifyMemberParams) {
         try {
-            val guild = jda.getGuildById(guildId) ?: return
+            val guild = requireJda().getGuildById(guildId) ?: return
             val member = guild.retrieveMemberById(params.discordUserId).complete()
 
             if (params.nickname != null) {
@@ -64,7 +67,7 @@ class JdaDiscordApiAdapter(
     override fun createGroupPrivateTextChannel(channelName: String): TextChannel {
         return try {
             val guild =
-                jda.getGuildById(guildId)
+                requireJda().getGuildById(guildId)
                     ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
             val category = guild.getCategoryById(groupCategoryId)
@@ -87,7 +90,7 @@ class JdaDiscordApiAdapter(
     ) {
         try {
             val guild =
-                jda.getGuildById(guildId)
+                requireJda().getGuildById(guildId)
                     ?: throw InternalServerErrorException("디스코드 서버를 찾을 수 없습니다. 운영진에게 문의해주세요.")
 
             val channel =
@@ -110,7 +113,7 @@ class JdaDiscordApiAdapter(
         discordUserId: String,
     ): Boolean {
         return try {
-            val guild = jda.getGuildById(guildId) ?: return false
+            val guild = requireJda().getGuildById(guildId) ?: return false
             val channel = guild.getTextChannelById(channelId) ?: return false
             val member = guild.retrieveMemberById(discordUserId).complete()
 

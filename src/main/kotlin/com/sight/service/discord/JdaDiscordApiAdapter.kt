@@ -23,8 +23,7 @@ class JdaDiscordApiAdapter(
 ) : DiscordApiAdapter {
     private val logger = LoggerFactory.getLogger(JdaDiscordApiAdapter::class.java)
 
-    private fun requireJda(): JDA =
-        jda ?: throw IllegalStateException("DISCORD_ENABLED=false로 설정되어 Discord 기능을 사용할 수 없습니다.")
+    private fun requireJda(): JDA = jda ?: throw IllegalStateException("DISCORD_ENABLED=false로 설정되어 Discord 기능을 사용할 수 없습니다.")
 
     override fun hasMember(discordUserId: String): Boolean {
         return try {

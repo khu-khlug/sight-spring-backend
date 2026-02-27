@@ -114,10 +114,11 @@ class TransactionServiceTest {
                 usedAt = LocalDate.of(2024, 1, 15),
             )
 
-        given(transactionRepository.findLatest()).willReturn(null)
+        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(null)
         given(transactionRepository.save(any<Transaction>())).willAnswer {
             it.arguments[0] as Transaction
         }
+        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
 
         // when
         val result = transactionService.createTransaction(request, authorId)
@@ -159,10 +160,11 @@ class TransactionServiceTest {
                 updatedAt = LocalDateTime.now(),
             )
 
-        given(transactionRepository.findLatest()).willReturn(previousTransaction)
+        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(previousTransaction)
         given(transactionRepository.save(any<Transaction>())).willAnswer {
             it.arguments[0] as Transaction
         }
+        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
 
         // when
         val result = transactionService.createTransaction(request, authorId)
@@ -205,10 +207,11 @@ class TransactionServiceTest {
                 updatedAt = LocalDateTime.now(),
             )
 
-        given(transactionRepository.findLatest()).willReturn(previousTransaction)
+        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(previousTransaction)
         given(transactionRepository.save(any<Transaction>())).willAnswer {
             it.arguments[0] as Transaction
         }
+        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
 
         // when
         val result = transactionService.createTransaction(request, authorId)

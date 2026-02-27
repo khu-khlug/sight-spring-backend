@@ -61,6 +61,26 @@ class TransactionService(
 
         transactionRepository.delete(transaction)
 
+        // 삭제하려는 장부 내역의 바로 이전 항목의 총합
+        val baseCumulative =
+            transactionRepository.findPredecessor(transaction.usedAt, transaction.createdAt)?.cumulative ?: 0L
+
+        // 삭제하려는 장부 내역 이후의 모든 항목들
+        val successors = transactionRepository.findAfter(transaction.usedAt, transaction.createdAt)
+        if (successors.isNotEmpty()) {
+            var runningCumulative = baseCumulative
+            val updated =
+                successors.map { successor ->
+                    runningCumulative =
+                        when (successor.type) {
+                            TransactionType.INCOME -> runningCumulative + successor.total
+                            TransactionType.EXPENSE -> runningCumulative - successor.total
+                        }
+                    successor.copy(cumulative = runningCumulative)
+                }
+            transactionRepository.saveAll(updated)
+        }
+
         val formattedTotal = "%,d".format(transaction.total)
         val content =
             when (transaction.type) {
@@ -86,7 +106,8 @@ class TransactionService(
 
         val total = request.price * request.quantity
 
-        val prevCumulative = transactionRepository.findLatest()?.cumulative ?: 0L
+        // 추가하려는 날짜이거나 이보다 이전의 장부 내역 조회
+        val prevCumulative = transactionRepository.findLatestOnOrBefore(request.usedAt)?.cumulative ?: 0L
         val cumulative =
             when (request.type) {
                 TransactionType.INCOME -> prevCumulative + total
@@ -109,6 +130,23 @@ class TransactionService(
             )
 
         val saved = transactionRepository.save(transaction)
+
+        // 추가하려는 날짜 위치보다 미래 날짜에 있는 모든 항목들
+        // 동일 `usedAt` 값 기준으로 항상 지금 생성되는 장부 내역의 `createdAt`이 가장 클 것이므로 미래 날짜만 조회하면 됨.
+        val successors = transactionRepository.findAfterDate(request.usedAt)
+        if (successors.isNotEmpty()) {
+            var runningCumulative = cumulative
+            val updated =
+                successors.map { successor ->
+                    runningCumulative =
+                        when (successor.type) {
+                            TransactionType.INCOME -> runningCumulative + successor.total
+                            TransactionType.EXPENSE -> runningCumulative - successor.total
+                        }
+                    successor.copy(cumulative = runningCumulative)
+                }
+            transactionRepository.saveAll(updated)
+        }
 
         val formattedTotal = "%,d".format(saved.total)
         val content =

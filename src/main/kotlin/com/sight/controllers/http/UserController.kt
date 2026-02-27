@@ -9,6 +9,8 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.UserDiscordService
 import com.sight.service.UserService
+import jakarta.servlet.http.Cookie
+import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -38,6 +40,37 @@ class UserController(
             createdAt = member.createdAt,
             updatedAt = member.updatedAt,
         )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/users/@me/graduate")
+    fun graduateCurrentUser(requester: Requester): ResponseEntity<Void> {
+        userService.graduateMember(requester.userId)
+
+        // TODO: 추후 클라이언트에서 처리하도록 수정
+        return ResponseEntity.status(HttpStatus.FOUND)
+            .location(URI.create("https://khlug.org/my"))
+            .build()
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/users/@me")
+    fun deleteCurrentUser(
+        requester: Requester,
+        response: HttpServletResponse,
+    ): ResponseEntity<Void> {
+        userService.deleteMember(requester.userId)
+
+        val cookie =
+            Cookie("khlug_session", null).apply {
+                path = "/"
+                maxAge = 0
+            }
+        response.addCookie(cookie)
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+            .location(URI.create("https://khlug.org/"))
+            .build()
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])

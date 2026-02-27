@@ -247,6 +247,38 @@ class UserServiceTest {
         verify(discordMemberService).clearDiscordIntegration(userId)
     }
 
+    @Test
+    fun `listMembers는 필터 조건에 맞는 회원 목록과 총 개수를 반환한다`() {
+        // given
+        val members =
+            listOf(
+                createMember(1L, lastLogin = Instant.now()),
+                createMember(2L, lastLogin = Instant.now()),
+            )
+        whenever(memberRepository.findMembers(null, null, null, null, null, null, null, 10, 0))
+            .thenReturn(members)
+        whenever(memberRepository.countMembers(null, null, null, null, null, null, null))
+            .thenReturn(2L)
+
+        // when
+        val (count, result) =
+            userService.listMembers(
+                email = null,
+                phone = null,
+                name = null,
+                number = null,
+                college = null,
+                grade = null,
+                studentStatus = null,
+                limit = 10,
+                offset = 0,
+            )
+
+        // then
+        assertEquals(2L, count)
+        assertEquals(2, result.size)
+    }
+
     private fun createMember(
         userId: Long,
         lastLogin: Instant,

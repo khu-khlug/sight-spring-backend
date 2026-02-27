@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -22,6 +23,8 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.Optional
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UserServiceTest {
@@ -129,6 +132,119 @@ class UserServiceTest {
         assertThrows<NotFoundException> {
             userService.checkFirstTodayLogin(userId)
         }
+    }
+
+    @Test
+    fun `graduateMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val userId = 999L
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.graduateMember(userId)
+        }
+    }
+
+    @Test
+    fun `graduateMember는 이미 졸업한 사용자일 때 UnprocessableEntityException을 발생시킨다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now()).copy(studentStatus = StudentStatus.GRADUATE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            userService.graduateMember(userId)
+        }
+    }
+
+    @Test
+    fun `graduateMember는 정상적으로 졸업 처리한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now())
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.graduateMember(userId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        val saved = captor.firstValue
+        assertEquals(StudentStatus.GRADUATE, saved.studentStatus)
+        assertEquals(0L, saved.grade)
+        assertFalse(saved.manager)
+    }
+
+    @Test
+    fun `graduateMember는 졸업 처리 후 Discord 역할을 갱신한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now())
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.graduateMember(userId)
+
+        // then
+        verify(discordMemberService).reflectUserInfoToDiscordUser(userId)
+    }
+
+    @Test
+    fun `deleteMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val userId = 999L
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.deleteMember(userId)
+        }
+    }
+
+    @Test
+    fun `deleteMember는 정상적으로 탈퇴 처리한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now())
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.deleteMember(userId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        val saved = captor.firstValue
+        assertEquals(UserStatus.UNAUTHORIZED, saved.status)
+        assertEquals("", saved.password)
+        assertEquals(0L, saved.number)
+        assertEquals("", saved.email)
+        assertEquals("", saved.phone)
+        assertEquals("", saved.homepage)
+        assertEquals("", saved.language)
+        assertEquals("", saved.prefer)
+        assertEquals(0L, saved.expoint)
+        assertFalse(saved.manager)
+        assertNull(saved.slack)
+        assertNull(saved.returnAt)
+        assertNull(saved.returnReason)
+    }
+
+    @Test
+    fun `deleteMember는 탈퇴 후 Discord 연동을 제거한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now())
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.deleteMember(userId)
+
+        // then
+        verify(discordMemberService).clearDiscordIntegration(userId)
     }
 
     private fun createMember(

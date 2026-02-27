@@ -1,7 +1,10 @@
 package com.sight.service
 
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
@@ -28,6 +31,53 @@ class UserService(
         return memberRepository.findById(userId).orElseThrow {
             NotFoundException("사용자를 찾을 수 없습니다")
         }
+    }
+
+    @Transactional
+    fun graduateMember(userId: Long) {
+        val member =
+            memberRepository.findById(userId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.studentStatus == StudentStatus.GRADUATE) {
+            throw UnprocessableEntityException("이미 졸업 처리된 사용자입니다")
+        }
+        memberRepository.save(
+            member.copy(
+                studentStatus = StudentStatus.GRADUATE,
+                grade = 0L,
+                manager = false,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+        discordMemberService.reflectUserInfoToDiscordUser(userId)
+    }
+
+    @Transactional
+    fun deleteMember(userId: Long) {
+        val member =
+            memberRepository.findById(userId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        memberRepository.save(
+            member.copy(
+                password = "",
+                number = 0L,
+                email = "",
+                phone = "",
+                homepage = "",
+                language = "",
+                prefer = "",
+                expoint = 0L,
+                status = UserStatus.UNAUTHORIZED,
+                manager = false,
+                slack = null,
+                returnAt = null,
+                returnReason = null,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+        discordMemberService.clearDiscordIntegration(userId)
     }
 
     @Transactional

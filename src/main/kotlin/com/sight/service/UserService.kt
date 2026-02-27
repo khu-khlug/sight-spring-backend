@@ -80,6 +80,22 @@ class UserService(
         discordMemberService.clearDiscordIntegration(userId)
     }
 
+    fun listMembers(
+        email: String?,
+        phone: String?,
+        name: String?,
+        number: String?,
+        college: String?,
+        grade: Int?,
+        studentStatus: StudentStatus?,
+        limit: Int,
+        offset: Int,
+    ): Pair<Long, List<Member>> {
+        val members = memberRepository.findMembers(email, phone, name, number, college, grade, studentStatus, limit, offset)
+        val count = memberRepository.countMembers(email, phone, name, number, college, grade, studentStatus)
+        return count to members
+    }
+
     @Transactional
     fun checkFirstTodayLogin(userId: Long) {
         val member =

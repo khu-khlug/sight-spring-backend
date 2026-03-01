@@ -5,19 +5,32 @@ import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.domain.member.needAuth
+import com.sight.domain.member.needPayFee
+import com.sight.domain.member.needPayHalfFee
 import com.sight.repository.DiscordIntegrationRepository
+import com.sight.repository.FeeHistoryRepository
 import com.sight.repository.MemberRepository
+import com.sight.util.UnivPeriod
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+
+data class MemberWithTags(
+    val member: Member,
+    val normalTags: List<String>,
+    val redTags: List<String>,
+)
 
 @Service
 class UserService(
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val discordMemberService: DiscordMemberService,
     private val memberRepository: MemberRepository,
+    private val feeHistoryRepository: FeeHistoryRepository,
     private val pointService: PointService,
 ) {
     fun applyUserInfoToEnteredDiscordUser(discordUserId: String) {
@@ -90,10 +103,43 @@ class UserService(
         studentStatus: StudentStatus?,
         limit: Int,
         offset: Int,
-    ): Pair<Long, List<Member>> {
+    ): Pair<Long, List<MemberWithTags>> {
         val members = memberRepository.findMembers(email, phone, name, number, college, grade, studentStatus, limit, offset)
         val count = memberRepository.countMembers(email, phone, name, number, college, grade, studentStatus)
-        return count to members
+
+        val feeTargetUserIds = members.filter { it.needPayFee() }.map { it.id }
+        val thisTerm = UnivPeriod.fromDate(LocalDate.now(ZoneId.of("Asia/Seoul"))).toTerm()
+        val paidUserIds =
+            if (feeTargetUserIds.isEmpty()) {
+                emptySet()
+            } else {
+                feeHistoryRepository
+                    .findByUserIdInAndYearAndSemester(feeTargetUserIds, thisTerm.year, thisTerm.semester)
+                    .map { it.userId }
+                    .toSet()
+            }
+
+        val membersWithTags =
+            members.map { member ->
+                val redTags = mutableListOf<String>()
+                val normalTags = mutableListOf<String>()
+
+                if (member.needAuth()) redTags.add("미인증")
+                if (member.status == UserStatus.INACTIVE) redTags.add("차단")
+                if (member.expoint < 0) redTags.add("-exp")
+
+                if (member.needPayFee() && !paidUserIds.contains(member.id)) {
+                    if (member.needPayHalfFee()) {
+                        normalTags.add("반액 납부 대상")
+                    } else {
+                        normalTags.add("납부 대상")
+                    }
+                }
+
+                MemberWithTags(member = member, normalTags = normalTags, redTags = redTags)
+            }
+
+        return count to membersWithTags
     }
 
     @Transactional

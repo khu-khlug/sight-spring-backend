@@ -42,7 +42,7 @@ class ManagerController(
             )
         return ListMemberResponse(
             count = count,
-            users = members.map { it.toResponse() },
+            users = members.map { it.member.toResponse(it.normalTags, it.redTags) },
         )
     }
 

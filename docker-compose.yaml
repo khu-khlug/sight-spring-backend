@@ -11,6 +11,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - GRADLE_OPTS=-Dorg.gradle.daemon=false
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=UTC
       - INTERNAL_API_KEY=internal-api-key
 
       # Authentication
@@ -49,6 +50,7 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_DATABASE=sight
+      - TZ=Asia/Seoul
     volumes:
       - ./.mysql:/docker-entrypoint-initdb.d
 

@@ -74,7 +74,7 @@ data class Member(
     val rememberToken: String? = null,
 
     @Column(name = "khuisauth_at", nullable = false)
-    val khuisauthAt: LocalDateTime = LocalDateTime.now(),
+    val khuisauthAt: Instant = Instant.now(),
 
     @Column(name = "return_at")
     val returnAt: LocalDateTime? = null,
@@ -86,7 +86,7 @@ data class Member(
     val updatedAt: LocalDateTime = LocalDateTime.now(),
 
     @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val createdAt: Instant = Instant.now(),
 
     @Column(name = "last_login", nullable = false)
     val lastLogin: Instant = Instant.now(),

@@ -22,20 +22,15 @@ data class MemberResponse(
     val manager: Boolean,
     val slack: String?,
     val rememberToken: String?,
-    val khuisAuthAt: LocalDateTime,
+    val khuisAuthAt: Instant,
     val returnAt: LocalDateTime?,
     val returnReason: String?,
     val lastLoginAt: Instant,
     val lastEnterAt: LocalDateTime,
-    val createdAt: LocalDateTime,
+    val createdAt: Instant,
     val updatedAt: LocalDateTime,
-    // TODO: redTags 구현 필요
-    //   - "미인증": needAuth() 조건 확인 필요
-    //   - "차단": status == UserStatus.INACTIVE
-    //   - "-exp": expoint < 0
-    // TODO: normalTags 구현 필요 (FeeHistory 엔티티 필요)
-    //   - "납부 대상": needPayFee() && 해당 학기 FeeHistory 없음
-    //   - "반액 납부 대상": needPayHalfFee() && 해당 학기 FeeHistory 없음
+    val normalTags: List<String>,
+    val redTags: List<String>,
 )
 
 data class MemberProfileResponse(
@@ -50,7 +45,10 @@ data class MemberProfileResponse(
     val prefer: String?,
 )
 
-fun Member.toResponse(): MemberResponse =
+fun Member.toResponse(
+    normalTags: List<String>,
+    redTags: List<String>,
+): MemberResponse =
     MemberResponse(
         id = id,
         name = name,
@@ -80,4 +78,6 @@ fun Member.toResponse(): MemberResponse =
         lastEnterAt = lastEnter,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        normalTags = normalTags,
+        redTags = redTags,
     )

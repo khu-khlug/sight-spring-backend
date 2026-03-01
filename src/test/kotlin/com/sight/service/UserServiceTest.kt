@@ -6,6 +6,7 @@ import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.repository.DiscordIntegrationRepository
+import com.sight.repository.FeeHistoryRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -31,6 +32,7 @@ class UserServiceTest {
     private val discordIntegrationRepository: DiscordIntegrationRepository = mock()
     private val discordMemberService: DiscordMemberService = mock()
     private val memberRepository: MemberRepository = mock()
+    private val feeHistoryRepository: FeeHistoryRepository = mock()
     private val pointService: PointService = mock()
     private lateinit var userService: UserService
 
@@ -41,6 +43,7 @@ class UserServiceTest {
                 discordIntegrationRepository = discordIntegrationRepository,
                 discordMemberService = discordMemberService,
                 memberRepository = memberRepository,
+                feeHistoryRepository = feeHistoryRepository,
                 pointService = pointService,
             )
     }
@@ -259,6 +262,8 @@ class UserServiceTest {
             .thenReturn(members)
         whenever(memberRepository.countMembers(null, null, null, null, null, null, null))
             .thenReturn(2L)
+        whenever(feeHistoryRepository.findByUserIdInAndYearAndSemester(any(), any(), any()))
+            .thenReturn(emptyList())
 
         // when
         val (count, result) =
@@ -293,9 +298,9 @@ class UserServiceTest {
             studentStatus = StudentStatus.UNDERGRADUATE,
             email = "test@example.com",
             status = UserStatus.ACTIVE,
-            khuisauthAt = LocalDateTime.now(),
+            khuisauthAt = Instant.now(),
             updatedAt = LocalDateTime.now(),
-            createdAt = LocalDateTime.now(),
+            createdAt = Instant.now(),
             lastLogin = lastLogin,
             lastEnter = LocalDateTime.now(),
         )

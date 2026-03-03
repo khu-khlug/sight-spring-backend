@@ -201,6 +201,12 @@ class UserService(
             throw UnprocessableEntityException("대상 유저가 이미 운영진입니다")
         }
 
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "신규 운영진 임명",
+            "${targetUser.realname} 회원이 운영진으로 임명되었어요.",
+        )
+
         memberRepository.save(targetUser.copy(manager = true))
 
         notificationService.createNotification(
@@ -211,6 +217,8 @@ class UserService(
         )
 
         logger.info("운영진($requesterUserId)이 회원($targetUserId)에게 운영진 권한을 부여하였습니다.")
+
+        discordMemberService.reflectUserInfoToDiscordUser(targetUserId)
     }
 
     @Transactional
@@ -264,5 +272,7 @@ class UserService(
         )
 
         logger.info("운영진($requesterUserId)이 회원($targetUserId)의 운영진 권한을 제거하였습니다.")
+
+        discordMemberService.reflectUserInfoToDiscordUser(targetUserId)
     }
 }

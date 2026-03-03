@@ -5,8 +5,9 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.UserService
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
@@ -15,7 +16,7 @@ class UserManageController(
     private val userService: UserService,
 ) {
     @Auth([UserRole.MANAGER])
-    @PostMapping("/manager/users/{userId}/appoint-manager")
+    @PutMapping("/manager/users/{userId}/manager")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun appointManager(
         requester: Requester,
@@ -28,7 +29,7 @@ class UserManageController(
     }
 
     @Auth([UserRole.MANAGER])
-    @PostMapping("/manager/users/{userId}/stepdown-manager")
+    @DeleteMapping("/manager/users/{userId}/manager")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun stepdownManager(
         requester: Requester,

@@ -325,16 +325,16 @@ class UserServiceTest {
     }
 
     @Test
-    fun `appointManager는 이미 대상 유저가 운영진이라면 예외를 발생시켜야 한다`() {
+    fun `appointManager는 이미 대상 유저가 운영진이라면 별도 저장 없이 종료되어야 한다`() {
         val requesterUserId = 100L
         val targetUserId = 200L
 
         val managerMember = createMember(manager = true)
         whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(managerMember))
 
-        assertThrows<UnprocessableEntityException> {
-            userService.appointManager(requesterUserId, targetUserId)
-        }
+        userService.appointManager(requesterUserId, targetUserId)
+
+        verify(memberRepository, never()).save(any())
     }
 
     @Test
@@ -376,16 +376,16 @@ class UserServiceTest {
     }
 
     @Test
-    fun `stepdownManager는 대상 유저가 운영진이 아니라면 예외를 발생시켜야 한다`() {
+    fun `stepdownManager는 대상 유저가 운영진이 아니라면 별도 저장 없이 종료되어야 한다`() {
         val requesterUserId = 100L
         val targetUserId = 200L
 
         val notManagerMember = createMember(manager = false)
         whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(notManagerMember))
 
-        assertThrows<UnprocessableEntityException> {
-            userService.stepdownManager(requesterUserId, targetUserId)
-        }
+        userService.stepdownManager(requesterUserId, targetUserId)
+
+        verify(memberRepository, never()).save(any())
     }
 
     @Test

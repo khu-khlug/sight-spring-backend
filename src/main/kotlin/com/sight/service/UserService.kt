@@ -198,7 +198,7 @@ class UserService(
         }
 
         if (targetUser.manager) {
-            throw UnprocessableEntityException("대상 유저가 이미 운영진입니다")
+            return
         }
 
         notificationService.createNotificationForManagers(
@@ -236,7 +236,7 @@ class UserService(
             }
 
         if (!targetUser.manager) {
-            throw UnprocessableEntityException("대상 유저가 운영진이 아닙니다")
+            return
         }
 
         memberRepository.save(targetUser.copy(manager = false))

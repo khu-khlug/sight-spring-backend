@@ -34,6 +34,7 @@ class UserServiceTest {
     private val memberRepository: MemberRepository = mock()
     private val feeHistoryRepository: FeeHistoryRepository = mock()
     private val pointService: PointService = mock()
+    private val notificationService: NotificationService = mock()
     private lateinit var userService: UserService
 
     @BeforeEach
@@ -45,6 +46,7 @@ class UserServiceTest {
                 memberRepository = memberRepository,
                 feeHistoryRepository = feeHistoryRepository,
                 pointService = pointService,
+                notificationService = notificationService,
             )
     }
 
@@ -88,7 +90,9 @@ class UserServiceTest {
         // then
         verify(memberRepository).save(captor.capture())
         assertTrue(
-            captor.firstValue.lastLogin.atZone(ZoneId.of("Asia/Seoul")).toLocalDate() ==
+            captor.firstValue.lastLogin
+                .atZone(ZoneId.of("Asia/Seoul"))
+                .toLocalDate() ==
                 Instant.now().atZone(ZoneId.of("Asia/Seoul")).toLocalDate(),
         )
     }
@@ -284,9 +288,126 @@ class UserServiceTest {
         assertEquals(2, result.size)
     }
 
+    // appointManager
+    @Test
+    fun `appointManager는 요청자와 운영진에 임명하려는 유저가 동일하면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 123L
+        val targetUserId = requesterUserId
+
+        assertThrows<UnprocessableEntityException> {
+            userService.appointManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `appointManager는 대상 유저가 존재하지 않으면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            userService.appointManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `appointManager는 대상 유저가 인증되지 않은 상태라면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        val unauthorizedMember = createMember(status = UserStatus.UNAUTHORIZED)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(unauthorizedMember))
+
+        assertThrows<UnprocessableEntityException> {
+            userService.appointManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `appointManager는 이미 대상 유저가 운영진이라면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        val managerMember = createMember(manager = true)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(managerMember))
+
+        assertThrows<UnprocessableEntityException> {
+            userService.appointManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `appointManager는 대상 유저를 운영진으로 임명해야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        val member = createMember(status = UserStatus.ACTIVE, manager = false)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(member))
+
+        userService.appointManager(requesterUserId, targetUserId)
+
+        val captor = argumentCaptor<Member>()
+        verify(memberRepository).save(captor.capture())
+        assertTrue(captor.firstValue.manager)
+    }
+
+    // stepdownManager
+    @Test
+    fun `stepdownManager는 요청자와 운영진에서 퇴임시키려는 유저가 동일하면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 123L
+        val targetUserId = requesterUserId
+
+        assertThrows<UnprocessableEntityException> {
+            userService.stepdownManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `stepdownManager는 대상 유저가 존재하지 않으면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            userService.stepdownManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `stepdownManager는 대상 유저가 운영진이 아니라면 예외를 발생시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        val notManagerMember = createMember(manager = false)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(notManagerMember))
+
+        assertThrows<UnprocessableEntityException> {
+            userService.stepdownManager(requesterUserId, targetUserId)
+        }
+    }
+
+    @Test
+    fun `stepdownManager는 대상 유저를 운영진에서 퇴임시켜야 한다`() {
+        val requesterUserId = 100L
+        val targetUserId = 200L
+
+        val member = createMember(manager = true)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(member))
+
+        userService.stepdownManager(requesterUserId, targetUserId)
+
+        val captor = argumentCaptor<Member>()
+        verify(memberRepository).save(captor.capture())
+        assertFalse(captor.firstValue.manager)
+    }
+
     private fun createMember(
-        userId: Long,
-        lastLogin: Instant,
+        userId: Long = 123L,
+        lastLogin: Instant = Instant.now(),
+        manager: Boolean = false,
+        status: UserStatus = UserStatus.ACTIVE,
     ): Member =
         Member(
             id = userId,
@@ -295,9 +416,10 @@ class UserServiceTest {
             realname = "테스트 사용자",
             college = "소프트웨어융합학과",
             grade = 3L,
+            manager = manager,
             studentStatus = StudentStatus.UNDERGRADUATE,
             email = "test@example.com",
-            status = UserStatus.ACTIVE,
+            status = status,
             khuisauthAt = Instant.now(),
             updatedAt = LocalDateTime.now(),
             createdAt = Instant.now(),

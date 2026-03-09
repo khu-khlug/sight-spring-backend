@@ -3,17 +3,16 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
-import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.ActivityFrequency
 import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
-import com.sight.domain.groupmatching.GroupMatchingAnswerField
-import com.sight.domain.groupmatching.GroupMatchingField
-import com.sight.domain.groupmatching.GroupMatchingSubject
-import com.sight.repository.GroupMatchingAnswerFieldRepository
+import com.sight.domain.groupmatching.GroupMatchingAnswerOption
+import com.sight.domain.groupmatching.GroupMatchingOption
+import com.sight.domain.groupmatching.GroupMatchingType
+import com.sight.repository.GroupMatchingAnswerOptionRepository
 import com.sight.repository.GroupMatchingAnswerRepository
-import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
-import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -29,57 +28,55 @@ import java.util.Optional
 
 class GroupMatchingAnswerServiceTest {
     private val answerRepository = mock<GroupMatchingAnswerRepository>()
-    private val answerFieldRepository = mock<GroupMatchingAnswerFieldRepository>()
-    private val subjectRepository = mock<GroupMatchingSubjectRepository>()
+    private val answerOptionRepository = mock<GroupMatchingAnswerOptionRepository>()
     private val matchedGroupRepository = mock<MatchedGroupRepository>()
-    private val fieldRepository = mock<GroupMatchingFieldRepository>()
+    private val optionRepository = mock<GroupMatchingOptionRepository>()
     private val groupMatchingRepository = mock<GroupMatchingRepository>()
 
     private val service =
         GroupMatchingAnswerService(
             answerRepository,
-            answerFieldRepository,
-            subjectRepository,
+            answerOptionRepository,
             matchedGroupRepository,
-            fieldRepository,
+            optionRepository,
             groupMatchingRepository,
         )
 
-    // 테스트 공통 데이터
     private val userId = 1L
     private val matchingId = "match-1"
-    private val groupType = GroupCategory.STUDY
+    private val groupType = GroupMatchingType.BASIC_LANGUAGE_STUDY
 
     @Test
     fun `존재하지 않는 그룹 매칭 ID인 경우 NotFoundException이 발생한다`() {
         // given
-        // DB에서 조회되지 않음 (Empty Optional)
-
         given(groupMatchingRepository.findById(matchingId))
             .willReturn(Optional.empty())
 
         // when & then
         assertThrows<NotFoundException> {
             service.createGroupMatchingAnswer(
-                groupType,
-                true,
-                userId,
-                matchingId,
-                emptyList(),
-                emptyList(),
+                groupType = groupType,
+                isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
+                userId = userId,
+                groupMatchingId = matchingId,
+                selectedOptionIds = emptyList(),
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
             )
         }
     }
 
-    // [New] 테스트 2: 마감 기한이 지난 경우
     @Test
     fun `마감 기한이 지난 경우 UnprocessableEntityException이 발생한다`() {
         // given
-        // 마감 시간이 "어제"인 GroupMatching Mock 생성
         val closedMatching = mock<GroupMatching>()
         given(closedMatching.closedAt).willReturn(LocalDateTime.now().minusDays(1))
 
-        // 해당 매칭이 조회된다고 가정
         given(groupMatchingRepository.findById(matchingId))
             .willReturn(Optional.of(closedMatching))
 
@@ -87,21 +84,26 @@ class GroupMatchingAnswerServiceTest {
         val exception =
             assertThrows<UnprocessableEntityException> {
                 service.createGroupMatchingAnswer(
-                    groupType,
-                    true,
-                    userId,
-                    matchingId,
-                    emptyList(),
-                    emptyList(),
+                    groupType = groupType,
+                    isPreferOnline = true,
+                    activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                    activityFormat = "온라인 스터디",
+                    otherSuggestions = null,
+                    userId = userId,
+                    groupMatchingId = matchingId,
+                    selectedOptionIds = emptyList(),
+                    customOption = null,
+                    role = null,
+                    hasIdea = null,
+                    idea = null,
                 )
             }
 
-        // 에러 메시지 검증 (선택 사항)
         assertTrue(exception.message.contains("마감되었습니다"))
     }
 
     @Test
-    fun `이미 응답을 제출한 경우 Exception이 발생한다`() {
+    fun `이미 응답을 제출한 경우 UnprocessableEntityException이 발생한다`() {
         // given
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
@@ -112,12 +114,18 @@ class GroupMatchingAnswerServiceTest {
         // when & then
         assertThrows<UnprocessableEntityException> {
             service.createGroupMatchingAnswer(
-                groupType,
-                true,
-                userId,
-                matchingId,
-                emptyList(),
-                emptyList(),
+                groupType = groupType,
+                isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
+                userId = userId,
+                groupMatchingId = matchingId,
+                selectedOptionIds = emptyList(),
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
             )
         }
 
@@ -127,144 +135,150 @@ class GroupMatchingAnswerServiceTest {
     @Test
     fun `모든 데이터가 유효하면 정상적으로 저장된다`() {
         // given
-        val subjects = listOf("Java", "Kotlin")
-        val fieldId = "Backend"
-        val fields = listOf("Backend")
+        val optionId = "opt-1"
+        val option =
+            GroupMatchingOption(
+                id = optionId,
+                groupMatchingId = matchingId,
+                name = "Java",
+                groupMatchingType = groupType,
+            )
 
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
-        val mockField = mock<GroupMatchingField>()
-        given(mockField.id).willReturn(fieldId)
-        given(fieldRepository.findAllById(fields)).willReturn(listOf(mockField))
-        // save 호출 시 전달된 객체를 그대로 반환하도록 설정 (ID는 서비스 내부에서 생성됨)
+        given(optionRepository.findAllById(listOf(optionId))).willReturn(listOf(option))
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
-        given(subjectRepository.saveAll(any<List<GroupMatchingSubject>>())).willAnswer { it.arguments[0] }
 
         // when
         val result =
             service.createGroupMatchingAnswer(
                 groupType = groupType,
                 isPreferOnline = true,
+                activityFrequency = ActivityFrequency.THREE_OR_FOUR,
+                activityFormat = "주 2회 온라인 스터디",
+                otherSuggestions = "없음",
                 userId = userId,
                 groupMatchingId = matchingId,
-                groupMatchingFieldIds = fields,
-                groupMatchingSubjects = subjects,
+                selectedOptionIds = listOf(optionId),
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
             )
 
         // then
         assertEquals(userId, result.answer.userId)
-        assertEquals(subjects.size, result.subjectIds.size)
+        assertEquals(1, result.options.size)
+        assertEquals(optionId, result.options[0].id)
 
         verify(answerRepository).save(any())
-        verify(answerFieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
-        verify(subjectRepository).saveAll(any<List<GroupMatchingSubject>>())
-        verify(fieldRepository).findAllById(fields)
+        verify(answerOptionRepository).saveAll(any<List<GroupMatchingAnswerOption>>())
     }
 
     @Test
-    fun `subject가 없는 경우 subjectIds는 emptyList로 들어간다`() {
+    fun `옵션 없이도 정상적으로 저장된다`() {
         // given
-        val emptySubjects = emptyList<String>()
-        val fieldId = "Backend"
-        val fields = listOf(fieldId)
-
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
-
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
-
-        val mockField = mock<GroupMatchingField>()
-        given(mockField.id).willReturn(fieldId)
-        given(fieldRepository.findAllById(fields)).willReturn(listOf(mockField))
         given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer { it.arguments[0] }
 
         // when
         val result =
             service.createGroupMatchingAnswer(
-                groupType = groupType,
+                groupType = GroupMatchingType.PRACTICAL_PROJECT,
                 isPreferOnline = true,
+                activityFrequency = ActivityFrequency.FIVE_TO_SEVEN,
+                activityFormat = "매일 온라인 미팅",
+                otherSuggestions = null,
                 userId = userId,
                 groupMatchingId = matchingId,
-                groupMatchingFieldIds = listOf("Backend"),
-                groupMatchingSubjects = emptySubjects,
+                selectedOptionIds = emptyList(),
+                customOption = null,
+                role = "백엔드 개발",
+                hasIdea = true,
+                idea = "웹 앱 만들기",
             )
 
         // then
-        assertTrue(result.subjectIds.isEmpty())
-
+        assertTrue(result.options.isEmpty())
         verify(answerRepository).save(any())
-        verify(answerFieldRepository).saveAll(any<List<GroupMatchingAnswerField>>())
-        // 핵심 검증: subjectRepository는 호출되지 않아야 함
-        verify(subjectRepository, never()).saveAll(any<List<GroupMatchingSubject>>())
     }
 
     @Test
-    fun `존재하지 않는 필드 ID가 포함된 경우 UnprocessableEntityException이 발생한다`() {
+    fun `존재하지 않는 옵션 ID가 포함된 경우 BadRequestException이 발생한다`() {
         // given
-        val invalidFieldId = "InvalidFieldID"
-        val invalidFields = listOf(invalidFieldId)
+        val invalidOptionId = "invalid-opt"
 
         val validMatching = mock<GroupMatching>()
         given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId)).willReturn(false)
-        given(answerRepository.save(any<GroupMatchingAnswer>())).willAnswer {
-            (it.arguments[0] as GroupMatchingAnswer).copy(id = "temp-id")
-        }
-
-        given(fieldRepository.findAllById(invalidFields)).willReturn(emptyList())
+        given(optionRepository.findAllById(listOf(invalidOptionId))).willReturn(emptyList())
 
         // when & then
-        assertThrows<UnprocessableEntityException> {
+        assertThrows<BadRequestException> {
             service.createGroupMatchingAnswer(
                 groupType = groupType,
                 isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
                 userId = userId,
                 groupMatchingId = matchingId,
-                groupMatchingFieldIds = invalidFields,
-                groupMatchingSubjects = emptyList(),
+                selectedOptionIds = listOf(invalidOptionId),
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
             )
         }
 
-        verify(fieldRepository).findAllById(invalidFields)
-        verify(answerFieldRepository, never()).saveAll(any<List<GroupMatchingAnswerField>>())
+        verify(answerOptionRepository, never()).saveAll(any<List<GroupMatchingAnswerOption>>())
     }
 
     @Test
-    fun `listAnswers는 fieldId가 존재하지 않으면 에러를 던진다`() {
+    fun `listAnswers는 optionId가 존재하지 않으면 에러를 던진다`() {
         // given
         val groupMatchingId = "gm-1"
-        val invalidFieldId = "invalid-field"
-        given(fieldRepository.findById(invalidFieldId)).willReturn(Optional.empty())
+        val invalidOptionId = "invalid-option"
+        given(optionRepository.findById(invalidOptionId)).willReturn(Optional.empty())
 
         // when & then
         assertThrows<BadRequestException> {
-            service.listAnswers(groupMatchingId, fieldId = invalidFieldId, offset = 0, limit = 20)
+            service.listAnswers(groupMatchingId, optionId = invalidOptionId, offset = 0, limit = 20)
         }
     }
 
     @Test
-    fun `listAnswers는 obsoleted된 필드이면 에러를 던진다`() {
+    fun `중복된 옵션 ID가 포함된 경우 BadRequestException이 발생한다`() {
         // given
-        val groupMatchingId = "gm-1"
-        val obsoletedFieldId = "obsoleted-field"
-        val obsoletedField =
-            GroupMatchingField(
-                id = obsoletedFieldId,
-                name = "폐기된 분야",
-                createdAt = LocalDateTime.now().minusDays(30),
-                obsoletedAt = LocalDateTime.now().minusDays(1),
-            )
-        given(fieldRepository.findById(obsoletedFieldId)).willReturn(Optional.of(obsoletedField))
+        val validMatching = mock<GroupMatching>()
+        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
+        given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId)).willReturn(false)
 
         // when & then
         assertThrows<BadRequestException> {
-            service.listAnswers(groupMatchingId, fieldId = obsoletedFieldId, offset = 0, limit = 20)
+            service.createGroupMatchingAnswer(
+                groupType = groupType,
+                isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
+                userId = userId,
+                groupMatchingId = matchingId,
+                selectedOptionIds = listOf("opt-1", "opt-1"),
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
+            )
         }
     }
 }

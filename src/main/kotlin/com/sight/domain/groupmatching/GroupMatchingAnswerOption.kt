@@ -6,8 +6,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 
 @Entity
-@Table(name = "group_matching_answer_field")
-data class GroupMatchingAnswerField(
+@Table(name = "group_matching_answer_option")
+data class GroupMatchingAnswerOption(
     @Id
     @Column(name = "id", nullable = false, length = 100)
     val id: String,
@@ -15,6 +15,6 @@ data class GroupMatchingAnswerField(
     @Column(name = "answer_id", nullable = false, length = 100)
     val answerId: String,
 
-    @Column(name = "field_id", nullable = false, length = 100)
-    val fieldId: String,
+    @Column(name = "option_id", nullable = false, length = 100)
+    val optionId: String,
 )

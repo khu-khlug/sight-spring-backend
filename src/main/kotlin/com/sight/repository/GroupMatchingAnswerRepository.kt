@@ -1,7 +1,7 @@
 package com.sight.repository
 
-import com.sight.domain.group.GroupCategory
 import com.sight.domain.groupmatching.GroupMatchingAnswer
+import com.sight.domain.groupmatching.GroupMatchingType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -16,27 +16,25 @@ interface GroupMatchingAnswerRepository : JpaRepository<GroupMatchingAnswer, Str
         groupMatchingId: String,
     ): Boolean
 
-    fun findAllByGroupMatchingIdOrderByCreatedAtDesc(groupMatchingId: String): List<GroupMatchingAnswer>
-
     fun findAllByGroupMatchingIdAndGroupType(
         groupMatchingId: String,
-        groupType: GroupCategory,
+        groupType: GroupMatchingType,
     ): List<GroupMatchingAnswer>
 
     @Query(
         """
         SELECT DISTINCT a FROM GroupMatchingAnswer a
-        LEFT JOIN GroupMatchingAnswerField af ON a.id = af.answerId
+        LEFT JOIN GroupMatchingAnswerOption ao ON a.id = ao.answerId
         WHERE a.groupMatchingId = :groupMatchingId
         AND (:groupType IS NULL OR a.groupType = :groupType)
-        AND (:fieldId IS NULL OR af.fieldId = :fieldId)
+        AND (:optionId IS NULL OR ao.optionId = :optionId)
         ORDER BY a.createdAt DESC
         """,
     )
     fun findAnswersWithFilters(
         @Param("groupMatchingId") groupMatchingId: String,
-        @Param("groupType") groupType: GroupCategory?,
-        @Param("fieldId") fieldId: String?,
+        @Param("groupType") groupType: GroupMatchingType?,
+        @Param("optionId") optionId: String?,
         pageable: Pageable,
     ): Page<GroupMatchingAnswer>
 

@@ -13,7 +13,7 @@ import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.GroupMatchingType
 import com.sight.service.GroupMatchingService
 import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import jakarta.validation.Valid
@@ -36,7 +36,7 @@ class GroupMatchingController(
     @GetMapping("/group-matchings/{groupMatchingId}/groups")
     fun getGroups(
         @PathVariable groupMatchingId: String,
-        @RequestParam(required = false) groupType: GroupCategory?,
+        @RequestParam(required = false) groupType: GroupMatchingType?,
     ): List<GetGroupMatchingGroupsResponse> {
         return groupMatchingService.getGroups(groupMatchingId, groupType).map { groupDto ->
             GetGroupMatchingGroupsResponse(
@@ -66,29 +66,29 @@ class GroupMatchingController(
         return GetGroupMatchingAnswerResponse(
             id = answerDto.id,
             userId = answerDto.userId,
+            groupMatchingId = answerDto.groupMatchingId,
             groupType = answerDto.groupType,
             isPreferOnline = answerDto.isPreferOnline,
-            groupMatchingId = answerDto.groupMatchingId,
-            fields =
-                answerDto.fields.map { field ->
-                    GetGroupMatchingAnswerResponse.FieldResponse(
-                        id = field.id,
-                        name = field.name,
+            activityFrequency = answerDto.activityFrequency,
+            activityFormat = answerDto.activityFormat,
+            otherSuggestions = answerDto.otherSuggestions,
+            selectedOptions =
+                answerDto.selectedOptions.map { option ->
+                    GetGroupMatchingAnswerResponse.OptionResponse(
+                        id = option.id,
+                        name = option.name,
                     )
                 },
+            customOption = answerDto.customOption,
+            role = answerDto.role,
+            hasIdea = answerDto.hasIdea,
+            idea = answerDto.idea,
             matchedGroups =
                 answerDto.matchedGroups.map { matchedGroup ->
                     GetGroupMatchingAnswerResponse.MatchedGroupResponse(
                         id = matchedGroup.id,
                         groupId = matchedGroup.groupId,
                         createdAt = matchedGroup.createdAt,
-                    )
-                },
-            groupMatchingSubjects =
-                answerDto.groupMatchingSubjects.map { subject ->
-                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
-                        id = subject.id,
-                        subject = subject.subject,
                     )
                 },
             createdAt = answerDto.createdAt,
@@ -124,8 +124,14 @@ class GroupMatchingController(
             UpdateGroupMatchingAnswerDto(
                 groupType = request.groupType,
                 isPreferOnline = request.isPreferOnline,
-                fieldIds = request.fieldIds,
-                subjects = request.subjects,
+                activityFrequency = request.activityFrequency,
+                activityFormat = request.activityFormat,
+                otherSuggestions = request.otherSuggestions,
+                selectedOptionIds = request.selectedOptionIds,
+                customOption = request.customOption,
+                role = request.role,
+                hasIdea = request.hasIdea,
+                idea = request.idea,
             )
 
         val answerDto = groupMatchingService.updateAnswer(groupMatchingId, requester.userId, updateDto)
@@ -133,29 +139,29 @@ class GroupMatchingController(
         return GetGroupMatchingAnswerResponse(
             id = answerDto.id,
             userId = answerDto.userId,
+            groupMatchingId = answerDto.groupMatchingId,
             groupType = answerDto.groupType,
             isPreferOnline = answerDto.isPreferOnline,
-            groupMatchingId = answerDto.groupMatchingId,
-            fields =
-                answerDto.fields.map { field ->
-                    GetGroupMatchingAnswerResponse.FieldResponse(
-                        id = field.id,
-                        name = field.name,
+            activityFrequency = answerDto.activityFrequency,
+            activityFormat = answerDto.activityFormat,
+            otherSuggestions = answerDto.otherSuggestions,
+            selectedOptions =
+                answerDto.selectedOptions.map { option ->
+                    GetGroupMatchingAnswerResponse.OptionResponse(
+                        id = option.id,
+                        name = option.name,
                     )
                 },
+            customOption = answerDto.customOption,
+            role = answerDto.role,
+            hasIdea = answerDto.hasIdea,
+            idea = answerDto.idea,
             matchedGroups =
                 answerDto.matchedGroups.map { matchedGroup ->
                     GetGroupMatchingAnswerResponse.MatchedGroupResponse(
                         id = matchedGroup.id,
                         groupId = matchedGroup.groupId,
                         createdAt = matchedGroup.createdAt,
-                    )
-                },
-            groupMatchingSubjects =
-                answerDto.groupMatchingSubjects.map { subject ->
-                    GetGroupMatchingAnswerResponse.GroupMatchingSubjectResponse(
-                        id = subject.id,
-                        subject = subject.subject,
                     )
                 },
             createdAt = answerDto.createdAt,
@@ -174,6 +180,7 @@ class GroupMatchingController(
                 year = request.year,
                 semester = request.semester,
                 closedAt = request.closedAt,
+                options = request.options.map { it.name to it.type },
             )
 
         return CreateGroupMatchingResponse(

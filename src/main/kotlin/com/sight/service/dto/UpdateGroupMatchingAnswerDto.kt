@@ -1,10 +1,17 @@
 package com.sight.service.dto
 
-import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.ActivityFrequency
+import com.sight.domain.groupmatching.GroupMatchingType
 
 data class UpdateGroupMatchingAnswerDto(
-    val groupType: GroupCategory,
+    val groupType: GroupMatchingType,
     val isPreferOnline: Boolean,
-    val fieldIds: List<String>,
-    val subjects: List<String>,
+    val activityFrequency: ActivityFrequency,
+    val activityFormat: String,
+    val otherSuggestions: String?,
+    val selectedOptionIds: List<String>,
+    val customOption: String?,
+    val role: String?,
+    val hasIdea: Boolean?,
+    val idea: String?,
 )

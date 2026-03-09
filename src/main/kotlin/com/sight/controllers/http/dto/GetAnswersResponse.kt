@@ -1,6 +1,7 @@
 package com.sight.controllers.http.dto
 
-import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.ActivityFrequency
+import com.sight.domain.groupmatching.GroupMatchingType
 import java.time.LocalDateTime
 
 data class GetAnswersResponse(
@@ -13,9 +14,20 @@ data class AnswerDto(
     val answerUserId: Long,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
-    val groupType: GroupCategory,
+    val groupType: GroupMatchingType,
     val isPreferOnline: Boolean,
-    val selectedFields: List<String>,
-    val subjectIdeas: List<String>,
+    val activityFrequency: ActivityFrequency,
+    val activityFormat: String,
+    val otherSuggestions: String?,
+    val selectedOptions: List<AnswerOptionDto>,
+    val customOption: String?,
+    val role: String?,
+    val hasIdea: Boolean?,
+    val idea: String?,
     val matchedGroupIds: List<Long>,
+)
+
+data class AnswerOptionDto(
+    val id: String,
+    val name: String,
 )

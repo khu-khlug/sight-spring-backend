@@ -4,19 +4,19 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
-import com.sight.domain.group.GroupCategory
+import com.sight.domain.groupmatching.ActivityFrequency
 import com.sight.domain.groupmatching.GroupMatchingAnswer
-import com.sight.domain.groupmatching.GroupMatchingAnswerField
-import com.sight.domain.groupmatching.GroupMatchingSubject
-import com.sight.repository.GroupMatchingAnswerFieldRepository
+import com.sight.domain.groupmatching.GroupMatchingAnswerOption
+import com.sight.domain.groupmatching.GroupMatchingType
+import com.sight.repository.GroupMatchingAnswerOptionRepository
 import com.sight.repository.GroupMatchingAnswerRepository
-import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
-import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.MatchedGroupRepository
 import com.sight.service.dto.AnswerSummary
 import com.sight.service.dto.GroupMatchingAnswerResult
 import com.sight.service.dto.ListAnswersResult
+import com.sight.service.dto.OptionResult
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -25,22 +25,26 @@ import java.time.LocalDateTime
 @Service
 class GroupMatchingAnswerService(
     private val answerRepository: GroupMatchingAnswerRepository,
-    private val answerFieldRepository: GroupMatchingAnswerFieldRepository,
-    private val subjectRepository: GroupMatchingSubjectRepository,
+    private val answerOptionRepository: GroupMatchingAnswerOptionRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
-    private val fieldRepository: GroupMatchingFieldRepository,
+    private val optionRepository: GroupMatchingOptionRepository,
     private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional
     fun createGroupMatchingAnswer(
-        groupType: GroupCategory,
+        groupType: GroupMatchingType,
         isPreferOnline: Boolean,
+        activityFrequency: ActivityFrequency,
+        activityFormat: String,
+        otherSuggestions: String?,
         userId: Long,
         groupMatchingId: String,
-        groupMatchingFieldIds: List<String>,
-        groupMatchingSubjects: List<String>,
+        selectedOptionIds: List<String>,
+        customOption: String?,
+        role: String?,
+        hasIdea: Boolean?,
+        idea: String?,
     ): GroupMatchingAnswerResult {
-        // [Logic Added] 1. 중복 제출 검증
         val groupMatching =
             groupMatchingRepository.findById(groupMatchingId)
                 .orElseThrow { NotFoundException("해당 그룹 매칭을 찾을 수 없습니다.") }
@@ -54,84 +58,69 @@ class GroupMatchingAnswerService(
         if (answerRepository.existsByUserIdAndGroupMatchingId(userId, groupMatchingId)) {
             throw UnprocessableEntityException("이미 응답을 제출했습니다.")
         }
-        val fieldRequest =
+
+        validateOptionIds(selectedOptionIds, groupMatchingId, groupType)
+
+        val answer =
             GroupMatchingAnswer(
                 id = UlidCreator.getUlid().toString(),
                 userId = userId,
                 groupType = groupType,
                 isPreferOnline = isPreferOnline,
+                activityFrequency = activityFrequency,
+                activityFormat = activityFormat,
+                otherSuggestions = otherSuggestions,
+                customOption = customOption,
+                role = role,
+                hasIdea = hasIdea,
+                idea = idea,
                 groupMatchingId = groupMatchingId,
             )
-        val savedAnswer = answerRepository.save(fieldRequest)
-        //  필드 선택지 저장
-        val foundFields = fieldRepository.findAllById(groupMatchingFieldIds)
-        val validFieldIds = foundFields.map { it.id }.toSet()
+        val savedAnswer = answerRepository.save(answer)
 
-        val fieldEntities =
-            groupMatchingFieldIds.map { fieldId ->
-                if (!validFieldIds.contains(fieldId)) {
-                    throw UnprocessableEntityException("유효하지 않은 필드 선택지 ID: $fieldId")
-                }
-
-                GroupMatchingAnswerField(
+        val optionEntities =
+            selectedOptionIds.map { optionId ->
+                GroupMatchingAnswerOption(
                     id = UlidCreator.getUlid().toString(),
                     answerId = savedAnswer.id,
-                    fieldId = fieldId,
+                    optionId = optionId,
                 )
             }
-        answerFieldRepository.saveAll(fieldEntities)
-        //  답변 엔티티 생성 및 저장
+        answerOptionRepository.saveAll(optionEntities)
 
-        //  주제 저장
-        var createdSubjectIds: List<String> = emptyList()
-        if (groupMatchingSubjects.isNotEmpty()) {
-            val subjectEntities =
-                groupMatchingSubjects.map { subjectString ->
-                    GroupMatchingSubject(
-                        id = UlidCreator.getUlid().toString(),
-                        answerId = savedAnswer.id,
-                        subject = subjectString,
-                    )
-                }
-            val savedSubjectEntities = subjectRepository.saveAll(subjectEntities)
-            createdSubjectIds = savedSubjectEntities.map { it.id }
-        }
+        val savedOptions =
+            optionRepository.findAllById(selectedOptionIds)
+                .map { OptionResult(id = it.id, name = it.name) }
 
         return GroupMatchingAnswerResult(
             answer = savedAnswer,
-            fieldIds = groupMatchingFieldIds,
-            subjectIds = createdSubjectIds,
+            options = savedOptions,
         )
     }
 
+    @Transactional(readOnly = true)
     fun listAnswers(
         groupMatchingId: String,
-        groupType: GroupCategory? = null,
-        fieldId: String? = null,
+        groupType: GroupMatchingType? = null,
+        optionId: String? = null,
         offset: Int,
         limit: Int,
     ): ListAnswersResult {
-        // fieldId 검증 - 비즈니스 로직 검증 (존재 여부 및 obsoleted 체크)
-        if (fieldId != null) {
-            val field =
-                fieldRepository.findById(fieldId)
-                    .orElseThrow { BadRequestException("유효하지 않은 관심분야입니다") }
-
-            if (field.obsoletedAt != null) {
-                throw BadRequestException("유효하지 않은 관심분야입니다")
-            }
+        if (optionId != null) {
+            optionRepository.findById(optionId)
+                .orElseThrow { BadRequestException("유효하지 않은 옵션입니다") }
         }
 
-        // Pageable 생성 (offset 기반)
         val pageNumber = offset / limit
         val pageable = PageRequest.of(pageNumber, limit)
 
-        // DB 쿼리로 필터링 및 페이지네이션
-        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, fieldId, pageable)
+        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, optionId, pageable)
 
-        // DTO 변환
         val answerSummaries =
             page.content.map { answer ->
+                val selectedOptions = getSelectedOptions(answer.id)
+                val matchedGroupIds = getMatchedGroupIds(answer.id)
+
                 AnswerSummary(
                     answerId = answer.id,
                     answerUserId = answer.userId,
@@ -139,9 +128,15 @@ class GroupMatchingAnswerService(
                     updatedAt = answer.updatedAt,
                     groupType = answer.groupType,
                     isPreferOnline = answer.isPreferOnline,
-                    selectedFields = getSelectedFieldIds(answer.id),
-                    subjectIdeas = getSubjectIdeas(answer.id),
-                    matchedGroupIds = getMatchedGroupIds(answer.id),
+                    activityFrequency = answer.activityFrequency,
+                    activityFormat = answer.activityFormat,
+                    otherSuggestions = answer.otherSuggestions,
+                    selectedOptions = selectedOptions,
+                    customOption = answer.customOption,
+                    role = answer.role,
+                    hasIdea = answer.hasIdea,
+                    idea = answer.idea,
+                    matchedGroupIds = matchedGroupIds,
                 )
             }
 
@@ -151,23 +146,48 @@ class GroupMatchingAnswerService(
         )
     }
 
-    private fun getSelectedFieldIds(answerId: String): List<String> {
-        val fieldIds =
-            answerFieldRepository.findAllByAnswerId(answerId)
-                .map { it.fieldId }
-        if (fieldIds.isEmpty()) {
-            throw BadRequestException("선택한 관심분야가 존재하지 않습니다")
+    private fun getSelectedOptions(answerId: String): List<OptionResult> {
+        val answerOptions = answerOptionRepository.findAllByAnswerId(answerId)
+        if (answerOptions.isEmpty()) {
+            return emptyList()
         }
-        return fieldIds
-    }
-
-    private fun getSubjectIdeas(answerId: String): List<String> {
-        return subjectRepository.findAllByAnswerId(answerId)
-            .map { it.subject }
+        val optionIds = answerOptions.map { it.optionId }
+        val options = optionRepository.findAllById(optionIds)
+        return options.map { OptionResult(id = it.id, name = it.name) }
     }
 
     private fun getMatchedGroupIds(answerId: String): List<Long> {
         return matchedGroupRepository.findAllByAnswerId(answerId)
             .map { it.groupId }
+    }
+
+    private fun validateOptionIds(
+        selectedOptionIds: List<String>,
+        groupMatchingId: String,
+        groupType: GroupMatchingType,
+    ) {
+        if (selectedOptionIds.isEmpty()) return
+
+        val uniqueOptionIds = selectedOptionIds.distinct()
+        if (uniqueOptionIds.size != selectedOptionIds.size) {
+            throw BadRequestException("중복된 옵션이 포함되어 있습니다")
+        }
+
+        val existingOptions = optionRepository.findAllById(selectedOptionIds)
+        val existingOptionIds = existingOptions.map { it.id }.toSet()
+        val invalidOptionIds = selectedOptionIds.filter { it !in existingOptionIds }
+
+        if (invalidOptionIds.isNotEmpty()) {
+            throw BadRequestException("존재하지 않는 옵션입니다: ${invalidOptionIds.joinToString(", ")}")
+        }
+
+        existingOptions.forEach { option ->
+            if (option.groupMatchingId != groupMatchingId) {
+                throw BadRequestException("해당 그룹 매칭에 속하지 않는 옵션입니다: ${option.id}")
+            }
+            if (option.groupMatchingType != groupType) {
+                throw BadRequestException("선택한 그룹 타입과 일치하지 않는 옵션입니다: ${option.id}")
+            }
+        }
     }
 }

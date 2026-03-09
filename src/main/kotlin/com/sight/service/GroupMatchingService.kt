@@ -10,21 +10,22 @@ import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
 import com.sight.domain.group.GroupState
 import com.sight.domain.groupmatching.GroupMatching
+import com.sight.domain.groupmatching.GroupMatchingAnswer
+import com.sight.domain.groupmatching.GroupMatchingAnswerOption
+import com.sight.domain.groupmatching.GroupMatchingType
 import com.sight.domain.groupmatching.MatchedGroup
-import com.sight.repository.GroupMatchingAnswerFieldRepository
+import com.sight.repository.GroupMatchingAnswerOptionRepository
 import com.sight.repository.GroupMatchingAnswerRepository
-import com.sight.repository.GroupMatchingFieldRepository
+import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
-import com.sight.repository.GroupMatchingSubjectRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MatchedGroupRepository
-import com.sight.service.dto.FieldResponse
 import com.sight.service.dto.GroupMatchingAnswerDto
 import com.sight.service.dto.GroupMatchingGroupDto
 import com.sight.service.dto.GroupMatchingGroupMemberDto
-import com.sight.service.dto.GroupMatchingSubjectResponse
 import com.sight.service.dto.MatchedGroupResponse
+import com.sight.service.dto.OptionResult
 import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -38,16 +39,15 @@ class GroupMatchingService(
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
     private val groupRepository: GroupRepository,
-    private val groupMatchingAnswerFieldRepository: GroupMatchingAnswerFieldRepository,
-    private val groupMatchingFieldRepository: GroupMatchingFieldRepository,
-    private val groupMatchingSubjectRepository: GroupMatchingSubjectRepository,
+    private val groupMatchingAnswerOptionRepository: GroupMatchingAnswerOptionRepository,
+    private val groupMatchingOptionRepository: GroupMatchingOptionRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroups(
         groupMatchingId: String,
-        groupType: GroupCategory?,
+        groupType: GroupMatchingType?,
     ): List<GroupMatchingGroupDto> {
         val answers =
             if (groupType != null) {
@@ -101,51 +101,9 @@ class GroupMatchingService(
                 groupMatchingId,
                 userId,
             )
-                ?: throw NotFoundException("Answer not found")
+                ?: throw NotFoundException("답변을 찾을 수 없습니다")
 
-        val answerFields = groupMatchingAnswerFieldRepository.findAllByAnswerId(answer.id)
-        val fields =
-            if (answerFields.isNotEmpty()) {
-                val fieldIds = answerFields.map { it.fieldId }
-                groupMatchingFieldRepository.findAllById(fieldIds)
-            } else {
-                emptyList()
-            }
-
-        val matchedGroups = matchedGroupRepository.findAllByAnswerId(answer.id)
-        val subjects = groupMatchingSubjectRepository.findAllByAnswerId(answer.id)
-
-        return GroupMatchingAnswerDto(
-            id = answer.id,
-            userId = answer.userId,
-            groupType = answer.groupType,
-            isPreferOnline = answer.isPreferOnline,
-            groupMatchingId = answer.groupMatchingId,
-            fields =
-                fields.map { field ->
-                    FieldResponse(
-                        id = field.id,
-                        name = field.name,
-                    )
-                },
-            matchedGroups =
-                matchedGroups.map { matchedGroup ->
-                    MatchedGroupResponse(
-                        id = matchedGroup.id,
-                        groupId = matchedGroup.groupId,
-                        createdAt = matchedGroup.createdAt,
-                    )
-                },
-            groupMatchingSubjects =
-                subjects.map { subject ->
-                    GroupMatchingSubjectResponse(
-                        id = subject.id,
-                        subject = subject.subject,
-                    )
-                },
-            createdAt = answer.createdAt,
-            updatedAt = answer.updatedAt,
-        )
+        return buildAnswerDto(answer)
     }
 
     @Transactional
@@ -154,72 +112,99 @@ class GroupMatchingService(
         userId: Long,
         updateDto: UpdateGroupMatchingAnswerDto,
     ): GroupMatchingAnswerDto {
-        // 1. 기존 답변 조회
         val existingAnswer =
             groupMatchingAnswerRepository.findByGroupMatchingIdAndUserId(
                 groupMatchingId,
                 userId,
             )
-                ?: throw NotFoundException("Answer not found")
+                ?: throw NotFoundException("답변을 찾을 수 없습니다")
 
-        // 2. fieldIds 유효성 검증
-        // 2-1. 중복 확인
-        val uniqueFieldIds = updateDto.fieldIds.distinct()
-        if (uniqueFieldIds.size != updateDto.fieldIds.size) {
-            throw BadRequestException("중복된 관심분야가 포함되어 있습니다")
+        val uniqueOptionIds = updateDto.selectedOptionIds.distinct()
+        if (uniqueOptionIds.size != updateDto.selectedOptionIds.size) {
+            throw BadRequestException("중복된 옵션이 포함되어 있습니다")
         }
 
-        // 2-2. 존재 여부 확인
-        if (updateDto.fieldIds.isNotEmpty()) {
-            val existingFields = groupMatchingFieldRepository.findAllById(updateDto.fieldIds)
-            val existingFieldIds = existingFields.map { it.id }.toSet()
-            val invalidFieldIds = updateDto.fieldIds.filter { it !in existingFieldIds }
+        if (updateDto.selectedOptionIds.isNotEmpty()) {
+            val existingOptions = groupMatchingOptionRepository.findAllById(updateDto.selectedOptionIds)
+            val existingOptionIds = existingOptions.map { it.id }.toSet()
+            val invalidOptionIds = updateDto.selectedOptionIds.filter { it !in existingOptionIds }
 
-            if (invalidFieldIds.isNotEmpty()) {
-                throw BadRequestException("존재하지 않는 관심분야입니다: ${invalidFieldIds.joinToString(", ")}")
+            if (invalidOptionIds.isNotEmpty()) {
+                throw BadRequestException("존재하지 않는 옵션입니다: ${invalidOptionIds.joinToString(", ")}")
             }
         }
 
-        // 3. subjects 유효성 검증 (빈 리스트는 허용하지만, 요소가 있다면 공백이 아니어야 함)
-        val invalidSubjects = updateDto.subjects.filter { it.isBlank() }
-        if (invalidSubjects.isNotEmpty()) {
-            throw BadRequestException("주제는 공백일 수 없습니다")
-        }
-
-        // 4. GroupMatchingAnswer 업데이트
         val updatedAnswer =
             existingAnswer.copy(
                 groupType = updateDto.groupType,
                 isPreferOnline = updateDto.isPreferOnline,
+                activityFrequency = updateDto.activityFrequency,
+                activityFormat = updateDto.activityFormat,
+                otherSuggestions = updateDto.otherSuggestions,
+                customOption = updateDto.customOption,
+                role = updateDto.role,
+                hasIdea = updateDto.hasIdea,
+                idea = updateDto.idea,
             )
         groupMatchingAnswerRepository.save(updatedAnswer)
 
-        // 5. 연관 fields 업데이트 (삭제 후 재생성)
-        groupMatchingAnswerFieldRepository.deleteAllByAnswerId(existingAnswer.id)
-        val answerFields =
-            updateDto.fieldIds.map { fieldId ->
-                com.sight.domain.groupmatching.GroupMatchingAnswerField(
+        groupMatchingAnswerOptionRepository.deleteAllByAnswerId(existingAnswer.id)
+        val answerOptions =
+            updateDto.selectedOptionIds.map { optionId ->
+                GroupMatchingAnswerOption(
                     id = UlidCreator.getUlid().toString(),
                     answerId = existingAnswer.id,
-                    fieldId = fieldId,
+                    optionId = optionId,
                 )
             }
-        groupMatchingAnswerFieldRepository.saveAll(answerFields)
+        groupMatchingAnswerOptionRepository.saveAll(answerOptions)
 
-        // 6. 연관 subjects 업데이트 (삭제 후 재생성)
-        groupMatchingSubjectRepository.deleteAllByAnswerId(existingAnswer.id)
-        val subjects =
-            updateDto.subjects.map { subject ->
-                com.sight.domain.groupmatching.GroupMatchingSubject(
-                    id = UlidCreator.getUlid().toString(),
-                    answerId = existingAnswer.id,
-                    subject = subject,
-                )
+        return buildAnswerDto(updatedAnswer)
+    }
+
+    private fun buildAnswerDto(answer: GroupMatchingAnswer): GroupMatchingAnswerDto {
+        val answerOptions = groupMatchingAnswerOptionRepository.findAllByAnswerId(answer.id)
+        val options =
+            if (answerOptions.isNotEmpty()) {
+                val optionIds = answerOptions.map { it.optionId }
+                groupMatchingOptionRepository.findAllById(optionIds)
+            } else {
+                emptyList()
             }
-        groupMatchingSubjectRepository.saveAll(subjects)
 
-        // 7. 업데이트된 데이터 조회 후 반환
-        return getAnswer(groupMatchingId, userId)
+        val matchedGroups = matchedGroupRepository.findAllByAnswerId(answer.id)
+
+        return GroupMatchingAnswerDto(
+            id = answer.id,
+            userId = answer.userId,
+            groupType = answer.groupType,
+            isPreferOnline = answer.isPreferOnline,
+            activityFrequency = answer.activityFrequency,
+            activityFormat = answer.activityFormat,
+            otherSuggestions = answer.otherSuggestions,
+            groupMatchingId = answer.groupMatchingId,
+            selectedOptions =
+                options.map { option ->
+                    OptionResult(
+                        id = option.id,
+                        name = option.name,
+                    )
+                },
+            customOption = answer.customOption,
+            role = answer.role,
+            hasIdea = answer.hasIdea,
+            idea = answer.idea,
+            matchedGroups =
+                matchedGroups.map { matchedGroup ->
+                    MatchedGroupResponse(
+                        id = matchedGroup.id,
+                        groupId = matchedGroup.groupId,
+                        createdAt = matchedGroup.createdAt,
+                    )
+                },
+            createdAt = answer.createdAt,
+            updatedAt = answer.updatedAt,
+        )
     }
 
     @Transactional
@@ -227,23 +212,20 @@ class GroupMatchingService(
         groupId: Long,
         answerId: String,
     ) {
-        val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("Group not found")
-            }
+        groupRepository.findById(groupId).orElseThrow {
+            NotFoundException("그룹을 찾을 수 없습니다")
+        }
         val answer =
             groupMatchingAnswerRepository.findById(answerId).orElseThrow {
-                NotFoundException("Answer not found")
+                NotFoundException("답변을 찾을 수 없습니다")
             }
 
         if (groupMemberRepository.existsByGroupIdAndMemberId(groupId, answer.userId)) {
-            throw BadRequestException("Member already in group")
+            throw BadRequestException("이미 그룹에 속한 멤버입니다")
         }
 
         groupMemberRepository.save(groupId, answer.userId)
 
-        // 이미 이전에 `MatchedGroup`이 생성되었으나 해당 회원이 그룹에서 나온 경우,
-        // `MatchedGroup`은 존재하지만 `GroupMember`는 존재하지 않을 수 있음.
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(
                 MatchedGroup(
@@ -258,16 +240,14 @@ class GroupMatchingService(
     @Transactional
     fun updateClosedAt(
         groupMatchingId: String,
-        closedAt: java.time.LocalDateTime,
-    ): com.sight.domain.groupmatching.GroupMatching {
-        // 1. 그룹 매칭 조회
+        closedAt: LocalDateTime,
+    ): GroupMatching {
         val groupMatching =
             groupMatchingRepository.findById(groupMatchingId).orElseThrow {
-                NotFoundException("Group matching not found")
+                NotFoundException("그룹 매칭을 찾을 수 없습니다")
             }
 
-        // 2. closedAt 유효성 검증 (어제 이전 날짜인지 확인)
-        val kst = java.time.ZoneId.of("Asia/Seoul")
+        val kst = ZoneId.of("Asia/Seoul")
         val now = java.time.ZonedDateTime.now(kst)
         val today = now.toLocalDate()
         val closedAtDate = closedAt.toLocalDate()
@@ -276,7 +256,6 @@ class GroupMatchingService(
             throw BadRequestException("마감일은 어제 이전 날짜로 설정할 수 없습니다")
         }
 
-        // 3. closedAt 업데이트
         val updatedGroupMatching =
             groupMatching.copy(
                 closedAt = closedAt,
@@ -302,6 +281,12 @@ class GroupMatchingService(
             throw BadRequestException("그룹장은 주어진 그룹 매칭의 응답 제출자들 중 한 명이어야 합니다")
         }
 
+        val groupCategory =
+            when (leaderAnswer.groupType) {
+                GroupMatchingType.BASIC_LANGUAGE_STUDY, GroupMatchingType.PROJECT_STYLE_STUDY -> GroupCategory.STUDY
+                GroupMatchingType.PRACTICAL_PROJECT -> GroupCategory.PROJECT
+            }
+
         val newGroup =
             Group(
                 id = createNewGroupId(),
@@ -310,7 +295,7 @@ class GroupMatchingService(
                 master = leaderUserId,
                 state = GroupState.PROGRESS,
                 allowJoin = true,
-                category = leaderAnswer.groupType,
+                category = groupCategory,
                 grade = GroupAccessGrade.MEMBER,
                 countMember = answerIds.size.toLong(),
             )
@@ -319,14 +304,11 @@ class GroupMatchingService(
         val newGroupMembers = userIds.map { GroupMember(newGroup.id, it) }
         groupMemberRepository.saveAll(newGroupMembers)
 
-        // TODO: 그룹 로그 추가 등 후속 처리 구현 예정
-
         return newGroup.id
     }
 
-    // 레거시 방법으로 구현되어 있는 ID 생성 기법과 충돌되지 않도록 ID를 별도로 생성합니다.
     private fun createNewGroupId(): Long {
-        val minimumId = 1000000 // 기존 ID와 충돌하지 않도록 최소 100만 이상의 값을 갖도록 합니다.
+        val minimumId = 1000000
 
         val millisUntil20250101 =
             LocalDateTime.of(
@@ -339,13 +321,10 @@ class GroupMatchingService(
             ).atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
         val currentTimestamp = System.currentTimeMillis()
 
-        // 시간 단위로 달라지도록 계산
         val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60 / 60
 
-        // 시간 당 1/1000 확률로 충돌하도록 계산
         val randomPart = Random(currentTimestamp).nextLong(0L, 1000L)
 
-        // 한 시간 당 1/1000 확률로 충돌되도록 ID 생성
         return minimumId + timePart * 1000 + randomPart
     }
 
@@ -354,6 +333,7 @@ class GroupMatchingService(
         year: Int,
         semester: Int,
         closedAt: LocalDateTime,
+        options: List<Pair<String, GroupMatchingType>>,
     ): GroupMatching {
         if (groupMatchingRepository.existsByYearAndSemester(year, semester)) {
             throw UnprocessableEntityException("해당 연도($year)와 학기($semester)의 그룹 매칭은 이미 존재합니다.")
@@ -366,8 +346,20 @@ class GroupMatchingService(
                 semester = semester,
                 closedAt = closedAt,
             )
+        groupMatchingRepository.save(groupMatching)
 
-        return groupMatchingRepository.save(groupMatching)
+        val optionEntities =
+            options.map { (name, type) ->
+                com.sight.domain.groupmatching.GroupMatchingOption(
+                    id = UlidCreator.getUlid().toString(),
+                    groupMatchingId = groupMatching.id,
+                    name = name,
+                    groupMatchingType = type,
+                )
+            }
+        groupMatchingOptionRepository.saveAll(optionEntities)
+
+        return groupMatching
     }
 
     @Transactional(readOnly = true)

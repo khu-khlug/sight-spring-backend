@@ -20,6 +20,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class MemberWithTags(
     val member: Member,
@@ -114,6 +115,75 @@ class UserService(
             NotificationCategory.SYSTEM,
             "졸업 취소 처리",
             "${member.realname} 회원이 졸업 취소 처리되었어요.",
+        )
+    }
+
+    @Transactional
+    fun pauseMember(
+        targetUserId: Long,
+        returnAt: LocalDate,
+        reason: String,
+    ) {
+        val member =
+            memberRepository.findById(targetUserId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.returnAt != null) {
+            throw UnprocessableEntityException("이미 정지 처리된 회원입니다")
+        }
+
+        val returnAtInstant = returnAt.atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant()
+        memberRepository.save(
+            member.copy(
+                returnAt = returnAtInstant,
+                returnReason = reason,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+
+        val formattedDate = returnAt.format(DateTimeFormatter.ofPattern("yyyy년 M월 d일"))
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "회원 활동 정지",
+            "${member.realname} 회원은 $reason 사유로 ${formattedDate}까지 활동을 쉽니다.",
+        )
+        notificationService.createNotification(
+            targetUserId,
+            NotificationCategory.SYSTEM,
+            "활동 정지",
+            "${member.realname} 회원님은 $reason 사유로 ${formattedDate}까지 활동을 쉽니다. " +
+                "쉬는 동안에는 회비 납부 와 발표 그룹 참여 의무가 면제되나, 여유가 되실 때에는 언제든지 활동을 하셔도 됩니다.",
+        )
+    }
+
+    @Transactional
+    fun resumeMember(targetUserId: Long) {
+        val member =
+            memberRepository.findById(targetUserId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.returnAt == null) {
+            throw UnprocessableEntityException("정지 처리된 회원이 아닙니다")
+        }
+
+        memberRepository.save(
+            member.copy(
+                returnAt = null,
+                returnReason = null,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "회원 활동 재개",
+            "${member.realname} 회원은 활동을 재개합니다.",
+        )
+        notificationService.createNotification(
+            targetUserId,
+            NotificationCategory.SYSTEM,
+            "활동 재개",
+            "돌아오신 것을 환영합니다!",
         )
     }
 

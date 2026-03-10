@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.PauseMemberRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
@@ -58,5 +60,28 @@ class UserManageController(
         @PathVariable userId: Long,
     ) {
         userService.ungraduateMember(userId)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/manager/users/{userId}/pause")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun pauseMember(
+        @PathVariable userId: Long,
+        @RequestBody request: PauseMemberRequest,
+    ) {
+        userService.pauseMember(
+            targetUserId = userId,
+            returnAt = request.returnAt,
+            reason = request.reason,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/manager/users/{userId}/pause")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun resumeMember(
+        @PathVariable userId: Long,
+    ) {
+        userService.resumeMember(targetUserId = userId)
     }
 }

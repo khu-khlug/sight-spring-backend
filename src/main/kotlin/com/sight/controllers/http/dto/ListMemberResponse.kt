@@ -23,7 +23,7 @@ data class MemberResponse(
     val slack: String?,
     val rememberToken: String?,
     val khuisAuthAt: Instant,
-    val returnAt: LocalDateTime?,
+    val returnAt: Instant?,
     val returnReason: String?,
     val lastLoginAt: Instant,
     val lastEnterAt: LocalDateTime,

@@ -25,7 +25,7 @@ private fun createMember(
     studentStatus: StudentStatus = StudentStatus.UNDERGRADUATE,
     grade: Long = 3L,
     manager: Boolean = false,
-    returnAt: LocalDateTime? = null,
+    returnAt: Instant? = null,
     khuisauthAt: Instant = Instant.now(),
     createdAt: Instant = Instant.now(),
 ): Member =
@@ -156,7 +156,7 @@ class MemberExtensionsTest {
     fun `needAuth - 정지된 회원은 재인증 대상이 아니다`() {
         mockToday(LocalDate.of(2025, 5, 15)) // 2025년 1학기
         val lastAuth = localDateToInstant(LocalDate.of(2020, 1, 1))
-        val member = createMember(returnAt = LocalDateTime.now(), khuisauthAt = lastAuth)
+        val member = createMember(returnAt = Instant.now(), khuisauthAt = lastAuth)
 
         assertFalse(member.needAuth())
     }
@@ -169,7 +169,7 @@ class MemberExtensionsTest {
     fun `needPayFee - 정지된 회원은 납부 대상이 아니다`() {
         mockToday(LocalDate.of(2025, 5, 15)) // 2025년 1학기, UnivTerm(2025, 1)
         val joinedAt = localDateToInstant(LocalDate.of(2024, 3, 15))
-        val member = createMember(returnAt = LocalDateTime.now(), createdAt = joinedAt)
+        val member = createMember(returnAt = Instant.now(), createdAt = joinedAt)
 
         assertFalse(member.needPayFee())
     }

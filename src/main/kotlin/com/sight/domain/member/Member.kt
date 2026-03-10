@@ -77,7 +77,7 @@ data class Member(
     val khuisauthAt: Instant = Instant.now(),
 
     @Column(name = "return_at")
-    val returnAt: LocalDateTime? = null,
+    val returnAt: Instant? = null,
 
     @Column(name = "return_reason", length = 191)
     val returnReason: String? = null,

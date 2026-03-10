@@ -43,14 +43,17 @@ class UserController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @PostMapping("/users/@me/graduate")
+    @PostMapping("/users/@me/graduation")
     fun graduateCurrentUser(requester: Requester): ResponseEntity<Void> {
         userService.graduateMember(requester.userId)
+        return ResponseEntity.noContent().build()
+    }
 
-        // TODO: 추후 클라이언트에서 처리하도록 수정
-        return ResponseEntity.status(HttpStatus.FOUND)
-            .location(URI.create("https://khlug.org/my"))
-            .build()
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/users/@me/graduation")
+    fun ungraduateCurrentUser(requester: Requester): ResponseEntity<Void> {
+        userService.ungraduateMember(requester.userId)
+        return ResponseEntity.noContent().build()
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
@@ -68,7 +71,8 @@ class UserController(
             }
         response.addCookie(cookie)
 
-        return ResponseEntity.status(HttpStatus.FOUND)
+        return ResponseEntity
+            .status(HttpStatus.FOUND)
             .location(URI.create("https://khlug.org/"))
             .build()
     }
@@ -105,7 +109,8 @@ class UserController(
             state = request.state,
         )
 
-        return ResponseEntity.status(HttpStatus.FOUND)
+        return ResponseEntity
+            .status(HttpStatus.FOUND)
             .location(URI.create("https://app.khlug.org/member/integrate-discord"))
             .build()
     }

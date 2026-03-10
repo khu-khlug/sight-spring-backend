@@ -61,6 +61,7 @@ class UserService(
         if (member.studentStatus == StudentStatus.GRADUATE) {
             throw UnprocessableEntityException("이미 졸업 처리된 사용자입니다")
         }
+
         memberRepository.save(
             member.copy(
                 studentStatus = StudentStatus.GRADUATE,
@@ -70,6 +71,50 @@ class UserService(
             ),
         )
         discordMemberService.reflectUserInfoToDiscordUser(userId)
+
+        notificationService.createNotification(
+            userId,
+            NotificationCategory.SYSTEM,
+            "졸업 처리",
+            "졸업 처리되었어요.",
+        )
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "졸업 처리",
+            "${member.realname} 회원이 졸업 처리되었어요.",
+        )
+    }
+
+    @Transactional
+    fun ungraduateMember(userId: Long) {
+        val member =
+            memberRepository.findById(userId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.studentStatus != StudentStatus.GRADUATE) {
+            throw UnprocessableEntityException("졸업 처리된 사용자가 아닙니다")
+        }
+
+        memberRepository.save(
+            member.copy(
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                grade = 4L,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+        discordMemberService.reflectUserInfoToDiscordUser(userId)
+
+        notificationService.createNotification(
+            userId,
+            NotificationCategory.SYSTEM,
+            "졸업 취소 처리",
+            "아직 졸업 안 하셨네요. 졸업 처리가 취소되었어요.",
+        )
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "졸업 취소 처리",
+            "${member.realname} 회원이 졸업 취소 처리되었어요.",
+        )
     }
 
     @Transactional

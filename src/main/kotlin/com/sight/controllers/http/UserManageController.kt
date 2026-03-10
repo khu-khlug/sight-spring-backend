@@ -7,6 +7,7 @@ import com.sight.service.UserService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -39,5 +40,23 @@ class UserManageController(
             requesterUserId = requester.userId,
             targetUserId = userId,
         )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/manager/users/{userId}/graduation")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun graduateUser(
+        @PathVariable userId: Long,
+    ) {
+        userService.graduateMember(userId)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/manager/users/{userId}/graduation")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun ungraduateUser(
+        @PathVariable userId: Long,
+    ) {
+        userService.ungraduateMember(userId)
     }
 }

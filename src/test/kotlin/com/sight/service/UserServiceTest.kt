@@ -200,6 +200,63 @@ class UserServiceTest {
     }
 
     @Test
+    fun `ungraduateMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val userId = 999L
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.ungraduateMember(userId)
+        }
+    }
+
+    @Test
+    fun `ungraduateMember는 이미 재학 중인 사용자일 때 UnprocessableEntityException을 발생시킨다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now()).copy(studentStatus = StudentStatus.UNDERGRADUATE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            userService.ungraduateMember(userId)
+        }
+    }
+
+    @Test
+    fun `ungraduateMember는 정상적으로 졸업 취소 처리한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now()).copy(studentStatus = StudentStatus.GRADUATE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.ungraduateMember(userId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        val saved = captor.firstValue
+        assertEquals(StudentStatus.UNDERGRADUATE, saved.studentStatus)
+        assertEquals(4L, saved.grade)
+    }
+
+    @Test
+    fun `ungraduateMember는 졸업 취소 후 Discord 역할을 갱신한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, lastLogin = Instant.now()).copy(studentStatus = StudentStatus.GRADUATE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.ungraduateMember(userId)
+
+        // then
+        verify(discordMemberService).reflectUserInfoToDiscordUser(userId)
+    }
+
+    @Test
     fun `deleteMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
         // given
         val userId = 999L

@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
@@ -243,6 +244,45 @@ class UserService(
             "회원 차단 해제",
             "${member.realname} 회원의 접속 차단이 해제되었습니다.",
         )
+    }
+
+    @Transactional
+    fun expelMember(
+        requesterUserId: Long,
+        targetUserId: Long,
+    ) {
+        if (requesterUserId == targetUserId) {
+            throw BadRequestException("자기 자신을 제명할 수 없습니다.")
+        }
+
+        val member =
+            memberRepository.findById(targetUserId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.status == UserStatus.UNAUTHORIZED) {
+            throw BadRequestException("이미 탈퇴한 회원입니다.")
+        }
+
+        memberRepository.save(
+            member.copy(
+                name = targetUserId.toString(),
+                password = "",
+                email = "",
+                phone = "",
+                homepage = "",
+                language = "",
+                prefer = "",
+                number = 0L,
+                expoint = 0L,
+                status = UserStatus.UNAUTHORIZED,
+                manager = false,
+                slack = null,
+                returnAt = null,
+                returnReason = null,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+        discordMemberService.clearDiscordIntegration(targetUserId)
     }
 
     @Transactional

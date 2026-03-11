@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
@@ -458,6 +459,91 @@ class UserServiceTest {
         val captor = argumentCaptor<Member>()
         verify(memberRepository).save(captor.capture())
         assertFalse(captor.firstValue.manager)
+    }
+
+    // expelMember
+    @Test
+    fun `expelMember는 자기 자신을 제명하려고 하면 BadRequestException을 발생시킨다`() {
+        // given
+        val userId = 1L
+
+        // when & then
+        assertThrows<BadRequestException> {
+            userService.expelMember(requesterUserId = userId, targetUserId = userId)
+        }
+    }
+
+    @Test
+    fun `expelMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val requesterUserId = 1L
+        val targetUserId = 999L
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.expelMember(requesterUserId = requesterUserId, targetUserId = targetUserId)
+        }
+    }
+
+    @Test
+    fun `expelMember는 이미 탈퇴한 회원이면 BadRequestException을 발생시킨다`() {
+        // given
+        val requesterUserId = 1L
+        val targetUserId = 2L
+        val member = createMember(targetUserId, status = UserStatus.UNAUTHORIZED)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(member))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            userService.expelMember(requesterUserId = requesterUserId, targetUserId = targetUserId)
+        }
+    }
+
+    @Test
+    fun `expelMember는 정상적으로 회원을 제명 처리한다`() {
+        // given
+        val requesterUserId = 1L
+        val targetUserId = 2L
+        val member = createMember(targetUserId, status = UserStatus.ACTIVE)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.expelMember(requesterUserId = requesterUserId, targetUserId = targetUserId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        val saved = captor.firstValue
+        assertEquals(targetUserId.toString(), saved.name)
+        assertEquals("", saved.password)
+        assertEquals("", saved.email)
+        assertEquals("", saved.phone)
+        assertEquals("", saved.homepage)
+        assertEquals("", saved.language)
+        assertEquals("", saved.prefer)
+        assertEquals(0L, saved.number)
+        assertEquals(0L, saved.expoint)
+        assertEquals(UserStatus.UNAUTHORIZED, saved.status)
+        assertFalse(saved.manager)
+        assertNull(saved.slack)
+        assertNull(saved.returnAt)
+        assertNull(saved.returnReason)
+    }
+
+    @Test
+    fun `expelMember는 제명 후 Discord 연동을 제거한다`() {
+        // given
+        val requesterUserId = 1L
+        val targetUserId = 2L
+        val member = createMember(targetUserId, status = UserStatus.ACTIVE)
+        whenever(memberRepository.findById(targetUserId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.expelMember(requesterUserId = requesterUserId, targetUserId = targetUserId)
+
+        // then
+        verify(discordMemberService).clearDiscordIntegration(targetUserId)
     }
 
     // blockMember

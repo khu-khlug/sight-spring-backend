@@ -45,6 +45,19 @@ class UserManageController(
     }
 
     @Auth([UserRole.MANAGER])
+    @DeleteMapping("/manager/users/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun expelMember(
+        requester: Requester,
+        @PathVariable userId: Long,
+    ) {
+        userService.expelMember(
+            requesterUserId = requester.userId,
+            targetUserId = userId,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
     @PostMapping("/manager/users/{userId}/graduation")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun graduateUser(

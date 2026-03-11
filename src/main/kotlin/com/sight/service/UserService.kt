@@ -188,6 +188,64 @@ class UserService(
     }
 
     @Transactional
+    fun blockMember(userId: Long) {
+        val member =
+            memberRepository.findById(userId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.status != UserStatus.ACTIVE) {
+            throw UnprocessableEntityException("차단할 수 없는 상태의 회원입니다")
+        }
+
+        memberRepository.save(
+            member.copy(
+                status = UserStatus.INACTIVE,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+
+        pointService.givePoint(
+            targetUserId = userId,
+            point = -1100,
+            message = "사이트 접속이 차단되었습니다.",
+        )
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "회원 차단",
+            "${member.realname} 회원의 접속이 차단되었습니다.",
+        )
+    }
+
+    @Transactional
+    fun unblockMember(userId: Long) {
+        val member =
+            memberRepository.findById(userId).orElseThrow {
+                NotFoundException("사용자를 찾을 수 없습니다")
+            }
+        if (member.status != UserStatus.INACTIVE) {
+            throw UnprocessableEntityException("차단된 회원이 아닙니다")
+        }
+
+        memberRepository.save(
+            member.copy(
+                status = UserStatus.ACTIVE,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+
+        pointService.givePoint(
+            targetUserId = userId,
+            point = 700,
+            message = "사이트 접속 차단이 해제되었습니다.",
+        )
+        notificationService.createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "회원 차단 해제",
+            "${member.realname} 회원의 접속 차단이 해제되었습니다.",
+        )
+    }
+
+    @Transactional
     fun deleteMember(userId: Long) {
         val member =
             memberRepository.findById(userId).orElseThrow {

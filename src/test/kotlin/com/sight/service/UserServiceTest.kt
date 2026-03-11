@@ -460,6 +460,126 @@ class UserServiceTest {
         assertFalse(captor.firstValue.manager)
     }
 
+    // blockMember
+    @Test
+    fun `blockMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val userId = 999L
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.blockMember(userId)
+        }
+    }
+
+    @Test
+    fun `blockMember는 ACTIVE 상태가 아닌 회원이면 UnprocessableEntityException을 발생시킨다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.INACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            userService.blockMember(userId)
+        }
+    }
+
+    @Test
+    fun `blockMember는 ACTIVE 회원의 상태를 INACTIVE로 변경한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.ACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.blockMember(userId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        assertEquals(UserStatus.INACTIVE, captor.firstValue.status)
+    }
+
+    @Test
+    fun `blockMember는 차단 시 포인트를 차감한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.ACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.blockMember(userId)
+
+        // then
+        verify(pointService).givePoint(
+            targetUserId = eq(userId),
+            point = eq(-1100),
+            message = eq("사이트 접속이 차단되었습니다."),
+        )
+    }
+
+    // unblockMember
+    @Test
+    fun `unblockMember는 존재하지 않는 사용자일 때 NotFoundException을 발생시킨다`() {
+        // given
+        val userId = 999L
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userService.unblockMember(userId)
+        }
+    }
+
+    @Test
+    fun `unblockMember는 INACTIVE 상태가 아닌 회원이면 UnprocessableEntityException을 발생시킨다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.ACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            userService.unblockMember(userId)
+        }
+    }
+
+    @Test
+    fun `unblockMember는 INACTIVE 회원의 상태를 ACTIVE로 변경한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.INACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+        val captor = argumentCaptor<Member>()
+
+        // when
+        userService.unblockMember(userId)
+
+        // then
+        verify(memberRepository).save(captor.capture())
+        assertEquals(UserStatus.ACTIVE, captor.firstValue.status)
+    }
+
+    @Test
+    fun `unblockMember는 차단 해제 시 포인트를 지급한다`() {
+        // given
+        val userId = 1L
+        val member = createMember(userId, status = UserStatus.INACTIVE)
+        whenever(memberRepository.findById(userId)).thenReturn(Optional.of(member))
+
+        // when
+        userService.unblockMember(userId)
+
+        // then
+        verify(pointService).givePoint(
+            targetUserId = eq(userId),
+            point = eq(700),
+            message = eq("사이트 접속 차단이 해제되었습니다."),
+        )
+    }
+
     private fun createMember(
         userId: Long = 123L,
         lastLogin: Instant = Instant.now(),

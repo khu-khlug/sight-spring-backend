@@ -63,6 +63,24 @@ class UserManageController(
     }
 
     @Auth([UserRole.MANAGER])
+    @PostMapping("/manager/users/{userId}/block")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun blockMember(
+        @PathVariable userId: Long,
+    ) {
+        userService.blockMember(userId)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/manager/users/{userId}/block")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun unblockMember(
+        @PathVariable userId: Long,
+    ) {
+        userService.unblockMember(userId)
+    }
+
+    @Auth([UserRole.MANAGER])
     @PostMapping("/manager/users/{userId}/pause")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun pauseMember(

@@ -204,6 +204,7 @@ class UserService(
                 updatedAt = LocalDateTime.now(),
             ),
         )
+        discordMemberService.reflectUserInfoToDiscordUser(userId)
 
         pointService.givePoint(
             targetUserId = userId,
@@ -233,6 +234,7 @@ class UserService(
                 updatedAt = LocalDateTime.now(),
             ),
         )
+        discordMemberService.reflectUserInfoToDiscordUser(userId)
 
         pointService.givePoint(
             targetUserId = userId,

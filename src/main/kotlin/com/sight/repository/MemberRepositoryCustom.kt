@@ -1,6 +1,7 @@
 package com.sight.repository
 
 import com.sight.domain.member.Member
+import com.sight.domain.member.MemberTagFilter
 import com.sight.domain.member.StudentStatus
 
 interface MemberRepositoryCustom {
@@ -12,6 +13,7 @@ interface MemberRepositoryCustom {
         college: String?,
         grade: Int?,
         studentStatus: StudentStatus?,
+        tag: MemberTagFilter?,
         limit: Int,
         offset: Int,
     ): List<Member>
@@ -24,5 +26,6 @@ interface MemberRepositoryCustom {
         college: String?,
         grade: Int?,
         studentStatus: StudentStatus?,
+        tag: MemberTagFilter?,
     ): Long
 }

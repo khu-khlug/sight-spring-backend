@@ -1,5 +1,6 @@
 package com.sight.controllers.http.dto
 
+import com.sight.domain.member.MemberTagFilter
 import com.sight.domain.member.StudentStatus
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -12,6 +13,7 @@ data class ListMemberRequest(
     val college: String? = null,
     val grade: Int? = null,
     val studentStatus: StudentStatus? = null,
+    val tag: MemberTagFilter? = null,
 
     @field:Min(1)
     @field:Max(50)

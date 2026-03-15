@@ -320,9 +320,9 @@ class UserServiceTest {
                 createMember(1L, lastLogin = Instant.now()),
                 createMember(2L, lastLogin = Instant.now()),
             )
-        whenever(memberRepository.findMembers(null, null, null, null, null, null, null, 10, 0))
+        whenever(memberRepository.findMembers(null, null, null, null, null, null, null, null, 10, 0))
             .thenReturn(members)
-        whenever(memberRepository.countMembers(null, null, null, null, null, null, null))
+        whenever(memberRepository.countMembers(null, null, null, null, null, null, null, null))
             .thenReturn(2L)
         whenever(feeHistoryRepository.findByUserIdInAndYearAndSemester(any(), any(), any()))
             .thenReturn(emptyList())
@@ -337,6 +337,7 @@ class UserServiceTest {
                 college = null,
                 grade = null,
                 studentStatus = null,
+                tag = null,
                 limit = 10,
                 offset = 0,
             )

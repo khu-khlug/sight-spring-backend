@@ -4,6 +4,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
+import com.sight.domain.member.MemberTagFilter
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.domain.member.needAuth
@@ -322,11 +323,12 @@ class UserService(
         college: String?,
         grade: Int?,
         studentStatus: StudentStatus?,
+        tag: MemberTagFilter?,
         limit: Int,
         offset: Int,
     ): Pair<Long, List<MemberWithTags>> {
-        val members = memberRepository.findMembers(email, phone, name, number, college, grade, studentStatus, limit, offset)
-        val count = memberRepository.countMembers(email, phone, name, number, college, grade, studentStatus)
+        val members = memberRepository.findMembers(email, phone, name, number, college, grade, studentStatus, tag, limit, offset)
+        val count = memberRepository.countMembers(email, phone, name, number, college, grade, studentStatus, tag)
 
         val feeTargetUserIds = members.filter { it.needPayFee() }.map { it.id }
         val thisTerm = UnivPeriod.fromDate(LocalDate.now(ZoneId.of("Asia/Seoul"))).toTerm()

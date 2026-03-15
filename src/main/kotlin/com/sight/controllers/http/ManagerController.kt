@@ -37,6 +37,7 @@ class ManagerController(
                 college = request.college,
                 grade = request.grade,
                 studentStatus = request.studentStatus,
+                tag = request.tag,
                 limit = request.limit,
                 offset = request.offset,
             )

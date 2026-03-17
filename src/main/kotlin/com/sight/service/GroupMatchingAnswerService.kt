@@ -14,6 +14,7 @@ import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.MatchedGroupRepository
 import com.sight.repository.MemberRepository
+import com.sight.repository.ProvisionalGroupRepository
 import com.sight.service.dto.AnswerSummary
 import com.sight.service.dto.GroupMatchingAnswerResult
 import com.sight.service.dto.ListAnswersResult
@@ -31,6 +32,7 @@ class GroupMatchingAnswerService(
     private val optionRepository: GroupMatchingOptionRepository,
     private val groupMatchingRepository: GroupMatchingRepository,
     private val memberRepository: MemberRepository,
+    private val provisionalGroupRepository: ProvisionalGroupRepository,
 ) {
     @Transactional
     fun createGroupMatchingAnswer(
@@ -105,6 +107,7 @@ class GroupMatchingAnswerService(
         groupMatchingId: String,
         groupType: GroupMatchingType? = null,
         optionId: String? = null,
+        provisionalGroupId: String? = null,
         offset: Int,
         limit: Int,
     ): ListAnswersResult {
@@ -116,16 +119,25 @@ class GroupMatchingAnswerService(
         val pageNumber = offset / limit
         val pageable = PageRequest.of(pageNumber, limit)
 
-        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, optionId, pageable)
+        val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, optionId, provisionalGroupId, pageable)
 
         val userIds = page.content.map { it.userId }.distinct()
         val membersById = memberRepository.findAllById(userIds).associateBy { it.id }
+
+        val provisionalGroupIds = page.content.mapNotNull { it.provisionalGroupId }.distinct()
+        val provisionalGroupsById =
+            if (provisionalGroupIds.isNotEmpty()) {
+                provisionalGroupRepository.findAllById(provisionalGroupIds).associateBy { it.id }
+            } else {
+                emptyMap()
+            }
 
         val answerSummaries =
             page.content.map { answer ->
                 val selectedOptions = getSelectedOptions(answer.id)
                 val matchedGroupIds = getMatchedGroupIds(answer.id)
                 val member = membersById[answer.userId]
+                val provisionalGroup = answer.provisionalGroupId?.let { provisionalGroupsById[it] }
 
                 AnswerSummary(
                     answerId = answer.id,
@@ -145,6 +157,8 @@ class GroupMatchingAnswerService(
                     hasIdea = answer.hasIdea,
                     idea = answer.idea,
                     matchedGroupIds = matchedGroupIds,
+                    provisionalGroupId = answer.provisionalGroupId,
+                    provisionalGroupName = provisionalGroup?.name,
                 )
             }
 

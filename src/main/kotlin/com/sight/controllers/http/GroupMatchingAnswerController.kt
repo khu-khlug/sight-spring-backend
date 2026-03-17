@@ -83,8 +83,9 @@ class GroupMatchingAnswerController(
         @RequestParam(required = false, defaultValue = "20")
         @Min(1, message = "limit은 양의 정수여야 합니다")
         limit: Int,
+        @RequestParam(required = false) provisionalGroupId: String?,
     ): GetAnswersResponse {
-        val result = groupMatchingAnswerService.listAnswers(groupMatchingId, groupType, optionId, offset, limit)
+        val result = groupMatchingAnswerService.listAnswers(groupMatchingId, groupType, optionId, provisionalGroupId, offset, limit)
 
         return GetAnswersResponse(
             answers =
@@ -110,6 +111,8 @@ class GroupMatchingAnswerController(
                         hasIdea = summary.hasIdea,
                         idea = summary.idea,
                         matchedGroupIds = summary.matchedGroupIds,
+                        provisionalGroupId = summary.provisionalGroupId,
+                        provisionalGroupName = summary.provisionalGroupName,
                     )
                 },
             count = result.count,

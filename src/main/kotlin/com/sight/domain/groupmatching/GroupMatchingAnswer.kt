@@ -49,6 +49,9 @@ data class GroupMatchingAnswer(
     @Column(name = "idea", nullable = true, length = 1000)
     val idea: String? = null,
 
+    @Column(name = "provisional_group_id", nullable = true, length = 100)
+    val provisionalGroupId: String? = null,
+
     @Column(name = "group_matching_id", nullable = false, length = 100)
     val groupMatchingId: String,
 

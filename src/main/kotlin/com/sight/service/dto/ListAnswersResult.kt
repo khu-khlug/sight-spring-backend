@@ -27,4 +27,6 @@ data class AnswerSummary(
     val hasIdea: Boolean?,
     val idea: String?,
     val matchedGroupIds: List<Long>,
+    val provisionalGroupId: String? = null,
+    val provisionalGroupName: String? = null,
 )

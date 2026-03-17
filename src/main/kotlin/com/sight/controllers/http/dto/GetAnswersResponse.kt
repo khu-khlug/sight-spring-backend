@@ -6,12 +6,14 @@ import java.time.LocalDateTime
 
 data class GetAnswersResponse(
     val answers: List<AnswerDto>,
-    val total: Int,
+    val count: Int,
 )
 
 data class AnswerDto(
     val answerId: String,
     val answerUserId: Long,
+    val answerUserName: String,
+    val answerUserNumber: Long?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
     val groupType: GroupMatchingType,

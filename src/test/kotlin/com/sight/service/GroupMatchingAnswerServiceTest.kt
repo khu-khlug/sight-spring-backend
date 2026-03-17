@@ -9,11 +9,15 @@ import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.GroupMatchingAnswerOption
 import com.sight.domain.groupmatching.GroupMatchingOption
 import com.sight.domain.groupmatching.GroupMatchingType
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.GroupMatchingAnswerOptionRepository
 import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.MatchedGroupRepository
+import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -23,6 +27,8 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import java.time.LocalDateTime
 import java.util.Optional
 
@@ -32,6 +38,7 @@ class GroupMatchingAnswerServiceTest {
     private val matchedGroupRepository = mock<MatchedGroupRepository>()
     private val optionRepository = mock<GroupMatchingOptionRepository>()
     private val groupMatchingRepository = mock<GroupMatchingRepository>()
+    private val memberRepository = mock<MemberRepository>()
 
     private val service =
         GroupMatchingAnswerService(
@@ -40,6 +47,7 @@ class GroupMatchingAnswerServiceTest {
             matchedGroupRepository,
             optionRepository,
             groupMatchingRepository,
+            memberRepository,
         )
 
     private val userId = 1L
@@ -280,5 +288,109 @@ class GroupMatchingAnswerServiceTest {
                 idea = null,
             )
         }
+    }
+
+    @Test
+    fun `listAnswers는 응답 목록에 사용자 이름과 학번을 포함한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val answerId = "answer-1"
+        val answerUserId = 100L
+
+        val answer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = answerUserId,
+                groupType = GroupMatchingType.BASIC_LANGUAGE_STUDY,
+                isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val member =
+            Member(
+                id = answerUserId,
+                name = "testuser",
+                realname = "홍길동",
+                number = 2021000001L,
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
+            )
+
+        val pageable = PageRequest.of(0, 20)
+        val page = PageImpl(listOf(answer), pageable, 1L)
+
+        given(answerRepository.findAnswersWithFilters(groupMatchingId, null, null, pageable))
+            .willReturn(page)
+        given(memberRepository.findAllById(listOf(answerUserId)))
+            .willReturn(listOf(member))
+        given(answerOptionRepository.findAllByAnswerId(answerId))
+            .willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId(answerId))
+            .willReturn(emptyList())
+
+        // when
+        val result = service.listAnswers(groupMatchingId, offset = 0, limit = 20)
+
+        // then
+        assertEquals(1, result.count)
+        assertEquals(1, result.answers.size)
+
+        val summary = result.answers[0]
+        assertEquals("홍길동", summary.answerUserName)
+        assertEquals(2021000001L, summary.answerUserNumber)
+        assertEquals(answerUserId, summary.answerUserId)
+    }
+
+    @Test
+    fun `listAnswers는 사용자 정보가 없으면 빈 이름과 null 학번을 반환한다`() {
+        // given
+        val groupMatchingId = "gm-1"
+        val answerId = "answer-1"
+        val answerUserId = 999L
+
+        val answer =
+            GroupMatchingAnswer(
+                id = answerId,
+                userId = answerUserId,
+                groupType = GroupMatchingType.BASIC_LANGUAGE_STUDY,
+                isPreferOnline = true,
+                activityFrequency = ActivityFrequency.ONCE_OR_TWICE,
+                activityFormat = "온라인 스터디",
+                otherSuggestions = null,
+                customOption = null,
+                role = null,
+                hasIdea = null,
+                idea = null,
+                groupMatchingId = groupMatchingId,
+            )
+
+        val pageable = PageRequest.of(0, 20)
+        val page = PageImpl(listOf(answer), pageable, 1L)
+
+        given(answerRepository.findAnswersWithFilters(groupMatchingId, null, null, pageable))
+            .willReturn(page)
+        given(memberRepository.findAllById(listOf(answerUserId)))
+            .willReturn(emptyList())
+        given(answerOptionRepository.findAllByAnswerId(answerId))
+            .willReturn(emptyList())
+        given(matchedGroupRepository.findAllByAnswerId(answerId))
+            .willReturn(emptyList())
+
+        // when
+        val result = service.listAnswers(groupMatchingId, offset = 0, limit = 20)
+
+        // then
+        assertEquals(1, result.count)
+
+        val summary = result.answers[0]
+        assertEquals("", summary.answerUserName)
+        assertEquals(null, summary.answerUserNumber)
     }
 }

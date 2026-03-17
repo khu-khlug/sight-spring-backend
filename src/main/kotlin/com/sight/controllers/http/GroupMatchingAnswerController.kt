@@ -92,6 +92,8 @@ class GroupMatchingAnswerController(
                     AnswerDto(
                         answerId = summary.answerId,
                         answerUserId = summary.answerUserId,
+                        answerUserName = summary.answerUserName,
+                        answerUserNumber = summary.answerUserNumber,
                         createdAt = summary.createdAt,
                         updatedAt = summary.updatedAt,
                         groupType = summary.groupType,
@@ -110,7 +112,7 @@ class GroupMatchingAnswerController(
                         matchedGroupIds = summary.matchedGroupIds,
                     )
                 },
-            total = result.total,
+            count = result.count,
         )
     }
 }

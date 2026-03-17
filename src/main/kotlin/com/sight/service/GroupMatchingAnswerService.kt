@@ -13,6 +13,7 @@ import com.sight.repository.GroupMatchingAnswerRepository
 import com.sight.repository.GroupMatchingOptionRepository
 import com.sight.repository.GroupMatchingRepository
 import com.sight.repository.MatchedGroupRepository
+import com.sight.repository.MemberRepository
 import com.sight.service.dto.AnswerSummary
 import com.sight.service.dto.GroupMatchingAnswerResult
 import com.sight.service.dto.ListAnswersResult
@@ -29,6 +30,7 @@ class GroupMatchingAnswerService(
     private val matchedGroupRepository: MatchedGroupRepository,
     private val optionRepository: GroupMatchingOptionRepository,
     private val groupMatchingRepository: GroupMatchingRepository,
+    private val memberRepository: MemberRepository,
 ) {
     @Transactional
     fun createGroupMatchingAnswer(
@@ -116,14 +118,20 @@ class GroupMatchingAnswerService(
 
         val page = answerRepository.findAnswersWithFilters(groupMatchingId, groupType, optionId, pageable)
 
+        val userIds = page.content.map { it.userId }.distinct()
+        val membersById = memberRepository.findAllById(userIds).associateBy { it.id }
+
         val answerSummaries =
             page.content.map { answer ->
                 val selectedOptions = getSelectedOptions(answer.id)
                 val matchedGroupIds = getMatchedGroupIds(answer.id)
+                val member = membersById[answer.userId]
 
                 AnswerSummary(
                     answerId = answer.id,
                     answerUserId = answer.userId,
+                    answerUserName = member?.realname ?: "",
+                    answerUserNumber = member?.number,
                     createdAt = answer.createdAt,
                     updatedAt = answer.updatedAt,
                     groupType = answer.groupType,
@@ -142,7 +150,7 @@ class GroupMatchingAnswerService(
 
         return ListAnswersResult(
             answers = answerSummaries,
-            total = page.totalElements.toInt(),
+            count = page.totalElements.toInt(),
         )
     }
 

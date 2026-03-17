@@ -6,12 +6,14 @@ import java.time.LocalDateTime
 
 data class ListAnswersResult(
     val answers: List<AnswerSummary>,
-    val total: Int,
+    val count: Int,
 )
 
 data class AnswerSummary(
     val answerId: String,
     val answerUserId: Long,
+    val answerUserName: String,
+    val answerUserNumber: Long?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
     val groupType: GroupMatchingType,

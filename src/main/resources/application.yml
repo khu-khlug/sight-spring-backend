@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: sight-spring-backend
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
   profiles:
     active: local
 

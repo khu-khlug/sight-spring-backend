@@ -2,7 +2,7 @@ package com.sight.repository
 
 import com.sight.domain.groupmatching.GroupMatching
 import org.springframework.data.jpa.repository.JpaRepository
-import java.time.LocalDateTime
+import java.time.Instant
 
 interface GroupMatchingRepository : JpaRepository<GroupMatching, String> {
     fun existsByYearAndSemester(
@@ -10,5 +10,5 @@ interface GroupMatchingRepository : JpaRepository<GroupMatching, String> {
         semester: Int,
     ): Boolean
 
-    fun findAllByClosedAtAfter(now: LocalDateTime): List<GroupMatching>
+    fun findAllByClosedAtAfter(now: Instant): List<GroupMatching>
 }

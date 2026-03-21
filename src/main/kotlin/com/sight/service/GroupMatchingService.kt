@@ -29,6 +29,8 @@ import com.sight.service.dto.OptionResult
 import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Month
 import java.time.ZoneId
@@ -240,25 +242,28 @@ class GroupMatchingService(
     @Transactional
     fun updateClosedAt(
         groupMatchingId: String,
-        closedAt: LocalDateTime,
+        closedAt: LocalDate,
     ): GroupMatching {
         val groupMatching =
             groupMatchingRepository.findById(groupMatchingId).orElseThrow {
                 NotFoundException("그룹 매칭을 찾을 수 없습니다")
             }
 
-        val kst = ZoneId.of("Asia/Seoul")
-        val now = java.time.ZonedDateTime.now(kst)
-        val today = now.toLocalDate()
-        val closedAtDate = closedAt.toLocalDate()
+        val today = LocalDate.now(KST)
         val yesterday = today.minusDays(1)
-        if (closedAtDate.isBefore(yesterday)) {
+        if (closedAt.isBefore(yesterday)) {
             throw BadRequestException("마감일은 어제 이전 날짜로 설정할 수 없습니다")
         }
 
+        val closedAtInstant =
+            closedAt
+                .plusDays(1)
+                .atStartOfDay(KST)
+                .toInstant()
+
         val updatedGroupMatching =
             groupMatching.copy(
-                closedAt = closedAt,
+                closedAt = closedAtInstant,
             )
 
         return groupMatchingRepository.save(updatedGroupMatching)
@@ -318,7 +323,7 @@ class GroupMatchingService(
                 0,
                 0,
                 0,
-            ).atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+            ).atZone(KST).toInstant().toEpochMilli()
         val currentTimestamp = System.currentTimeMillis()
 
         val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60 / 60
@@ -332,19 +337,25 @@ class GroupMatchingService(
     fun createGroupMatching(
         year: Int,
         semester: Int,
-        closedAt: LocalDateTime,
+        closedAt: LocalDate,
         options: List<Pair<String, GroupMatchingType>>,
     ): GroupMatching {
         if (groupMatchingRepository.existsByYearAndSemester(year, semester)) {
             throw UnprocessableEntityException("해당 연도($year)와 학기($semester)의 그룹 매칭은 이미 존재합니다.")
         }
 
+        val closedAtInstant =
+            closedAt
+                .plusDays(1)
+                .atStartOfDay(KST)
+                .toInstant()
+
         val groupMatching =
             GroupMatching(
                 id = UlidCreator.getUlid().toString(),
                 year = year,
                 semester = semester,
-                closedAt = closedAt,
+                closedAt = closedAtInstant,
             )
         groupMatchingRepository.save(groupMatching)
 
@@ -364,7 +375,7 @@ class GroupMatchingService(
 
     @Transactional(readOnly = true)
     fun getOngoingGroupMatching(): GroupMatching {
-        val now = LocalDateTime.now()
+        val now = Instant.now()
         val ongoingGroupMatchings = groupMatchingRepository.findAllByClosedAtAfter(now)
 
         return ongoingGroupMatchings
@@ -376,5 +387,9 @@ class GroupMatchingService(
     fun listGroupMatchings(): List<GroupMatching> {
         return groupMatchingRepository.findAll()
             .sortedByDescending { it.createdAt }
+    }
+
+    companion object {
+        val KST: ZoneId = ZoneId.of("Asia/Seoul")
     }
 }

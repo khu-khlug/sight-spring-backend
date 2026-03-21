@@ -4,7 +4,7 @@ import com.sight.domain.groupmatching.GroupMatchingType
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
-import java.time.LocalDateTime
+import java.time.LocalDate
 
 data class CreateGroupMatchingRequest(
     @field:NotNull
@@ -12,7 +12,7 @@ data class CreateGroupMatchingRequest(
     @field:NotNull
     val semester: Int,
     @field:NotNull
-    val closedAt: LocalDateTime,
+    val closedAt: LocalDate,
     @field:Valid
     val options: List<OptionItem> = emptyList(),
 ) {

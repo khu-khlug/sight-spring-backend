@@ -5,6 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.CreationTimestamp
+import java.time.Instant
 import java.time.LocalDateTime
 
 @Entity
@@ -21,7 +22,7 @@ data class GroupMatching(
     val semester: Int,
 
     @Column(name = "closed_at", nullable = false)
-    val closedAt: LocalDateTime,
+    val closedAt: Instant,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

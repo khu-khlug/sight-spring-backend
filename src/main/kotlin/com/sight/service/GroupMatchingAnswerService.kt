@@ -21,7 +21,9 @@ import com.sight.service.dto.OptionResult
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+import com.sight.service.GroupMatchingService.Companion.KST
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 @Service
 class GroupMatchingAnswerService(
@@ -51,10 +53,14 @@ class GroupMatchingAnswerService(
             groupMatchingRepository.findById(groupMatchingId)
                 .orElseThrow { NotFoundException("해당 그룹 매칭을 찾을 수 없습니다.") }
 
-        val now = LocalDateTime.now()
+        val now = Instant.now()
 
-        if (groupMatching.closedAt.isBefore(now) || groupMatching.closedAt.isEqual(now)) {
-            throw UnprocessableEntityException("그룹 매칭 응답 기간이 마감되었습니다. (마감일시: ${groupMatching.closedAt})")
+        if (!now.isBefore(groupMatching.closedAt)) {
+            val deadlineKst = groupMatching.closedAt
+                .atZone(KST)
+                .minusSeconds(1)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            throw UnprocessableEntityException("그룹 매칭 응답 기간이 마감되었습니다. (마감일시: $deadlineKst KST)")
         }
 
         if (answerRepository.existsByUserIdAndGroupMatchingId(userId, groupMatchingId)) {

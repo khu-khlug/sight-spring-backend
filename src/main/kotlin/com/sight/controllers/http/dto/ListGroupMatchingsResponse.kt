@@ -1,5 +1,6 @@
 package com.sight.controllers.http.dto
 
+import java.time.Instant
 import java.time.LocalDateTime
 
 data class ListGroupMatchingsResponse(
@@ -10,7 +11,7 @@ data class ListGroupMatchingsResponse(
         val id: String,
         val year: Int,
         val semester: Int,
-        val closedAt: LocalDateTime,
+        val closedAt: Instant,
         val createdAt: LocalDateTime,
     )
 }

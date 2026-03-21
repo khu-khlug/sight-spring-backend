@@ -29,7 +29,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.Optional
 
 class GroupMatchingAnswerServiceTest {
@@ -83,7 +83,7 @@ class GroupMatchingAnswerServiceTest {
     fun `마감 기한이 지난 경우 UnprocessableEntityException이 발생한다`() {
         // given
         val closedMatching = mock<GroupMatching>()
-        given(closedMatching.closedAt).willReturn(LocalDateTime.now().minusDays(1))
+        given(closedMatching.closedAt).willReturn(Instant.now().minusSeconds(86400))
 
         given(groupMatchingRepository.findById(matchingId))
             .willReturn(Optional.of(closedMatching))
@@ -114,7 +114,7 @@ class GroupMatchingAnswerServiceTest {
     fun `이미 응답을 제출한 경우 UnprocessableEntityException이 발생한다`() {
         // given
         val validMatching = mock<GroupMatching>()
-        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(validMatching.closedAt).willReturn(Instant.now().plusSeconds(86400))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(true)
@@ -153,7 +153,7 @@ class GroupMatchingAnswerServiceTest {
             )
 
         val validMatching = mock<GroupMatching>()
-        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(validMatching.closedAt).willReturn(Instant.now().plusSeconds(86400))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
@@ -190,7 +190,7 @@ class GroupMatchingAnswerServiceTest {
     fun `옵션 없이도 정상적으로 저장된다`() {
         // given
         val validMatching = mock<GroupMatching>()
-        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(validMatching.closedAt).willReturn(Instant.now().plusSeconds(86400))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId))
             .willReturn(false)
@@ -224,7 +224,7 @@ class GroupMatchingAnswerServiceTest {
         val invalidOptionId = "invalid-opt"
 
         val validMatching = mock<GroupMatching>()
-        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(validMatching.closedAt).willReturn(Instant.now().plusSeconds(86400))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId)).willReturn(false)
         given(optionRepository.findAllById(listOf(invalidOptionId))).willReturn(emptyList())
@@ -267,7 +267,7 @@ class GroupMatchingAnswerServiceTest {
     fun `중복된 옵션 ID가 포함된 경우 BadRequestException이 발생한다`() {
         // given
         val validMatching = mock<GroupMatching>()
-        given(validMatching.closedAt).willReturn(LocalDateTime.now().plusDays(1))
+        given(validMatching.closedAt).willReturn(Instant.now().plusSeconds(86400))
         given(groupMatchingRepository.findById(matchingId)).willReturn(Optional.of(validMatching))
         given(answerRepository.existsByUserIdAndGroupMatchingId(userId, matchingId)).willReturn(false)
 

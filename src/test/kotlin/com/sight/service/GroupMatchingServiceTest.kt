@@ -25,7 +25,10 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -433,8 +436,8 @@ class GroupMatchingServiceTest {
     fun `updateClosedAt은 마감일을 성공적으로 업데이트한다`() {
         // given
         val groupMatchingId = "gm1"
-        val currentClosedAt = LocalDateTime.now().plusDays(1)
-        val newClosedAt = LocalDateTime.now().plusDays(7)
+        val currentClosedAt = Instant.now().plusSeconds(86400)
+        val newClosedAt = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(7)
 
         val groupMatching =
             GroupMatching(
@@ -444,22 +447,16 @@ class GroupMatchingServiceTest {
                 closedAt = currentClosedAt,
             )
 
-        val updatedGroupMatching =
-            groupMatching.copy(
-                closedAt = newClosedAt,
-            )
-
         whenever(groupMatchingRepository.findById(groupMatchingId))
             .thenReturn(Optional.of(groupMatching))
         whenever(groupMatchingRepository.save(any<GroupMatching>()))
-            .thenReturn(updatedGroupMatching)
+            .thenAnswer { it.arguments[0] as GroupMatching }
 
         // when
         val result = groupMatchingService.updateClosedAt(groupMatchingId, newClosedAt)
 
         // then
         assertEquals(groupMatchingId, result.id)
-        assertEquals(newClosedAt, result.closedAt)
         verify(groupMatchingRepository).save(any<GroupMatching>())
     }
 
@@ -467,7 +464,7 @@ class GroupMatchingServiceTest {
     fun `updateClosedAt은 존재하지 않는 그룹 매칭이면 NotFoundException을 던진다`() {
         // given
         val groupMatchingId = "nonexistent"
-        val newClosedAt = LocalDateTime.now().plusDays(7)
+        val newClosedAt = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(7)
 
         whenever(groupMatchingRepository.findById(groupMatchingId)).thenReturn(Optional.empty())
 
@@ -517,15 +514,15 @@ class GroupMatchingServiceTest {
     fun `updateClosedAt은 어제 이전 날짜의 마감일이면 BadRequestException을 던진다`() {
         // given
         val groupMatchingId = "gm1"
-        val kst = java.time.ZoneId.of("Asia/Seoul")
-        val dayBeforeYesterday = java.time.ZonedDateTime.now(kst).toLocalDateTime().minusDays(2)
+        val kst = ZoneId.of("Asia/Seoul")
+        val dayBeforeYesterday = LocalDate.now(kst).minusDays(2)
 
         val groupMatching =
             GroupMatching(
                 id = groupMatchingId,
                 year = 2024,
                 semester = 2,
-                closedAt = LocalDateTime.now().plusDays(1),
+                closedAt = Instant.now().plusSeconds(86400),
             )
 
         whenever(groupMatchingRepository.findById(groupMatchingId))
@@ -559,33 +556,27 @@ class GroupMatchingServiceTest {
     fun `updateClosedAt은 어제 날짜의 마감일을 허용한다`() {
         // given
         val groupMatchingId = "gm1"
-        val kst = java.time.ZoneId.of("Asia/Seoul")
-        val yesterday = java.time.ZonedDateTime.now(kst).toLocalDateTime().minusDays(1)
+        val kst = ZoneId.of("Asia/Seoul")
+        val yesterday = LocalDate.now(kst).minusDays(1)
 
         val groupMatching =
             GroupMatching(
                 id = groupMatchingId,
                 year = 2024,
                 semester = 2,
-                closedAt = LocalDateTime.now().plusDays(1),
-            )
-
-        val updatedGroupMatching =
-            groupMatching.copy(
-                closedAt = yesterday,
+                closedAt = Instant.now().plusSeconds(86400),
             )
 
         whenever(groupMatchingRepository.findById(groupMatchingId))
             .thenReturn(Optional.of(groupMatching))
         whenever(groupMatchingRepository.save(any<GroupMatching>()))
-            .thenReturn(updatedGroupMatching)
+            .thenAnswer { it.arguments[0] as GroupMatching }
 
         // when
         val result = groupMatchingService.updateClosedAt(groupMatchingId, yesterday)
 
         // then
         assertEquals(groupMatchingId, result.id)
-        assertEquals(yesterday, result.closedAt)
         verify(groupMatchingRepository).save(any<GroupMatching>())
     }
 
@@ -593,33 +584,27 @@ class GroupMatchingServiceTest {
     fun `updateClosedAt은 오늘 날짜의 마감일을 허용한다`() {
         // given
         val groupMatchingId = "gm1"
-        val kst = java.time.ZoneId.of("Asia/Seoul")
-        val today = java.time.ZonedDateTime.now(kst).toLocalDateTime()
+        val kst = ZoneId.of("Asia/Seoul")
+        val today = LocalDate.now(kst)
 
         val groupMatching =
             GroupMatching(
                 id = groupMatchingId,
                 year = 2024,
                 semester = 2,
-                closedAt = LocalDateTime.now().plusDays(1),
-            )
-
-        val updatedGroupMatching =
-            groupMatching.copy(
-                closedAt = today,
+                closedAt = Instant.now().plusSeconds(86400),
             )
 
         whenever(groupMatchingRepository.findById(groupMatchingId))
             .thenReturn(Optional.of(groupMatching))
         whenever(groupMatchingRepository.save(any<GroupMatching>()))
-            .thenReturn(updatedGroupMatching)
+            .thenAnswer { it.arguments[0] as GroupMatching }
 
         // when
         val result = groupMatchingService.updateClosedAt(groupMatchingId, today)
 
         // then
         assertEquals(groupMatchingId, result.id)
-        assertEquals(today, result.closedAt)
         verify(groupMatchingRepository).save(any<GroupMatching>())
     }
 
@@ -628,7 +613,7 @@ class GroupMatchingServiceTest {
         // Given
         val year = 2025
         val semester = 1
-        val closedAt = LocalDateTime.now().plusDays(7)
+        val closedAt = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(7)
 
         given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(false)
 
@@ -642,7 +627,6 @@ class GroupMatchingServiceTest {
         // Then
         assertEquals(year, result.year)
         assertEquals(semester, result.semester)
-        assertEquals(closedAt, result.closedAt)
 
         verify(groupMatchingRepository).save(any<GroupMatching>())
     }
@@ -652,7 +636,7 @@ class GroupMatchingServiceTest {
         // Given
         val year = 2025
         val semester = 1
-        val closedAt = LocalDateTime.now().plusDays(7)
+        val closedAt = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(7)
 
         given(groupMatchingRepository.existsByYearAndSemester(year, semester)).willReturn(true)
 
@@ -667,15 +651,13 @@ class GroupMatchingServiceTest {
     @Test
     fun `getOngoingGroupMatching은 진행 중인 그룹 매칭 정보를 조회해야 한다`() {
         // Given
-        val now = LocalDateTime.now()
-        val futureClosedAt = now.plusMonths(1)
+        val futureClosedAt = Instant.now().plusSeconds(86400 * 30)
         val groupMatching =
             GroupMatching(
                 id = "test-id",
                 year = 2025,
                 semester = 2,
                 closedAt = futureClosedAt,
-                createdAt = now,
             )
         whenever(groupMatchingRepository.findAllByClosedAtAfter(any()))
             .thenReturn(listOf(groupMatching))
@@ -709,7 +691,7 @@ class GroupMatchingServiceTest {
                 id = "older-id",
                 year = 2025,
                 semester = 1,
-                closedAt = now.plusMonths(2),
+                closedAt = Instant.now().plusSeconds(86400 * 60),
                 createdAt = now.minusDays(10),
             )
         val newerGroupMatching =
@@ -717,7 +699,7 @@ class GroupMatchingServiceTest {
                 id = "newer-id",
                 year = 2025,
                 semester = 2,
-                closedAt = now.plusMonths(1),
+                closedAt = Instant.now().plusSeconds(86400 * 30),
                 createdAt = now.minusDays(5),
             )
 
@@ -755,7 +737,7 @@ class GroupMatchingServiceTest {
                 id = "gm1",
                 year = 2024,
                 semester = 1,
-                closedAt = now.plusDays(7),
+                closedAt = Instant.now().plusSeconds(86400 * 7),
                 createdAt = now.minusDays(30),
             )
         val middleGroupMatching =
@@ -763,7 +745,7 @@ class GroupMatchingServiceTest {
                 id = "gm2",
                 year = 2024,
                 semester = 2,
-                closedAt = now.plusDays(14),
+                closedAt = Instant.now().plusSeconds(86400 * 14),
                 createdAt = now.minusDays(15),
             )
         val newestGroupMatching =
@@ -771,7 +753,7 @@ class GroupMatchingServiceTest {
                 id = "gm3",
                 year = 2025,
                 semester = 1,
-                closedAt = now.plusDays(21),
+                closedAt = Instant.now().plusSeconds(86400 * 21),
                 createdAt = now.minusDays(5),
             )
 

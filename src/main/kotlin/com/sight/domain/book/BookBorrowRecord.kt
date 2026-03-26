@@ -9,7 +9,7 @@ import java.time.Instant
 
 @Entity
 @Table(name = "borrow_record")
-data class BorrowRecord(
+data class BookBorrowRecord(
     @Id
     @Column(name = "id", nullable = false, length = 26)
     val id: String,

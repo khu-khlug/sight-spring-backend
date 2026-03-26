@@ -9,4 +9,6 @@ interface BookBorrowRecordRepository : JpaRepository<BookBorrowRecord, String> {
     fun findAllByUserId(userId: Long): List<BookBorrowRecord>
 
     fun countByReturnedAtIsNull(): Long
+
+    fun findAllByReturnedAtIsNull(): List<BookBorrowRecord>
 }

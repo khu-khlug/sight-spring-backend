@@ -4,9 +4,11 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
+import com.sight.core.exception.NotFoundException
 import com.sight.core.naver.NaverBookClient
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
+import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
 import org.springframework.beans.factory.annotation.Value
@@ -19,6 +21,7 @@ import java.nio.ByteBuffer
 class BookActionService(
     private val bookInfoRepository: BookInfoRepository,
     private val bookItemRepository: BookItemRepository,
+    private val bookBorrowRecordRepository: BookBorrowRecordRepository,
     private val naverBookClient: NaverBookClient,
     @Value("\${book.scan.allowed-net-ip}") private val allowedNetIp: String,
 ) {
@@ -65,6 +68,39 @@ class BookActionService(
         bookItemRepository.save(newItem)
 
         return bookInfoId
+    }
+
+    @Transactional
+    fun deleteBook(bookId: String) {
+        bookInfoRepository.findById(bookId).orElseThrow {
+            NotFoundException("도서를 찾을 수 없습니다")
+        }
+
+        val allItems = bookItemRepository.findAllByBookInfoId(bookId)
+        val borrowedItemIds =
+            bookBorrowRecordRepository
+                .findAllByItemIdInAndReturnedAtIsNull(allItems.map { it.id })
+                .map { it.itemId }
+                .toSet()
+
+        val availableItems = allItems.filter { it.id !in borrowedItemIds }
+
+        if (availableItems.isEmpty()) {
+            throw BadRequestException("모든 item이 대출 중입니다")
+        }
+
+        val itemToDelete =
+            if (availableItems.size == 1) {
+                availableItems.first()
+            } else {
+                availableItems.maxBy { it.createdAt }
+            }
+
+        bookItemRepository.delete(itemToDelete)
+
+        if (allItems.size == 1) {
+            bookInfoRepository.deleteById(bookId)
+        }
     }
 
     private fun isAllowedIp(clientIp: String): Boolean {

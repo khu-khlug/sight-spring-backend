@@ -6,6 +6,8 @@ import com.sight.core.auth.UserRole
 import com.sight.service.BookActionService
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -25,5 +27,14 @@ class BookActionController(
         val clientIp = request.remoteAddr
         val bookId = bookActionService.registerBook(isbn, clientIp)
         return RegisterBookResponse(bookId = bookId)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @DeleteMapping("/book/{bookId}")
+    fun deleteBook(
+        @PathVariable bookId: String,
+    ) {
+        bookActionService.deleteBook(bookId)
     }
 }

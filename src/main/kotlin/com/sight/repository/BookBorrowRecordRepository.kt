@@ -11,4 +11,6 @@ interface BookBorrowRecordRepository : JpaRepository<BookBorrowRecord, String> {
     fun countByReturnedAtIsNull(): Long
 
     fun findAllByReturnedAtIsNull(): List<BookBorrowRecord>
+
+    fun findAllByItemIdInAndReturnedAtIsNull(itemIds: List<String>): List<BookBorrowRecord>
 }

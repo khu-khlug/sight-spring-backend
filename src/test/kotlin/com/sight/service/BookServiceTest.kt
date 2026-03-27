@@ -3,20 +3,30 @@ package com.sight.service
 import com.sight.domain.book.BookBorrowRecord
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
+import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.util.Optional
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class BookServiceTest {
     private val bookInfoRepository: BookInfoRepository = mock()
     private val bookItemRepository: BookItemRepository = mock()
     private val bookBorrowRecordRepository: BookBorrowRecordRepository = mock()
+    private val memberRepository: MemberRepository = mock()
     private lateinit var bookService: BookService
 
     @BeforeEach
@@ -26,20 +36,23 @@ class BookServiceTest {
                 bookInfoRepository = bookInfoRepository,
                 bookItemRepository = bookItemRepository,
                 bookBorrowRecordRepository = bookBorrowRecordRepository,
+                memberRepository = memberRepository,
             )
     }
 
-    private fun createBookInfo(id: String = "book1") =
-        BookInfo(
-            id = id,
-            isbn = "9780000000001",
-            title = "테스트 도서",
-            author = "저자",
-            publisher = "출판사",
-            publishedYear = 2024,
-            coverImageUrl = "https://example.com/cover.jpg",
-            description = "설명",
-        )
+    private fun createBookInfo(
+        id: String = "book1",
+        isbn: String = "9780000000001",
+    ) = BookInfo(
+        id = id,
+        isbn = isbn,
+        title = "테스트 도서",
+        author = "저자",
+        publisher = "출판사",
+        publishedYear = 2024,
+        coverImageUrl = "https://example.com/cover.jpg",
+        description = "설명",
+    )
 
     private fun createBookItem(
         id: String,
@@ -49,8 +62,23 @@ class BookServiceTest {
     private fun createBorrowRecord(
         id: String,
         itemId: String,
+        userId: Long = 1L,
         returnedAt: Instant? = null,
-    ) = BookBorrowRecord(id = id, itemId = itemId, userId = 1L, returnedAt = returnedAt)
+    ) = BookBorrowRecord(id = id, itemId = itemId, userId = userId, returnedAt = returnedAt)
+
+    private fun createMember(id: Long = 1L) =
+        Member(
+            id = id,
+            name = "testuser",
+            realname = "홍길동",
+            admission = "19",
+            college = "공과대학",
+            grade = 3L,
+            studentStatus = StudentStatus.UNDERGRADUATE,
+            status = UserStatus.ACTIVE,
+        )
+
+    // getStats
 
     @Test
     fun `getStats는 등록된 도서가 없으면 모든 항목이 0을 반환한다`() {
@@ -83,6 +111,8 @@ class BookServiceTest {
         assertEquals(8L, result.totalItemCount)
         assertEquals(3L, result.currentBorrowingCount)
     }
+
+    // listBooks
 
     @Test
     fun `listBooks는 등록된 도서가 없으면 빈 목록을 반환한다`() {
@@ -118,5 +148,135 @@ class BookServiceTest {
         assertEquals("book1", result[0].bookId)
         assertEquals(2, result[0].totalCount)
         assertEquals(1, result[0].availableCount)
+    }
+
+    // getBook
+
+    @Test
+    fun `getBook은 해당 bookId의 도서가 없으면 404 예외를 던진다`() {
+        // given
+        given(bookInfoRepository.findById("unknown")).willReturn(Optional.empty())
+
+        // then
+        assertThrows<ResponseStatusException> {
+            bookService.getBook("unknown")
+        }
+    }
+
+    @Test
+    fun `getBook은 모든 item이 대출 중이지 않으면 borrowerInfo가 null이다`() {
+        // given
+        val bookInfo = createBookInfo("book1")
+        val item1 = createBookItem("item1", "book1")
+        val item2 = createBookItem("item2", "book1")
+
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1, item2))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1", "item2")))
+            .willReturn(emptyList())
+        given(memberRepository.findAllById(emptyList())).willReturn(emptyList())
+
+        // when
+        val result = bookService.getBook("book1")
+
+        // then
+        assertEquals(2, result.totalCount)
+        assertEquals(2, result.availableCount)
+        assertNull(result.itemList[0].borrowerInfo)
+        assertNull(result.itemList[1].borrowerInfo)
+    }
+
+    @Test
+    fun `getBook은 일부 item이 대출 중이면 해당 item의 borrowerInfo를 포함한다`() {
+        // given
+        val bookInfo = createBookInfo("book1")
+        val item1 = createBookItem("item1", "book1")
+        val item2 = createBookItem("item2", "book1")
+        val member = createMember(1L)
+        val borrowedAt = Instant.parse("2024-06-01T00:00:00Z")
+        val borrow = createBorrowRecord("record1", "item1", userId = 1L)
+            .copy(borrowedAt = borrowedAt)
+
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1, item2))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1", "item2")))
+            .willReturn(listOf(borrow))
+        given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
+
+        // when
+        val result = bookService.getBook("book1")
+
+        // then
+        assertEquals(2, result.totalCount)
+        assertEquals(1, result.availableCount)
+        assertNotNull(result.itemList.first { it.itemId == "item1" }.borrowerInfo).also {
+            assertEquals(1L, it.borrowerUserId)
+            assertEquals("홍길동", it.borrowerUserName)
+            assertEquals(borrowedAt, it.borrowedAt)
+        }
+        assertNull(result.itemList.first { it.itemId == "item2" }.borrowerInfo)
+    }
+
+    @Test
+    fun `getBook은 모든 item이 대출 중이면 availableCount가 0이다`() {
+        // given
+        val bookInfo = createBookInfo("book1")
+        val item1 = createBookItem("item1", "book1")
+        val item2 = createBookItem("item2", "book1")
+        val member1 = createMember(1L)
+        val member2 = createMember(2L).copy(name = "testuser2", realname = "김철수")
+        val borrow1 = createBorrowRecord("record1", "item1", userId = 1L)
+        val borrow2 = createBorrowRecord("record2", "item2", userId = 2L)
+
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1, item2))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1", "item2")))
+            .willReturn(listOf(borrow1, borrow2))
+        given(memberRepository.findAllById(listOf(1L, 2L))).willReturn(listOf(member1, member2))
+
+        // when
+        val result = bookService.getBook("book1")
+
+        // then
+        assertEquals(2, result.totalCount)
+        assertEquals(0, result.availableCount)
+        assertNotNull(result.itemList.first { it.itemId == "item1" }.borrowerInfo)
+        assertNotNull(result.itemList.first { it.itemId == "item2" }.borrowerInfo)
+    }
+
+    // getBookByIsbn
+
+    @Test
+    fun `getBookByIsbn은 해당 isbn의 도서가 없으면 404 예외를 던진다`() {
+        // given
+        given(bookInfoRepository.findByIsbn("0000000000000")).willReturn(null)
+
+        // then
+        assertThrows<ResponseStatusException> {
+            bookService.getBookByIsbn("0000000000000")
+        }
+    }
+
+    @Test
+    fun `getBookByIsbn은 getBook과 동일한 결과를 반환한다`() {
+        // given
+        val bookInfo = createBookInfo("book1", isbn = "9780000000001")
+        val item1 = createBookItem("item1", "book1")
+        val member = createMember(1L)
+        val borrow = createBorrowRecord("record1", "item1", userId = 1L)
+
+        given(bookInfoRepository.findByIsbn("9780000000001")).willReturn(bookInfo)
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1")))
+            .willReturn(listOf(borrow))
+        given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
+
+        // when
+        val byIsbn = bookService.getBookByIsbn("9780000000001")
+        val byId = bookService.getBook("book1")
+
+        // then
+        assertEquals(byId, byIsbn)
     }
 }

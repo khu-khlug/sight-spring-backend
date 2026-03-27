@@ -17,17 +17,17 @@ import org.mockito.kotlin.mock
 import java.time.Instant
 import kotlin.test.assertEquals
 
-class BookServiceTest {
+class BookHistoryServiceTest {
     private val bookInfoRepository: BookInfoRepository = mock()
     private val bookItemRepository: BookItemRepository = mock()
     private val bookBorrowRecordRepository: BookBorrowRecordRepository = mock()
     private val memberRepository: MemberRepository = mock()
-    private lateinit var bookService: BookService
+    private lateinit var bookHistoryService: BookHistoryService
 
     @BeforeEach
     fun setUp() {
-        bookService =
-            BookService(
+        bookHistoryService =
+            BookHistoryService(
                 bookInfoRepository = bookInfoRepository,
                 bookItemRepository = bookItemRepository,
                 bookBorrowRecordRepository = bookBorrowRecordRepository,
@@ -77,7 +77,7 @@ class BookServiceTest {
         given(bookBorrowRecordRepository.findAllByUserIdAndReturnedAtIsNull(1L)).willReturn(emptyList())
 
         // when
-        val result = bookService.getMyBorrowings(1L)
+        val result = bookHistoryService.getMyBorrowings(1L)
 
         // then
         assertEquals(0, result.size)
@@ -96,7 +96,7 @@ class BookServiceTest {
         given(bookInfoRepository.findAllById(listOf("book1"))).willReturn(listOf(bookInfo))
 
         // when
-        val result = bookService.getMyBorrowings(userId)
+        val result = bookHistoryService.getMyBorrowings(userId)
 
         // then
         assertEquals(1, result.size)
@@ -111,7 +111,7 @@ class BookServiceTest {
         given(bookBorrowRecordRepository.findAllByReturnedAtIsNullOrderByBorrowedAtDesc()).willReturn(emptyList())
 
         // when
-        val result = bookService.getCurrentBorrowings()
+        val result = bookHistoryService.getCurrentBorrowings()
 
         // then
         assertEquals(0, result.size)
@@ -131,7 +131,7 @@ class BookServiceTest {
         given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
 
         // when
-        val result = bookService.getCurrentBorrowings()
+        val result = bookHistoryService.getCurrentBorrowings()
 
         // then
         assertEquals(1, result.size)
@@ -147,7 +147,7 @@ class BookServiceTest {
         given(bookBorrowRecordRepository.findAllByOrderByBorrowedAtDesc()).willReturn(emptyList())
 
         // when
-        val result = bookService.getBorrowHistory()
+        val result = bookHistoryService.getBorrowHistory()
 
         // then
         assertEquals(0, result.size)
@@ -168,7 +168,7 @@ class BookServiceTest {
         given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
 
         // when
-        val result = bookService.getBorrowHistory()
+        val result = bookHistoryService.getBorrowHistory()
 
         // then
         assertEquals(1, result.size)

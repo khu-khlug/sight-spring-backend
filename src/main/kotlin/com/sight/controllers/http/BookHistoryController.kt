@@ -9,18 +9,18 @@ import com.sight.controllers.http.dto.MyBorrowingItemResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.service.BookService
+import com.sight.service.BookHistoryService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class BookController(
-    private val bookService: BookService,
+class BookHistoryController(
+    private val bookHistoryService: BookHistoryService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/book/borrowings/@me")
     fun getMyBorrowings(requester: Requester): GetMyBorrowingsResponse {
-        val results = bookService.getMyBorrowings(requester.userId)
+        val results = bookHistoryService.getMyBorrowings(requester.userId)
         return GetMyBorrowingsResponse(
             currentBorrowings =
                 results.map { result ->
@@ -37,7 +37,7 @@ class BookController(
     @Auth([UserRole.MANAGER])
     @GetMapping("/book/borrow-history")
     fun getBorrowHistory(): GetBorrowHistoryResponse {
-        val results = bookService.getBorrowHistory()
+        val results = bookHistoryService.getBorrowHistory()
         return GetBorrowHistoryResponse(
             records =
                 results.map { result ->
@@ -58,7 +58,7 @@ class BookController(
     @Auth([UserRole.MANAGER])
     @GetMapping("/book/borrowings")
     fun getCurrentBorrowings(): GetCurrentBorrowingsResponse {
-        val results = bookService.getCurrentBorrowings()
+        val results = bookHistoryService.getCurrentBorrowings()
         return GetCurrentBorrowingsResponse(
             records =
                 results.map { result ->

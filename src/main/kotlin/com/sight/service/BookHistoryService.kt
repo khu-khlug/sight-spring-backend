@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class BookService(
+class BookHistoryService(
     private val bookInfoRepository: BookInfoRepository,
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,

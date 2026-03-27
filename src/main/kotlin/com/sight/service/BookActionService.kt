@@ -54,7 +54,7 @@ class BookActionService(
                         title = naverItem.title,
                         author = naverItem.author,
                         publisher = naverItem.publisher,
-                        publishedYear = naverItem.pubdate.take(4).toInt(),
+                        publishedYear = naverItem.pubdate.take(4).toIntOrNull() ?: 0,
                         coverImageUrl = naverItem.image,
                         description = naverItem.description,
                     )

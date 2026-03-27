@@ -1,5 +1,7 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CurrentBorrowingRecordResponse
+import com.sight.controllers.http.dto.GetCurrentBorrowingsResponse
 import com.sight.controllers.http.dto.GetMyBorrowingsResponse
 import com.sight.controllers.http.dto.MyBorrowingItemResponse
 import com.sight.core.auth.Auth
@@ -24,6 +26,26 @@ class BookController(
                         bookId = result.bookId,
                         itemId = result.itemId,
                         title = result.title,
+                        borrowedAt = result.borrowedAt,
+                    )
+                },
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/book/borrowings")
+    fun getCurrentBorrowings(): GetCurrentBorrowingsResponse {
+        val results = bookService.getCurrentBorrowings()
+        return GetCurrentBorrowingsResponse(
+            records =
+                results.map { result ->
+                    CurrentBorrowingRecordResponse(
+                        recordId = result.recordId,
+                        itemId = result.itemId,
+                        bookId = result.bookId,
+                        title = result.title,
+                        borrowerUserId = result.borrowerUserId,
+                        borrowerUserName = result.borrowerUserName,
                         borrowedAt = result.borrowedAt,
                     )
                 },

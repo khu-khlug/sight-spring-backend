@@ -2,6 +2,7 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.GetBookBorrowerInfoResponse
 import com.sight.controllers.http.dto.GetBookItemResponse
+import com.sight.controllers.http.dto.GetBookPreviewResponse
 import com.sight.controllers.http.dto.GetBookResponse
 import com.sight.controllers.http.dto.GetBookStatsResponse
 import com.sight.controllers.http.dto.ListBookResponse
@@ -67,6 +68,22 @@ class BookController(
     ): GetBookResponse {
         val result = bookService.getBookByIsbn(isbn)
         return result.toResponse()
+    }
+
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/book/preview")
+    fun previewBook(
+        @RequestParam isbn: String,
+    ): GetBookPreviewResponse {
+        val result = bookService.previewBook(isbn)
+        return GetBookPreviewResponse(
+            title = result.title,
+            author = result.author,
+            coverImageUrl = result.coverImageUrl,
+            publisher = result.publisher,
+            publishedYear = result.publishedYear,
+            description = result.description,
+        )
     }
 
     private fun GetBookResult.toResponse() =

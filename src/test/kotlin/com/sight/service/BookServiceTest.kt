@@ -6,6 +6,10 @@ import com.sight.domain.book.BookItem
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.NotFoundException
+import com.sight.core.naver.NaverBookClient
+import com.sight.core.naver.NaverBookItem
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
@@ -15,7 +19,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
-import com.sight.core.exception.NotFoundException
 import java.time.Instant
 import java.util.Optional
 import kotlin.test.assertEquals
@@ -27,6 +30,7 @@ class BookServiceTest {
     private val bookItemRepository: BookItemRepository = mock()
     private val bookBorrowRecordRepository: BookBorrowRecordRepository = mock()
     private val memberRepository: MemberRepository = mock()
+    private val naverBookClient: NaverBookClient = mock()
     private lateinit var bookService: BookService
 
     @BeforeEach
@@ -37,6 +41,7 @@ class BookServiceTest {
                 bookItemRepository = bookItemRepository,
                 bookBorrowRecordRepository = bookBorrowRecordRepository,
                 memberRepository = memberRepository,
+                naverBookClient = naverBookClient,
             )
     }
 
@@ -278,5 +283,72 @@ class BookServiceTest {
 
         // then
         assertEquals(byId, byIsbn)
+    }
+
+    // previewBook 테스트
+
+    @Test
+    fun `isbn이 13자리가 아니면 예외가 발생한다`() {
+        assertThrows<BadRequestException> {
+            bookService.previewBook("123")
+        }
+    }
+
+    @Test
+    fun `해당 isbn의 도서가 DB에 존재하면 DB 정보를 반환한다`() {
+        // given
+        val bookInfo = createBookInfo(isbn = "9780000000001")
+        given(bookInfoRepository.findByIsbn("9780000000001")).willReturn(bookInfo)
+
+        // when
+        val result = bookService.previewBook("9780000000001")
+
+        // then
+        assertEquals(bookInfo.title, result.title)
+        assertEquals(bookInfo.author, result.author)
+        assertEquals(bookInfo.coverImageUrl, result.coverImageUrl)
+        assertEquals(bookInfo.publisher, result.publisher)
+        assertEquals(bookInfo.publishedYear, result.publishedYear)
+        assertEquals(bookInfo.description, result.description)
+    }
+
+    @Test
+    fun `해당 isbn의 도서가 DB에 없고 외부 조회가 가능하면 외부 API 정보를 반환한다`() {
+        // given
+        val isbn = "9780000000001"
+        val naverItem = NaverBookItem(
+            title = "네이버 도서",
+            author = "네이버 저자",
+            publisher = "네이버 출판사",
+            pubdate = "20240101",
+            image = "https://example.com/cover.jpg",
+            description = "네이버 설명",
+        )
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+        given(naverBookClient.searchByIsbn(isbn)).willReturn(naverItem)
+
+        // when
+        val result = bookService.previewBook(isbn)
+
+        // then
+        assertEquals(naverItem.title, result.title)
+        assertEquals(naverItem.author, result.author)
+        assertEquals(naverItem.image, result.coverImageUrl)
+        assertEquals(naverItem.publisher, result.publisher)
+        assertEquals(2024, result.publishedYear)
+        assertEquals(naverItem.description, result.description)
+    }
+
+    @Test
+    fun `해당 isbn의 도서가 DB에 없고 외부 조회도 불가능하면 예외가 발생한다`() {
+        // given
+        val isbn = "9780000000001"
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+        given(naverBookClient.searchByIsbn(isbn)).willReturn(null)
+
+        // then
+        assertThrows<NotFoundException> {
+            bookService.previewBook(isbn)
+        }
     }
 }

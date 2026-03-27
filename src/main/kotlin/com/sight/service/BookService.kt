@@ -1,5 +1,8 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.NotFoundException
+import com.sight.core.naver.NaverBookClient
 import com.sight.domain.book.BookInfo
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
@@ -8,8 +11,8 @@ import com.sight.repository.MemberRepository
 import com.sight.service.dto.BookStatsResult
 import com.sight.service.dto.GetBookBorrowerInfoResult
 import com.sight.service.dto.GetBookItemResult
+import com.sight.service.dto.GetBookPreviewResult
 import com.sight.service.dto.GetBookResult
-import com.sight.core.exception.NotFoundException
 import com.sight.service.dto.ListBookResult
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,6 +23,7 @@ class BookService(
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,
     private val memberRepository: MemberRepository,
+    private val naverBookClient: NaverBookClient,
 ) {
     @Transactional(readOnly = true)
     fun getStats(): BookStatsResult {
@@ -71,6 +75,35 @@ class BookService(
             bookInfoRepository.findByIsbn(isbn)
                 ?: throw NotFoundException("도서를 찾을 수 없습니다")
         return buildBookDetail(bookInfo)
+    }
+
+    @Transactional(readOnly = true)
+    fun previewBook(isbn: String): GetBookPreviewResult {
+        if (isbn.length != 13) {
+            throw BadRequestException("isbn은 13자리여야 합니다")
+        }
+        val existing = bookInfoRepository.findByIsbn(isbn)
+        if (existing != null) {
+            return GetBookPreviewResult(
+                title = existing.title,
+                author = existing.author,
+                coverImageUrl = existing.coverImageUrl,
+                publisher = existing.publisher,
+                publishedYear = existing.publishedYear,
+                description = existing.description,
+            )
+        }
+        val naverItem =
+            naverBookClient.searchByIsbn(isbn)
+                ?: throw NotFoundException("도서 정보를 찾을 수 없습니다")
+        return GetBookPreviewResult(
+            title = naverItem.title,
+            author = naverItem.author,
+            coverImageUrl = naverItem.image,
+            publisher = naverItem.publisher,
+            publishedYear = naverItem.pubdate.take(4).toIntOrNull() ?: 0,
+            description = naverItem.description,
+        )
     }
 
     private fun buildBookDetail(bookInfo: BookInfo): GetBookResult {

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
-import org.springframework.web.server.ResponseStatusException
+import com.sight.core.exception.NotFoundException
 import java.time.Instant
 import java.util.Optional
 import kotlin.test.assertEquals
@@ -158,7 +158,7 @@ class BookServiceTest {
         given(bookInfoRepository.findById("unknown")).willReturn(Optional.empty())
 
         // then
-        assertThrows<ResponseStatusException> {
+        assertThrows<NotFoundException> {
             bookService.getBook("unknown")
         }
     }
@@ -252,7 +252,7 @@ class BookServiceTest {
         given(bookInfoRepository.findByIsbn("0000000000000")).willReturn(null)
 
         // then
-        assertThrows<ResponseStatusException> {
+        assertThrows<NotFoundException> {
             bookService.getBookByIsbn("0000000000000")
         }
     }

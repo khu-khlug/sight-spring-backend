@@ -9,11 +9,10 @@ import com.sight.service.dto.BookStatsResult
 import com.sight.service.dto.GetBookBorrowerInfoResult
 import com.sight.service.dto.GetBookItemResult
 import com.sight.service.dto.GetBookResult
+import com.sight.core.exception.NotFoundException
 import com.sight.service.dto.ListBookResult
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 
 @Service
 class BookService(
@@ -61,7 +60,7 @@ class BookService(
     fun getBook(bookId: String): GetBookResult {
         val bookInfo =
             bookInfoRepository.findById(bookId).orElseThrow {
-                ResponseStatusException(HttpStatus.NOT_FOUND, "도서를 찾을 수 없습니다")
+                NotFoundException("도서를 찾을 수 없습니다")
             }
         return buildBookDetail(bookInfo)
     }
@@ -70,7 +69,7 @@ class BookService(
     fun getBookByIsbn(isbn: String): GetBookResult {
         val bookInfo =
             bookInfoRepository.findByIsbn(isbn)
-                ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "도서를 찾을 수 없습니다")
+                ?: throw NotFoundException("도서를 찾을 수 없습니다")
         return buildBookDetail(bookInfo)
     }
 

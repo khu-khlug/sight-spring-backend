@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.net.InetAddress
 import java.nio.ByteBuffer
+import java.time.Instant
 
 @Service
 class BookActionService(
@@ -101,6 +102,28 @@ class BookActionService(
         if (allItems.size == 1) {
             bookInfoRepository.deleteById(bookId)
         }
+    }
+
+    @Transactional
+    fun returnBook(
+        bookId: String,
+        userId: Long,
+        clientIp: String,
+    ) {
+        bookInfoRepository.findById(bookId).orElseThrow {
+            NotFoundException("도서를 찾을 수 없습니다")
+        }
+
+        if (!isAllowedIp(clientIp)) {
+            throw ForbiddenException("동방 와이파이에서만 반납할 수 있습니다")
+        }
+
+        val itemIds = bookItemRepository.findAllByBookInfoId(bookId).map { it.id }
+        val record =
+            bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(userId, itemIds)
+                ?: throw BadRequestException("해당 도서를 대출 중이 아닙니다")
+
+        bookBorrowRecordRepository.save(record.copy(returnedAt = Instant.now()))
     }
 
     private fun isAllowedIp(clientIp: String): Boolean {

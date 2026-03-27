@@ -223,4 +223,61 @@ class BookActionServiceTest {
         verify(bookItemRepository).delete(newerItem)
         verify(bookInfoRepository, never()).deleteById(any())
     }
+
+    @Test
+    fun `returnBook은 존재하지 않는 bookId로 요청하면 에러가 발생한다`() {
+        given(bookInfoRepository.findById("nonexistent")).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            bookActionService.returnBook("nonexistent", 1L, allowedIp)
+        }
+    }
+
+    @Test
+    fun `returnBook은 동방 와이파이가 아닌 IP에서 요청하면 에러가 발생한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+
+        // when & then
+        assertThrows<ForbiddenException> {
+            bookActionService.returnBook("book1", 1L, blockedIp)
+        }
+    }
+
+    @Test
+    fun `returnBook은 사용자가 해당 도서를 대출 중이 아니면 에러가 발생한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item = createBookItem("item1")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item))
+        given(bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(1L, listOf("item1")))
+            .willReturn(null)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.returnBook("book1", 1L, allowedIp)
+        }
+    }
+
+    @Test
+    fun `returnBook은 요청이 적절하면 returnedAt을 갱신한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item = createBookItem("item1")
+        val record = createBorrowRecord("item1")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item))
+        given(bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(1L, listOf("item1")))
+            .willReturn(record)
+
+        // when
+        bookActionService.returnBook("book1", 1L, allowedIp)
+
+        // then
+        verify(bookBorrowRecordRepository).save(
+            org.mockito.kotlin.argThat { returnedAt != null },
+        )
+    }
 }

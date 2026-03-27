@@ -2,6 +2,7 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.RegisterBookResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.BookActionService
 import jakarta.servlet.http.HttpServletRequest
@@ -36,5 +37,16 @@ class BookActionController(
         @PathVariable bookId: String,
     ) {
         bookActionService.deleteBook(bookId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PostMapping("/book/{bookId}/return")
+    fun returnBook(
+        @PathVariable bookId: String,
+        requester: Requester,
+        request: HttpServletRequest,
+    ) {
+        bookActionService.returnBook(bookId, requester.userId, request.remoteAddr)
     }
 }

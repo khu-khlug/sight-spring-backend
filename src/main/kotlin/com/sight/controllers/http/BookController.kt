@@ -1,6 +1,8 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.BorrowHistoryRecordResponse
 import com.sight.controllers.http.dto.CurrentBorrowingRecordResponse
+import com.sight.controllers.http.dto.GetBorrowHistoryResponse
 import com.sight.controllers.http.dto.GetCurrentBorrowingsResponse
 import com.sight.controllers.http.dto.GetMyBorrowingsResponse
 import com.sight.controllers.http.dto.MyBorrowingItemResponse
@@ -27,6 +29,27 @@ class BookController(
                         itemId = result.itemId,
                         title = result.title,
                         borrowedAt = result.borrowedAt,
+                    )
+                },
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/book/borrow-history")
+    fun getBorrowHistory(): GetBorrowHistoryResponse {
+        val results = bookService.getBorrowHistory()
+        return GetBorrowHistoryResponse(
+            records =
+                results.map { result ->
+                    BorrowHistoryRecordResponse(
+                        recordId = result.recordId,
+                        itemId = result.itemId,
+                        bookId = result.bookId,
+                        title = result.title,
+                        borrowerUserId = result.borrowerUserId,
+                        borrowerUserName = result.borrowerUserName,
+                        borrowedAt = result.borrowedAt,
+                        returnedAt = result.returnedAt,
                     )
                 },
         )

@@ -140,4 +140,42 @@ class BookServiceTest {
         assertEquals(1L, result[0].borrowerUserId)
         assertEquals("홍길동", result[0].borrowerUserName)
     }
+
+    @Test
+    fun `getBorrowHistory는 대출 기록이 없으면 빈 목록을 반환한다`() {
+        // given
+        given(bookBorrowRecordRepository.findAllByOrderByBorrowedAtDesc()).willReturn(emptyList())
+
+        // when
+        val result = bookService.getBorrowHistory()
+
+        // then
+        assertEquals(0, result.size)
+    }
+
+    @Test
+    fun `getBorrowHistory는 전체 대출 기록을 반환한다`() {
+        // given
+        val returnedAt = Instant.parse("2024-06-01T00:00:00Z")
+        val bookInfo = createBookInfo("book1")
+        val item = createBookItem("item1", "book1")
+        val record = createBorrowRecord("record1", "item1", userId = 1L, returnedAt = returnedAt)
+        val member = createMember(1L)
+
+        given(bookBorrowRecordRepository.findAllByOrderByBorrowedAtDesc()).willReturn(listOf(record))
+        given(bookItemRepository.findAllById(listOf("item1"))).willReturn(listOf(item))
+        given(bookInfoRepository.findAllById(listOf("book1"))).willReturn(listOf(bookInfo))
+        given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
+
+        // when
+        val result = bookService.getBorrowHistory()
+
+        // then
+        assertEquals(1, result.size)
+        assertEquals("record1", result[0].recordId)
+        assertEquals("book1", result[0].bookId)
+        assertEquals(1L, result[0].borrowerUserId)
+        assertEquals("홍길동", result[0].borrowerUserName)
+        assertEquals(returnedAt, result[0].returnedAt)
+    }
 }

@@ -49,4 +49,15 @@ class BookActionController(
     ) {
         bookActionService.returnBook(bookId, requester.userId, request.remoteAddr)
     }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PostMapping("/book/{bookId}/borrow")
+    fun borrowBook(
+        @PathVariable bookId: String,
+        requester: Requester,
+        request: HttpServletRequest,
+    ) {
+        bookActionService.borrowBook(bookId, requester.userId, request.remoteAddr)
+    }
 }

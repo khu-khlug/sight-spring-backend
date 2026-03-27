@@ -6,6 +6,7 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.naver.NaverBookClient
+import com.sight.domain.book.BookBorrowRecord
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.repository.BookBorrowRecordRepository
@@ -124,6 +125,50 @@ class BookActionService(
                 ?: throw BadRequestException("해당 도서를 대출 중이 아닙니다")
 
         bookBorrowRecordRepository.save(record.copy(returnedAt = Instant.now()))
+    }
+
+    @Transactional
+    fun borrowBook(
+        bookId: String,
+        userId: Long,
+        clientIp: String,
+    ) {
+        bookInfoRepository.findById(bookId).orElseThrow {
+            NotFoundException("도서를 찾을 수 없습니다")
+        }
+        
+        if (!isAllowedIp(clientIp)) {
+            throw ForbiddenException("동방 와이파이에서만 대출할 수 있습니다")
+        }
+
+        val allItems = bookItemRepository.findAllByBookInfoId(bookId)
+        val borrowedItemIds =
+            bookBorrowRecordRepository
+                .findAllByItemIdInAndReturnedAtIsNull(allItems.map { it.id })
+                .map { it.itemId }
+                .toSet()
+
+        val availableItems = allItems.filter { it.id !in borrowedItemIds }
+        if (availableItems.isEmpty()) {
+            throw BadRequestException("대출 가능한 item이 없습니다")
+        }
+
+        val alreadyBorrowing =
+            bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(userId, allItems.map { it.id })
+        if (alreadyBorrowing != null) {
+            throw BadRequestException("이미 해당 도서를 대출 중입니다")
+        }
+
+        
+
+        val itemToBorrow = availableItems.minBy { it.createdAt }
+        bookBorrowRecordRepository.save(
+            BookBorrowRecord(
+                id = UlidCreator.getUlid().toString(),
+                itemId = itemToBorrow.id,
+                userId = userId,
+            ),
+        )
     }
 
     private fun isAllowedIp(clientIp: String): Boolean {

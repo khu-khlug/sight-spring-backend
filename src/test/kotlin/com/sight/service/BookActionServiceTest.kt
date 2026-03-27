@@ -280,4 +280,87 @@ class BookActionServiceTest {
             org.mockito.kotlin.argThat { returnedAt != null },
         )
     }
+
+    @Test
+    fun `borrowBook은 존재하지 않는 bookId로 요청하면 에러가 발생한다`() {
+        given(bookInfoRepository.findById("nonexistent")).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            bookActionService.borrowBook("nonexistent", 1L, allowedIp)
+        }
+    }
+
+    @Test
+    fun `borrowBook은 대출 가능한 item이 없으면 에러가 발생한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item = createBookItem("item1")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1")))
+            .willReturn(listOf(createBorrowRecord("item1")))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.borrowBook("book1", 1L, allowedIp)
+        }
+    }
+
+    @Test
+    fun `borrowBook은 사용자가 해당 도서를 이미 대출 중이면 에러가 발생한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item1 = createBookItem("item1")
+        val item2 = createBookItem("item2")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1, item2))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1", "item2")))
+            .willReturn(listOf(createBorrowRecord("item1")))
+        given(bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(1L, listOf("item1", "item2")))
+            .willReturn(createBorrowRecord("item1"))
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.borrowBook("book1", 1L, allowedIp)
+        }
+    }
+
+    @Test
+    fun `borrowBook은 동방 와이파이가 아닌 IP에서 요청하면 에러가 발생한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item = createBookItem("item1")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1")))
+            .willReturn(emptyList())
+        given(bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(1L, listOf("item1")))
+            .willReturn(null)
+
+        // when & then
+        assertThrows<ForbiddenException> {
+            bookActionService.borrowBook("book1", 1L, blockedIp)
+        }
+    }
+
+    @Test
+    fun `borrowBook은 요청이 적절하면 대출 기록을 생성한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        val item = createBookItem("item1")
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item))
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(listOf("item1")))
+            .willReturn(emptyList())
+        given(bookBorrowRecordRepository.findByUserIdAndItemIdInAndReturnedAtIsNull(1L, listOf("item1")))
+            .willReturn(null)
+
+        // when
+        bookActionService.borrowBook("book1", 1L, allowedIp)
+
+        // then
+        verify(bookBorrowRecordRepository).save(
+            org.mockito.kotlin.argThat { itemId == "item1" && userId == 1L && returnedAt == null },
+        )
+    }
 }

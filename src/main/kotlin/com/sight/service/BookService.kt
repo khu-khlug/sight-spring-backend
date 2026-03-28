@@ -123,10 +123,10 @@ class BookService(
                 val borrow = activeBorrowByItemId[item.id]
                 val member = borrow?.let { membersById[it.userId] }
                 val borrowerInfo =
-                    if (borrow != null && member != null) {
+                    if (borrow != null) {
                         GetBookBorrowerInfoResult(
-                            borrowerUserId = member.id,
-                            borrowerUserName = member.realname,
+                            borrowerUserId = member?.id ?: borrow.userId,
+                            borrowerUserName = member?.realname ?: "",
                             borrowedAt = borrow.borrowedAt,
                         )
                     } else {

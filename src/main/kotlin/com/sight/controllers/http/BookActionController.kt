@@ -25,8 +25,7 @@ class BookActionController(
         @RequestParam isbn: String,
         request: HttpServletRequest,
     ): RegisterBookResponse {
-        val clientIp = request.remoteAddr
-        val bookId = bookActionService.registerBook(isbn, clientIp)
+        val bookId = bookActionService.registerBook(isbn, request.clientIp)
         return RegisterBookResponse(bookId = bookId)
     }
 
@@ -47,7 +46,7 @@ class BookActionController(
         requester: Requester,
         request: HttpServletRequest,
     ) {
-        bookActionService.returnBook(bookId, requester.userId, request.remoteAddr)
+        bookActionService.returnBook(bookId, requester.userId, request.clientIp)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
@@ -58,6 +57,9 @@ class BookActionController(
         requester: Requester,
         request: HttpServletRequest,
     ) {
-        bookActionService.borrowBook(bookId, requester.userId, request.remoteAddr)
+        bookActionService.borrowBook(bookId, requester.userId, request.clientIp)
     }
+
+    private val HttpServletRequest.clientIp: String
+        get() = getHeader("X-Forwarded-For")?.split(",")?.first()?.trim() ?: remoteAddr
 }

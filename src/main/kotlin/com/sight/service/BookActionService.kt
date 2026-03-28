@@ -33,7 +33,7 @@ class BookActionService(
         clientIp: String,
     ): String {
         if (!isAllowedIp(clientIp)) {
-            throw ForbiddenException("동방 와이파이에서만 등록할 수 있습니다")
+            throw ForbiddenException("동아리방 와이파이에서만 등록할 수 있습니다")
         }
         if (isbn.length != 13) {
             throw BadRequestException("isbn은 13자리여야 합니다")
@@ -116,7 +116,7 @@ class BookActionService(
         }
 
         if (!isAllowedIp(clientIp)) {
-            throw ForbiddenException("동방 와이파이에서만 반납할 수 있습니다")
+            throw ForbiddenException("동아리방 와이파이에서만 반납할 수 있습니다")
         }
 
         val itemIds = bookItemRepository.findAllByBookInfoId(bookId).map { it.id }
@@ -138,7 +138,7 @@ class BookActionService(
         }
         
         if (!isAllowedIp(clientIp)) {
-            throw ForbiddenException("동방 와이파이에서만 대출할 수 있습니다")
+            throw ForbiddenException("동아리방 와이파이에서만 대출할 수 있습니다")
         }
 
         val allItems = bookItemRepository.findAllByBookInfoId(bookId)

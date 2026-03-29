@@ -4,7 +4,7 @@ services:
     working_dir: /app
     command: ["gradle", "bootRun", "--no-daemon", "--continuous"]
     ports:
-      - "8081:8080"
+      - "8080:8080"
     volumes:
       - .:/app
       - gradle-cache:/home/gradle/.gradle
@@ -41,7 +41,8 @@ services:
       - "3000:3000"
     volumes:
       - ./mock:/data
-    command: ["--data", "/data/mockoon-config.json", "--watch", "--port", "3000"]
+    command:
+      ["--data", "/data/mockoon-config.json", "--watch", "--port", "3000"]
 
   mysql:
     image: mysql:8.0.43

@@ -1,15 +1,15 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.NotFoundException
+import com.sight.core.naver.NaverBookClient
+import com.sight.core.naver.NaverBookItem
 import com.sight.domain.book.BookBorrowRecord
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
-import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.NotFoundException
-import com.sight.core.naver.NaverBookClient
-import com.sight.core.naver.NaverBookItem
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
@@ -199,8 +199,9 @@ class BookServiceTest {
         val item2 = createBookItem("item2", "book1")
         val member = createMember(1L)
         val borrowedAt = Instant.parse("2024-06-01T00:00:00Z")
-        val borrow = createBorrowRecord("record1", "item1", userId = 1L)
-            .copy(borrowedAt = borrowedAt)
+        val borrow =
+            createBorrowRecord("record1", "item1", userId = 1L)
+                .copy(borrowedAt = borrowedAt)
 
         given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
         given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(listOf(item1, item2))
@@ -316,14 +317,15 @@ class BookServiceTest {
     fun `해당 isbn의 도서가 DB에 없고 외부 조회가 가능하면 외부 API 정보를 반환한다`() {
         // given
         val isbn = "9780000000001"
-        val naverItem = NaverBookItem(
-            title = "네이버 도서",
-            author = "네이버 저자",
-            publisher = "네이버 출판사",
-            pubdate = "20240101",
-            image = "https://example.com/cover.jpg",
-            description = "네이버 설명",
-        )
+        val naverItem =
+            NaverBookItem(
+                title = "네이버 도서",
+                author = "네이버 저자",
+                publisher = "네이버 출판사",
+                pubdate = "20240101",
+                image = "https://example.com/cover.jpg",
+                description = "네이버 설명",
+            )
         given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
         given(naverBookClient.searchByIsbn(isbn)).willReturn(naverItem)
 

@@ -33,7 +33,6 @@ class BookActionServiceTest {
     private val naverBookClient: NaverBookClient = mock()
     private val systemConfigRegistry: SystemConfigRegistry = mock()
 
-    private val allowedSubnet = "192.168.1.0/24"
     private val allowedIp = "192.168.1.100"
     private val blockedIp = "10.0.0.1"
 
@@ -48,7 +47,7 @@ class BookActionServiceTest {
 
     @BeforeEach
     fun setUp() {
-        given(systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)).willReturn(allowedSubnet)
+        given(systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)).willReturn(allowedIp)
     }
 
     private fun createBookInfo(

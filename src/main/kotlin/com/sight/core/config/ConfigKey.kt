@@ -22,6 +22,6 @@ enum class ConfigKey(
     ),
     BOOK_SCAN_ALLOWED_NET_IP(
         defaultValue = "",
-        description = "도서 스캔 허용 IP 대역 (CIDR 형식, 예: 192.168.1.0/24)",
+        description = "도서 스캔 허용 IP(동방 공유기의 외부 IP)",
     ),
 }

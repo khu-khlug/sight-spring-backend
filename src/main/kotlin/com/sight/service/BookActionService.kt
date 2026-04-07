@@ -16,8 +16,6 @@ import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.net.InetAddress
-import java.nio.ByteBuffer
 import java.time.Instant
 
 @Service
@@ -171,17 +169,8 @@ class BookActionService(
     }
 
     private fun isAllowedIp(clientIp: String): Boolean {
-        val allowedNetIp = systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)
-        if (allowedNetIp.isBlank()) return false
-        return try {
-            val (subnetStr, prefixLenStr) = allowedNetIp.split("/")
-            val prefixLen = prefixLenStr.toInt()
-            val mask = if (prefixLen == 0) 0 else (-1 shl (32 - prefixLen))
-            val subnetInt = ByteBuffer.wrap(InetAddress.getByName(subnetStr).address).int
-            val ipInt = ByteBuffer.wrap(InetAddress.getByName(clientIp).address).int
-            (ipInt and mask) == (subnetInt and mask)
-        } catch (e: Exception) {
-            false
-        }
+        val allowedIp = systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)
+        if (allowedIp.isBlank()) return false
+        return clientIp == allowedIp
     }
 }

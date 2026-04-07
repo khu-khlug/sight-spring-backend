@@ -1,5 +1,9 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
+import com.sight.core.exception.InternalServerErrorException
+import com.sight.core.exception.NotFoundException
 import com.sight.core.naver.NaverBookClient
 import com.sight.core.naver.NaverBookItem
 import com.sight.domain.book.BookBorrowRecord
@@ -15,10 +19,6 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
-import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.ForbiddenException
-import com.sight.core.exception.InternalServerErrorException
-import com.sight.core.exception.NotFoundException
 import java.time.Instant
 import java.util.Optional
 import kotlin.test.assertEquals
@@ -42,17 +42,19 @@ class BookActionServiceTest {
             allowedNetIp = allowedSubnet,
         )
 
-    private fun createBookInfo(id: String = "book1", isbn: String = "9780000000001") =
-        BookInfo(
-            id = id,
-            isbn = isbn,
-            title = "테스트 도서",
-            author = "저자",
-            publisher = "출판사",
-            publishedYear = 2024,
-            coverImageUrl = "https://example.com/cover.jpg",
-            description = "설명",
-        )
+    private fun createBookInfo(
+        id: String = "book1",
+        isbn: String = "9780000000001",
+    ) = BookInfo(
+        id = id,
+        isbn = isbn,
+        title = "테스트 도서",
+        author = "저자",
+        publisher = "출판사",
+        publishedYear = 2024,
+        coverImageUrl = "https://example.com/cover.jpg",
+        description = "설명",
+    )
 
     private fun createBookItem(
         id: String,

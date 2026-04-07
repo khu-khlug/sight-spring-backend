@@ -136,7 +136,7 @@ class BookActionService(
         bookInfoRepository.findById(bookId).orElseThrow {
             NotFoundException("도서를 찾을 수 없습니다")
         }
-        
+
         if (!isAllowedIp(clientIp)) {
             throw ForbiddenException("동아리방 와이파이에서만 대출할 수 있습니다")
         }
@@ -158,8 +158,6 @@ class BookActionService(
         if (alreadyBorrowing != null) {
             throw BadRequestException("이미 해당 도서를 대출 중입니다")
         }
-
-        
 
         val itemToBorrow = availableItems.minBy { it.createdAt }
         bookBorrowRecordRepository.save(

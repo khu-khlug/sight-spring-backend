@@ -14,7 +14,10 @@ interface BookBorrowRecordRepository : JpaRepository<BookBorrowRecord, String> {
 
     fun findAllByItemIdInAndReturnedAtIsNull(itemIds: List<String>): List<BookBorrowRecord>
 
-    fun findByUserIdAndItemIdInAndReturnedAtIsNull(userId: Long, itemIds: List<String>): BookBorrowRecord?
+    fun findByUserIdAndItemIdInAndReturnedAtIsNull(
+        userId: Long,
+        itemIds: List<String>,
+    ): BookBorrowRecord?
 
     fun findAllByUserIdAndReturnedAtIsNull(userId: Long): List<BookBorrowRecord>
 

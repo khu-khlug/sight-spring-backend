@@ -20,4 +20,8 @@ enum class ConfigKey(
         defaultValue = "",
         description = "도어락 시설팀용 비밀번호",
     ),
+    BOOK_SCAN_ALLOWED_NET_IP(
+        defaultValue = "",
+        description = "도서 스캔 허용 IP(동방 공유기의 외부 IP)",
+    ),
 }

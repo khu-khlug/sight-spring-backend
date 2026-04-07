@@ -72,10 +72,6 @@ naver:
   client-id: ${NAVER_CLIENT_ID:}
   client-secret: ${NAVER_CLIENT_SECRET:}
 
-book:
-  scan:
-    allowed-net-ip: ${BOOK_SCAN_ALLOWED_NET_IP:}
-
 ---
 spring:
   config:

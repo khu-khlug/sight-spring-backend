@@ -1,5 +1,7 @@
 package com.sight.service
 
+import com.sight.core.config.ConfigKey
+import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
@@ -12,6 +14,7 @@ import com.sight.domain.book.BookItem
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -28,6 +31,7 @@ class BookActionServiceTest {
     private val bookItemRepository: BookItemRepository = mock()
     private val bookBorrowRecordRepository: BookBorrowRecordRepository = mock()
     private val naverBookClient: NaverBookClient = mock()
+    private val systemConfigRegistry: SystemConfigRegistry = mock()
 
     private val allowedSubnet = "192.168.1.0/24"
     private val allowedIp = "192.168.1.100"
@@ -39,8 +43,13 @@ class BookActionServiceTest {
             bookItemRepository = bookItemRepository,
             bookBorrowRecordRepository = bookBorrowRecordRepository,
             naverBookClient = naverBookClient,
-            allowedNetIp = allowedSubnet,
+            systemConfigRegistry = systemConfigRegistry,
         )
+
+    @BeforeEach
+    fun setUp() {
+        given(systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)).willReturn(allowedSubnet)
+    }
 
     private fun createBookInfo(
         id: String = "book1",

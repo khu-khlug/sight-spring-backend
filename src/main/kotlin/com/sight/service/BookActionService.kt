@@ -1,6 +1,8 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.config.ConfigKey
+import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
@@ -12,7 +14,6 @@ import com.sight.domain.book.BookItem
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
 import com.sight.repository.BookItemRepository
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.net.InetAddress
@@ -25,7 +26,7 @@ class BookActionService(
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,
     private val naverBookClient: NaverBookClient,
-    @Value("\${book.scan.allowed-net-ip}") private val allowedNetIp: String,
+    private val systemConfigRegistry: SystemConfigRegistry,
 ) {
     @Transactional
     fun registerBook(
@@ -170,6 +171,7 @@ class BookActionService(
     }
 
     private fun isAllowedIp(clientIp: String): Boolean {
+        val allowedNetIp = systemConfigRegistry.getValue(ConfigKey.BOOK_SCAN_ALLOWED_NET_IP)
         if (allowedNetIp.isBlank()) return false
         return try {
             val (subnetStr, prefixLenStr) = allowedNetIp.split("/")

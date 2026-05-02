@@ -46,6 +46,7 @@ ExPoint 변동 시 `members.expoint` 직접 UPDATE + `expoint_log` INSERT 처리
 - `group.portfolio` 컬럼을 토글 (0 ↔ 1)
 - 발행 → 전 멤버 +10 ExPoint, 취소 → 전 멤버 -10 ExPoint
 - ExPoint 변동 내역은 `expoint_log`에 각 멤버별로 INSERT
+- 발행/취소 시 그룹 멤버 전체에게 알림
 
 ### API
 
@@ -81,6 +82,8 @@ POST /groups/:groupId/portfolio
    - 403 반환
 4. 존재하지 않는 그룹 ID 요청
    - 404 반환
+5. 발행/취소 성공 시
+   - 그룹 멤버 전체에게 알림 발송
 
 ---
 
@@ -93,6 +96,7 @@ POST /groups/:groupId/portfolio
   - 없으면 → INSERT (추가, `bookmarked = true`)
   - 있으면 → DELETE (제거, `bookmarked = false`)
 - ExPoint 변동 없음
+- 추가/제거 시 본인에게 알림
 
 ### API
 
@@ -126,6 +130,8 @@ POST /groups/:groupId/bookmark
    - `group_bookmark` row DELETE, `bookmarked = false` 반환
 3. 존재하지 않는 그룹 ID 요청
    - 404 반환
+4. 추가/제거 성공 시
+   - 본인에게 알림 발송
 
 ---
 
@@ -150,6 +156,7 @@ POST /groups/:groupId/bookmark
 - 보고서(`presentation=false`) 또는 세미나 발표(`presentation=true`) 중 하나 선택
 - 파일은 여러 개 첨부 가능 (`multipart/form-data`)
 - 파일은 `files` 테이블에 저장하고 `article = group_seminar.id` 로 연결
+- 등록/수정/취소(삭제) 시 그룹 멤버 전체 + 운영진에게 알림
 
 ### API - 세션 등록
 
@@ -187,6 +194,8 @@ POST /seminars/:seminar_term/:groupId
    - 400 반환 ("접수 중인 세미나가 없습니다")
 4. 그룹원(비그룹장) 요청
    - 403 반환
+5. 등록 성공 시
+   - 그룹 멤버 전체 + 운영진에게 알림 발송
 
 ### API - 세션 내용 조회
 
@@ -224,16 +233,16 @@ PATCH /seminars/:seminar_term/:groupId
 
 텍스트 파트 (JSON):
 
-| 이름           | 타입        | 설명                           |
-| -------------- | ----------- | ------------------------------ |
-| `presentation` | boolean     | false=보고서, true=세미나 발표 |
-| `deleteFiles`  | 문자열 배열 | 삭제할 파일명 목록             |
+| 이름           | 타입                   | 설명                           |
+| -------------- | ---------------------- | ------------------------------ |
+| `presentation` | boolean (nullable)     | false=보고서, true=세미나 발표 |
+| `deleteFiles`  | 문자열 배열 (nullable) | 삭제할 파일명 목록             |
 
 바이너리 파트:
 
-| 이름    | 타입      | 설명                                                      |
-| ------- | --------- | --------------------------------------------------------- |
-| `files` | 파일 배열 | 추가/대체할 파일 (기존 파일명과 겹치면 대체, 아니면 추가) |
+| 이름    | 타입                 | 설명                                                      |
+| ------- | -------------------- | --------------------------------------------------------- |
+| `files` | 파일 배열 (nullable) | 추가/대체할 파일 (기존 파일명과 겹치면 대체, 아니면 추가) |
 
 **파일 처리 규칙**:
 
@@ -241,6 +250,12 @@ PATCH /seminars/:seminar_term/:groupId
 - `files`에 포함된 파일, 기존 파일명과 겹치지 않음 → 추가
 - `files`에 포함된 파일, 기존 파일명과 겹침 → 대체
 - 언급되지 않은 기존 파일 → 유지
+
+**알림 규칙**:
+
+- `presentation`만 변경 → 그룹 멤버 전체 + 운영진에게 발표 여부 변경 알림
+- 파일만 변경 → 그룹 멤버 전체 + 운영진에게 제출 파일 변경 알림
+- 둘 다 변경 → 그룹 멤버 전체 + 운영진에게 발표 여부 및 제출 파일 변경 알림
 
 #### 응답
 
@@ -255,15 +270,26 @@ PATCH /seminars/:seminar_term/:groupId
 | `presentation` | boolean     | 발표 여부           |
 | `files`        | 문자열 배열 | 변경 후 파일명 목록 |
 
+```
+400 Bad Request
+```
+
+`presentation`, `deleteFiles`, `files` 모두 null/미전송인 경우
+
 #### 테스트 케이스
 
 1. 그룹원(비그룹장) 수정 요청 → 403
 2. 존재하지 않는 세션 수정 요청 → 404
-3. `deleteFiles`에 존재하는 파일명 → 삭제
-4. `deleteFiles`에 존재하지 않는 파일명 → 무시
-5. `files`에 기존 파일명과 겹치는 파일 → 대체
-6. `files`에 기존 파일명과 겹치지 않는 파일 → 추가
-7. `deleteFiles`와 `files` 바이너리에 동일한 파일명이 있는 경우 → 삭제를 무시하고 추가/대체로 동작
+3. `presentation`, `deleteFiles`, `files` 모두 null/미전송 → 400
+4. `deleteFiles`가 존재하는 파일명이면 → 해당 파일 삭제
+5. `deleteFiles`가 존재하지 않는 파일명이면 → 무시
+   (다른 수정 없이 `deleteFiles`만 요청이 왔고 모든 `deleteFiles` 파일명이 존재하지 않는 경우에도 200을 반환하게 됨.)
+6. `files`에 기존 파일명과 겹치는 파일 → 대체
+7. `files`에 기존 파일명과 겹치지 않는 파일 → 추가
+8. `deleteFiles`와 `files` 바이너리에 동일한 파일명이 있는 경우 → 삭제를 무시하고 추가/대체로 동작
+9. `presentation`만 변경 시 → 그룹 멤버 전체 + 운영진에게 발표 여부 변경 알림
+10. 파일만 변경 시 → 그룹 멤버 전체 + 운영진에게 제출 파일 변경 알림
+11. `presentation`과 파일 모두 변경 시 → 그룹 멤버 전체 + 운영진에게 발표 여부 및 제출 파일 변경 알림
 
 ### API - 세션 삭제
 
@@ -283,5 +309,7 @@ DELETE /seminars/:seminar_term/:groupId
 2. 존재하지 않는 세션 삭제 요청 → 404
 3. 그룹장이 삭제 요청 → 204
 4. 운영진이 삭제 요청 → 204
+5. 삭제 성공 시
+   - 그룹 멤버 전체 + 운영진에게 알림 발송
 
 ---

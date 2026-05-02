@@ -14,17 +14,17 @@ POST /groups
 
 ### 요청 바디
 
-| 이름         |  타입  | 설명                                                                                   |
-| :----------- | :----: | :------------------------------------------------------------------------------------- |
-| `title`      | 문자열 | 그룹 이름 (필수)                                                                       |
-| `category`   | 문자열 | 카테고리 (필수, `study`, `project`, `documentation`, `education`, `program`, `manage`) |
-| `purpose`    | 문자열 | 그룹 목적                                                                              |
-| `interest`   | 문자열 | 관심 분야 (`\|`로 구분)                                                                |
-| `technology` | 문자열 | 기술 스택 (`,`로 구분)                                                                 |
-| `allowJoin`  | 불리언 | 참여 허용 여부 (기본값: false)                                                         |
-| `grade`      |  숫자  | 공개 범위 (0=비공개, 2=운영진, 3=회원, 4=완전공개, 기본값: 3)                          |
-| `repository` | 문자열 | 저장소 URL                                                                             |
-| `ideaId`     |  숫자  | 아이디어클라우드 아이디어 ID (아이디어 기반 그룹 생성 시)                              |
+| 이름         |    타입     | 설명                                                                                   |
+| :----------- | :---------: | :------------------------------------------------------------------------------------- |
+| `title`      |   문자열    | 그룹 이름 (필수)                                                                       |
+| `category`   |   문자열    | 카테고리 (필수, `study`, `project`, `documentation`, `education`, `program`, `manage`) |
+| `purpose`    |   문자열    | 그룹 목적                                                                              |
+| `interest`   | 문자열 배열 | 관심 분야                                                                              |
+| `technology` | 문자열 배열 | 기술 스택                                                                              |
+| `allowJoin`  |   불리언    | 참여 허용 여부 (기본값: false)                                                         |
+| `grade`      |    숫자     | 공개 범위 (0=비공개, 2=운영진, 3=회원, 4=완전공개, 기본값: 3)                          |
+| `repository` |   문자열    | 저장소 URL                                                                             |
+| `ideaId`     |    숫자     | 아이디어클라우드 아이디어 ID (아이디어 기반 그룹 생성 시)                              |
 
 ### 응답 코드 및 응답 바디
 
@@ -32,32 +32,32 @@ POST /groups
 201 Created
 ```
 
-| 이름                              |  타입  | 설명                                                                                  |
-| :-------------------------------- | :----: | :------------------------------------------------------------------------------------ |
-| `id`                              |  숫자  | 그룹 ID                                                                               |
-| `category`                        | 문자열 | 그룹 카테고리 (`study`, `project`, `documentation`, `education`, `program`, `manage`) |
-| `title`                           | 문자열 | 그룹 이름                                                                             |
-| `purpose`                         | 문자열 | 그룹 목적 (nullable)                                                                  |
-| `state`                           | 문자열 | 그룹 상태 (생성 직후 `progress`)                                                      |
-| `interest`                        | 문자열 | 관심 분야 (nullable)                                                                  |
-| `technology`                      | 문자열 | 기술 스택 (nullable)                                                                  |
-| `allowJoin`                       | 불리언 | 참여 허용 여부                                                                        |
-| `grade`                           |  숫자  | 공개 범위 (0=비공개, 2=운영진, 3=회원, 4=완전공개)                                    |
-| `repository`                      | 문자열 | 저장소 URL (nullable)                                                                 |
-| `portfolio`                       | 불리언 | 포트폴리오 발행 여부                                                                  |
-| `countMember`                     |  숫자  | 멤버 수                                                                               |
-| `countList`                       |  숫자  | 리스트 수                                                                             |
-| `countCard`                       |  숫자  | 카드 수                                                                               |
-| `countRecord`                     |  숫자  | 기록 수                                                                               |
-| `createdAt`                       | 문자열 | 생성일시 (ISO 8601)                                                                   |
-| `changedAt`                       | 문자열 | 마지막 활동일시 (ISO 8601)                                                            |
-| `leader`                          |  객체  | 그룹장 정보                                                                           |
-| `leader.userId`                   |  숫자  | 그룹장 회원 ID                                                                        |
-| `leader.name`                     | 문자열 | 그룹장 이름                                                                           |
-| `discordChannel`                  |  객체  | Discord 채널 정보 (nullable, 생성 직후 null)                                          |
-| `discordChannel.id`               | 문자열 | Discord 채널 연동 ID                                                                  |
-| `discordChannel.discordChannelId` | 문자열 | Discord 채널 ID                                                                       |
-| `discordChannel.createdAt`        | 문자열 | 채널 연동일시 (ISO 8601)                                                              |
+| 이름                              |    타입     | 설명                                                                                  |
+| :-------------------------------- | :---------: | :------------------------------------------------------------------------------------ |
+| `id`                              |    숫자     | 그룹 ID                                                                               |
+| `category`                        |   문자열    | 그룹 카테고리 (`study`, `project`, `documentation`, `education`, `program`, `manage`) |
+| `title`                           |   문자열    | 그룹 이름                                                                             |
+| `purpose`                         |   문자열    | 그룹 목적 (nullable)                                                                  |
+| `state`                           |   문자열    | 그룹 상태 (생성 직후 `progress`)                                                      |
+| `interest`                        | 문자열 배열 | 관심 분야                                                                             |
+| `technology`                      | 문자열 배열 | 기술 스택                                                                             |
+| `allowJoin`                       |   불리언    | 참여 허용 여부                                                                        |
+| `grade`                           |    숫자     | 공개 범위 (0=비공개, 2=운영진, 3=회원, 4=완전공개)                                    |
+| `repository`                      |   문자열    | 저장소 URL (nullable)                                                                 |
+| `portfolio`                       |   불리언    | 포트폴리오 발행 여부                                                                  |
+| `countMember`                     |    숫자     | 멤버 수                                                                               |
+| `countList`                       |    숫자     | 리스트 수                                                                             |
+| `countCard`                       |    숫자     | 카드 수                                                                               |
+| `countRecord`                     |    숫자     | 기록 수                                                                               |
+| `createdAt`                       |   문자열    | 생성일시 (ISO 8601)                                                                   |
+| `changedAt`                       |   문자열    | 마지막 활동일시 (ISO 8601)                                                            |
+| `leader`                          |    객체     | 그룹장 정보                                                                           |
+| `leader.userId`                   |    숫자     | 그룹장 회원 ID                                                                        |
+| `leader.name`                     |   문자열    | 그룹장 이름                                                                           |
+| `discordChannel`                  |    객체     | Discord 채널 정보 (nullable, 생성 직후 null)                                          |
+| `discordChannel.id`               |   문자열    | Discord 채널 연동 ID                                                                  |
+| `discordChannel.discordChannelId` |   문자열    | Discord 채널 ID                                                                       |
+| `discordChannel.createdAt`        |   문자열    | 채널 연동일시 (ISO 8601)                                                              |
 
 ### 테스트 케이스
 

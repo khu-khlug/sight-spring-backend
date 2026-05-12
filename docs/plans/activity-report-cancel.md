@@ -45,7 +45,7 @@ DELETE /group/:groupId/activity-report/:reportId
 4. 그룹장이 삭제 요청 → 204
 5. 운영진이 삭제 요청 → 204
 6. 삭제 성공 시
-   - `group_activity_report.reportFile` key로 R2 파일 삭제
+   - `group_activity_report.reportFileR2Key`로 R2 파일 삭제
    - `r2_file_upload` row DELETE
    - `group_activity_report` row DELETE
    - 그룹원 전원 경험치 -50

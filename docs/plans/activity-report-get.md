@@ -35,7 +35,7 @@ GET /group/:groupId/activity-report
 | `report.seminarIsSummerSeason` | boolean | true: 여름, false: 겨울                                                                   |
 | `report.seminarIsSpeakAfter` | boolean   | false:먼저말하기 true:나중에말하기                                                          |
 | `report.isPresentation`      | boolean   | 발표 여부                                                                                   |
-| `report.reportFile`          | string    | 보고 파일 접근 URL. R2 버킷이 public이면 URL, private이면 백엔드가 생성한 Presigned GET URL |
+| `report.reportFileR2Key`     | string    | 보고 파일 접근 URL. R2 버킷이 public이면 URL, private이면 백엔드가 생성한 Presigned GET URL |
 | `report.created_at`          | timestamp | 생성 일자                                                                                   |
 | `report.updated_at`          | timestamp | 변경 일자                                                                                   |
 

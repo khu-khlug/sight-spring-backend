@@ -32,7 +32,7 @@ GET /group/:groupId/activity-report
 | `report.id`                  | id        | `group_activity_report.id`                                                                  |
 | `report.groupId`             | bigint    | group.id                                                                                    |
 | `report.seminarDate`         | timestamp | 세미나 일자 (`schedule.scheduledAt`)                                                        |
-| `report.seminarSeason`       | string    | 세미나 시즌 summer or winter                                                                |
+| `report.seminarIsSummerSeason` | boolean | true: 여름, false: 겨울                                                                   |
 | `report.seminarIsSpeakAfter` | boolean   | false:먼저말하기 true:나중에말하기                                                          |
 | `report.isPresentation`      | boolean   | 발표 여부                                                                                   |
 | `report.reportFile`          | string    | 보고 파일 접근 URL. R2 버킷이 public이면 URL, private이면 백엔드가 생성한 Presigned GET URL |

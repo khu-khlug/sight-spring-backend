@@ -263,9 +263,71 @@ class GroupMemberService(
         groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
     }
 
+    @Transactional
+    fun leaveGroup(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                NotFoundException("그룹을 찾을 수 없습니다")
+            }
+
+        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)) {
+            throw BadRequestException("그룹 멤버가 아닙니다")
+        }
+
+        // 운영 카테고리가 아닌 그룹에서 그룹장은 탈퇴 불가 (먼저 위임 필요)
+        if (group.master == requesterId && group.category != GroupCategory.MANAGE) {
+            throw BadRequestException("그룹장은 다른 멤버에게 그룹장을 위임한 후 탈퇴할 수 있습니다")
+        }
+
+        groupMemberRepository.delete(groupId, requesterId)
+        groupRepository.decrementCountMember(groupId)
+
+        groupLogService.createLog(groupId, requesterId, "그룹에서 나갔습니다.")
+
+        val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        val notificationContent =
+            "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에서 나갔습니다."
+
+        notificationService.createNotification(
+            userId = requesterId,
+            category = NotificationCategory.GROUP,
+            title = "",
+            content = notificationContent,
+        )
+
+        val additionalRecipients =
+            if (group.category == GroupCategory.MANAGE) {
+                groupMemberRepository.findByGroupId(groupId).map { it.member }
+            } else {
+                listOf(group.master)
+            }
+        additionalRecipients.forEach { memberId ->
+            notificationService.createNotification(
+                userId = memberId,
+                category = NotificationCategory.GROUP,
+                title = "",
+                content = notificationContent,
+            )
+        }
+
+        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+            pointService.givePoint(
+                targetUserId = requesterId,
+                point = LEAVE_POINT,
+                message = "<u>$escapedTitle</u> 그룹에서 나갔습니다.",
+            )
+        }
+
+        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+    }
+
     companion object {
         private const val EXPOINT_EXCLUDED_GROUP_ID = 7549L
         private const val JOIN_POINT = 10
         private const val KICK_POINT = -10
+        private const val LEAVE_POINT = -10
     }
 }

@@ -89,4 +89,17 @@ class GroupMemberController(
             kickedMemberId = memberId,
         )
     }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @DeleteMapping("/groups/{groupId}/members/@me")
+    fun leaveGroup(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupMemberService.leaveGroup(
+            groupId = groupId,
+            requesterId = requester.userId,
+        )
+    }
 }

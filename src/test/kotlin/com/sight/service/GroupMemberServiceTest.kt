@@ -735,4 +735,166 @@ class GroupMemberServiceTest {
             groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 999L)
         }
     }
+
+    @Test
+    fun `leaveGroup은 일반 카테고리에서 멤버 삭제-로그-알림 본인 및 그룹장-포인트-상태 갱신 순으로 처리한다`() {
+        // given - 일반 카테고리, requester는 일반 멤버 (master 아님)
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.leaveGroup(groupId = 100L, requesterId = 5L)
+
+        // then
+        verify(groupMemberRepository).delete(100L, 5L)
+        verify(groupRepository).decrementCountMember(100L)
+        verify(groupLogService).createLog(eq(100L), eq(5L), eq("그룹에서 나갔습니다."))
+
+        val expectedContent = "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에서 나갔습니다."
+        verify(notificationService, times(2)).createNotification(
+            userId = any(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
+        // 본인 + 그룹장
+        verify(notificationService).createNotification(
+            userId = eq(5L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(1L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
+
+        verify(pointService).givePoint(
+            targetUserId = eq(5L),
+            point = eq(-10),
+            message = eq("<u>테스트 그룹</u> 그룹에서 나갔습니다."),
+        )
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `leaveGroup은 운영 카테고리에서 잔여 멤버 전체에게 알림을 발송한다`() {
+        // given - 운영 카테고리, master(1L)가 탈퇴, 잔여 멤버 2L, 3L
+        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 1L)).willReturn(true)
+        // leave_member 이후의 멤버 목록 (탈퇴자 본인은 빠짐)
+        given(groupMemberRepository.findByGroupId(100L)).willReturn(
+            listOf(
+                GroupMember(group = 100L, member = 2L),
+                GroupMember(group = 100L, member = 3L),
+            ),
+        )
+
+        // when
+        groupMemberService.leaveGroup(groupId = 100L, requesterId = 1L)
+
+        // then - 본인 1건 + 잔여 멤버 2건 = 3건
+        verify(notificationService, times(3)).createNotification(
+            userId = any(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(1L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(2L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(3L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        // master 컬럼 미변경: JPA save 미호출
+        verify(groupRepository, never()).save(any<Group>())
+    }
+
+    @Test
+    fun `leaveGroup은 SUSPEND 상태 그룹에서 상태 전환 메서드를 호출한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.leaveGroup(groupId = 100L, requesterId = 5L)
+
+        // then
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `leaveGroup은 그룹 7549에서는 포인트를 차감하지 않는다`() {
+        // given
+        val group = createGroup(id = 7549L, master = 1L)
+        given(groupRepository.findById(7549L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(7549L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.leaveGroup(groupId = 7549L, requesterId = 5L)
+
+        // then
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `leaveGroup은 일반 카테고리에서 그룹장이 탈퇴하려 하면 400을 던진다`() {
+        // given - 일반 카테고리, requester == master
+        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.STUDY)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 1L)).willReturn(true)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.leaveGroup(groupId = 100L, requesterId = 1L)
+        }
+    }
+
+    @Test
+    fun `leaveGroup은 비멤버가 탈퇴하려 하면 400을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 99L)).willReturn(false)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.leaveGroup(groupId = 100L, requesterId = 99L)
+        }
+    }
+
+    @Test
+    fun `leaveGroup은 그룹이 존재하지 않으면 404를 던진다`() {
+        // given
+        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.leaveGroup(groupId = 999L, requesterId = 1L)
+        }
+    }
 }

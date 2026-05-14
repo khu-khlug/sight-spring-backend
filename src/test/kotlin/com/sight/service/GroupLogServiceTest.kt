@@ -9,10 +9,15 @@ import com.sight.repository.dto.GroupLogListDto
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.BDDMockito.willDoNothing
+import org.mockito.BDDMockito.willThrow
+import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.springframework.dao.DataIntegrityViolationException
 import java.time.LocalDateTime
 
 class GroupLogServiceTest {
@@ -102,5 +107,45 @@ class GroupLogServiceTest {
         assertThrows<ForbiddenException> {
             groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 0, limit = 100)
         }
+    }
+
+    @Test
+    fun `createLog는 채번한 ID로 한 번 insert한다`() {
+        // given
+        willDoNothing().given(groupLogRepository).insert(any(), any(), any(), any())
+
+        // when
+        groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트 메시지")
+
+        // then
+        verify(groupLogRepository).insert(any(), eq(100L), eq(1L), eq("테스트 메시지"))
+    }
+
+    @Test
+    fun `createLog는 ID 충돌 시 재시도하여 성공한다`() {
+        // given - 2번 실패 후 3번째 성공
+        willThrow(DataIntegrityViolationException("collision1"))
+            .willThrow(DataIntegrityViolationException("collision2"))
+            .willDoNothing()
+            .given(groupLogRepository).insert(any(), any(), any(), any())
+
+        // when
+        groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
+
+        // then - 총 3번 호출됨
+        verify(groupLogRepository, times(3)).insert(any(), any(), any(), any())
+    }
+
+    @Test
+    fun `createLog는 4회 연속 충돌 시 IllegalStateException을 던진다`() {
+        // given - 항상 충돌 (4회 모두 실패)
+        willThrow(DataIntegrityViolationException("collision"))
+            .given(groupLogRepository).insert(any(), any(), any(), any())
+
+        // then
+        assertThrows<IllegalStateException> {
+            groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
+        }
+        verify(groupLogRepository, times(4)).insert(any(), any(), any(), any())
     }
 }

@@ -5,9 +5,13 @@ import com.sight.core.exception.NotFoundException
 import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import java.time.Month
+import java.time.ZoneId
+import kotlin.random.Random
 
 data class GroupLogListItem(
     val id: Long,
@@ -58,5 +62,52 @@ class GroupLogService(
                     )
                 },
         )
+    }
+
+    @Transactional
+    fun createLog(
+        groupId: Long,
+        memberId: Long,
+        message: String,
+    ) {
+        var lastException: DataIntegrityViolationException? = null
+        repeat(MAX_GROUP_LOG_ID_RETRY + 1) {
+            try {
+                groupLogRepository.insert(createNewGroupLogId(), groupId, memberId, message)
+                return
+            } catch (e: DataIntegrityViolationException) {
+                lastException = e
+            }
+        }
+        throw IllegalStateException(
+            "group_log ID 채번 ${MAX_GROUP_LOG_ID_RETRY}회 retry 후에도 충돌",
+            lastException,
+        )
+    }
+
+    private fun createNewGroupLogId(): Long {
+        val minimumId = 1_000_000
+
+        val millisUntil20250101 =
+            LocalDateTime.of(
+                2025,
+                Month.JANUARY,
+                1,
+                0,
+                0,
+                0,
+            ).atZone(KST).toInstant().toEpochMilli()
+        val currentTimestamp = System.currentTimeMillis()
+
+        val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60
+
+        val randomPart = Random.nextLong(0L, 1000L)
+
+        return minimumId + timePart * 1000 + randomPart
+    }
+
+    companion object {
+        val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        private const val MAX_GROUP_LOG_ID_RETRY = 3
     }
 }

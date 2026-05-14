@@ -42,4 +42,22 @@ class GroupLogRepository(
             groupId,
         ) ?: 0L
     }
+
+    fun insert(
+        id: Long,
+        groupId: Long,
+        memberId: Long,
+        message: String,
+    ) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO khlug_group_log (id, `group`, member, message)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            id,
+            groupId,
+            memberId,
+            message,
+        )
+    }
 }

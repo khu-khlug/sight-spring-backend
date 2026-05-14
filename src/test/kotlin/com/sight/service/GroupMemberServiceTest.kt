@@ -1,39 +1,56 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupMember
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupMemberListDto
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import java.time.LocalDateTime
 import java.util.Optional
 
 class GroupMemberServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
     private val memberRepository = mock<MemberRepository>()
+    private val groupLogService = mock<GroupLogService>()
+    private val notificationService = mock<NotificationService>()
     private val groupMemberService =
         GroupMemberService(
             groupRepository = groupRepository,
             groupMemberRepository = groupMemberRepository,
             memberRepository = memberRepository,
+            groupLogService = groupLogService,
+            notificationService = notificationService,
         )
 
     private fun createGroup(
         id: Long = 100L,
         master: Long = 1L,
         grade: GroupAccessGrade = GroupAccessGrade.MEMBER,
+        changedAt: LocalDateTime = LocalDateTime.now(),
     ) = Group(
         id = id,
         category = GroupCategory.STUDY,
@@ -41,6 +58,7 @@ class GroupMemberServiceTest {
         author = master,
         master = master,
         grade = grade,
+        changedAt = changedAt,
     )
 
     private fun createMember(
@@ -194,5 +212,129 @@ class GroupMemberServiceTest {
 
         // when (does not throw)
         groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
+    }
+
+    @Test
+    fun `delegateMaster는 그룹장이 다른 멤버에게 그룹장을 위임할 수 있다`() {
+        // given
+        val oldChangedAt = LocalDateTime.of(2020, 1, 1, 0, 0)
+        val group = createGroup(id = 100L, master = 1L, changedAt = oldChangedAt)
+        val requester = createMember(id = 1L)
+        val newMaster = createMember(id = 2L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(2L)).willReturn(Optional.of(newMaster))
+        given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 2L)).willReturn(true)
+        given(groupMemberRepository.findByGroupId(100L)).willReturn(
+            listOf(
+                GroupMember(group = 100L, member = 1L),
+                GroupMember(group = 100L, member = 2L),
+            ),
+        )
+
+        // when
+        groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
+
+        // then - group save: master 갱신 + changedAt 갱신
+        val groupCaptor = argumentCaptor<Group>()
+        verify(groupRepository).save(groupCaptor.capture())
+        val saved = groupCaptor.firstValue
+        assertEquals(2L, saved.master)
+        assertTrue(saved.changedAt.isAfter(oldChangedAt))
+
+        // log 호출 (메시지 포맷: 레거시 그대로)
+        verify(groupLogService).createLog(
+            eq(100L),
+            eq(1L),
+            eq("그룹장이 공과대학 이름1에서 공과대학 이름2에게 위임되었습니다."),
+        )
+
+        // 알림: 멤버 2명 each, content 포맷 검증
+        val contentCaptor = argumentCaptor<String>()
+        verify(notificationService, times(2)).createNotification(
+            userId = any(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = contentCaptor.capture(),
+            url = anyOrNull(),
+        )
+        val expectedContent =
+            "<a href=\"/group/100#member\"><u>테스트 그룹</u></a> 그룹장이 이름2에게 위임되었습니다."
+        contentCaptor.allValues.forEach { assertEquals(expectedContent, it) }
+    }
+
+    @Test
+    fun `delegateMaster는 그룹장이 아니면 403을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val newMaster = createMember(id = 2L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(2L)).willReturn(Optional.of(newMaster))
+
+        // then
+        assertThrows<ForbiddenException> {
+            // 요청자(99)는 master(1)가 아님
+            groupMemberService.delegateMaster(groupId = 100L, requesterId = 99L, newMasterId = 2L)
+        }
+        verify(groupRepository, never()).save(any())
+        verify(groupLogService, never()).createLog(any(), any(), any())
+        verify(notificationService, never()).createNotification(any(), any(), any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun `delegateMaster는 위임 대상이 그룹 멤버가 아니면 400을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val requester = createMember(id = 1L)
+        val newMaster = createMember(id = 2L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(2L)).willReturn(Optional.of(newMaster))
+        given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 2L)).willReturn(false)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
+        }
+        verify(groupRepository, never()).save(any())
+    }
+
+    @Test
+    fun `delegateMaster는 자기 자신에게 위임하면 400을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val requester = createMember(id = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 1L)
+        }
+        verify(groupRepository, never()).save(any())
+    }
+
+    @Test
+    fun `delegateMaster는 그룹이 존재하지 않으면 404를 던진다`() {
+        // given
+        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.delegateMaster(groupId = 999L, requesterId = 1L, newMasterId = 2L)
+        }
+    }
+
+    @Test
+    fun `delegateMaster는 위임 대상 회원이 존재하지 않으면 404를 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 999L)
+        }
     }
 }

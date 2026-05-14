@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import org.springframework.dao.DataIntegrityViolationException
@@ -29,7 +28,6 @@ data class GroupLogListResult(
 class GroupLogService(
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
-    private val groupLogRepository: GroupLogRepository,
 ) {
     @Transactional(readOnly = true)
     fun listGroupLogs(
@@ -47,8 +45,8 @@ class GroupLogService(
             throw ForbiddenException("해당 그룹의 활동 로그를 조회할 권한이 없습니다")
         }
 
-        val logs = groupLogRepository.findLogsByGroupId(groupId, offset, limit)
-        val count = groupLogRepository.countLogsByGroupId(groupId)
+        val logs = groupRepository.findGroupLogsByGroupId(groupId, offset, limit)
+        val count = groupRepository.countGroupLogsByGroupId(groupId)
 
         return GroupLogListResult(
             count = count,
@@ -73,7 +71,7 @@ class GroupLogService(
         var lastException: DataIntegrityViolationException? = null
         repeat(MAX_GROUP_LOG_ID_RETRY + 1) {
             try {
-                groupLogRepository.insert(createNewGroupLogId(), groupId, memberId, message)
+                groupRepository.insertGroupLog(createNewGroupLogId(), groupId, memberId, message)
                 return
             } catch (e: DataIntegrityViolationException) {
                 lastException = e

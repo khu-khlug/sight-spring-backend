@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupLogListDto
@@ -23,12 +22,10 @@ import java.time.LocalDateTime
 class GroupLogServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
-    private val groupLogRepository = mock<GroupLogRepository>()
     private val groupLogService =
         GroupLogService(
             groupRepository = groupRepository,
             groupMemberRepository = groupMemberRepository,
-            groupLogRepository = groupLogRepository,
         )
 
     @Test
@@ -38,7 +35,7 @@ class GroupLogServiceTest {
         val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
         given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
-        given(groupLogRepository.findLogsByGroupId(groupId, 0, 100)).willReturn(
+        given(groupRepository.findGroupLogsByGroupId(groupId, 0, 100)).willReturn(
             listOf(
                 GroupLogListDto(
                     id = 10L,
@@ -54,7 +51,7 @@ class GroupLogServiceTest {
                 ),
             ),
         )
-        given(groupLogRepository.countLogsByGroupId(groupId)).willReturn(257L)
+        given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(257L)
 
         // when
         val result = groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 0, limit = 100)
@@ -74,14 +71,14 @@ class GroupLogServiceTest {
         val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
         given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
-        given(groupLogRepository.findLogsByGroupId(groupId, 50, 20)).willReturn(emptyList())
-        given(groupLogRepository.countLogsByGroupId(groupId)).willReturn(0L)
+        given(groupRepository.findGroupLogsByGroupId(groupId, 50, 20)).willReturn(emptyList())
+        given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(0L)
 
         // when
         groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 50, limit = 20)
 
         // then
-        verify(groupLogRepository).findLogsByGroupId(eq(groupId), eq(50), eq(20))
+        verify(groupRepository).findGroupLogsByGroupId(eq(groupId), eq(50), eq(20))
     }
 
     @Test
@@ -112,13 +109,13 @@ class GroupLogServiceTest {
     @Test
     fun `createLog는 채번한 ID로 한 번 insert한다`() {
         // given
-        willDoNothing().given(groupLogRepository).insert(any(), any(), any(), any())
+        willDoNothing().given(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트 메시지")
 
         // then
-        verify(groupLogRepository).insert(any(), eq(100L), eq(1L), eq("테스트 메시지"))
+        verify(groupRepository).insertGroupLog(any(), eq(100L), eq(1L), eq("테스트 메시지"))
     }
 
     @Test
@@ -127,25 +124,25 @@ class GroupLogServiceTest {
         willThrow(DataIntegrityViolationException("collision1"))
             .willThrow(DataIntegrityViolationException("collision2"))
             .willDoNothing()
-            .given(groupLogRepository).insert(any(), any(), any(), any())
+            .given(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
 
         // then - 총 3번 호출됨
-        verify(groupLogRepository, times(3)).insert(any(), any(), any(), any())
+        verify(groupRepository, times(3)).insertGroupLog(any(), any(), any(), any())
     }
 
     @Test
     fun `createLog는 4회 연속 충돌 시 IllegalStateException을 던진다`() {
         // given - 항상 충돌 (4회 모두 실패)
         willThrow(DataIntegrityViolationException("collision"))
-            .given(groupLogRepository).insert(any(), any(), any(), any())
+            .given(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // then
         assertThrows<IllegalStateException> {
             groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
         }
-        verify(groupLogRepository, times(4)).insert(any(), any(), any(), any())
+        verify(groupRepository, times(4)).insertGroupLog(any(), any(), any(), any())
     }
 }

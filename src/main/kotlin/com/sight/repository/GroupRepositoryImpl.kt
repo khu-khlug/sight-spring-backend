@@ -11,11 +11,14 @@ import com.sight.domain.group.QGroupBookmark
 import com.sight.domain.group.QGroupMember
 import com.sight.domain.member.QMember
 import com.sight.repository.dto.GroupListDto
+import com.sight.repository.dto.GroupLogListDto
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 
 @Repository
 class GroupRepositoryImpl(
     private val queryFactory: JPAQueryFactory,
+    private val jdbcTemplate: JdbcTemplate,
 ) : GroupRepositoryCustom {
     private val group = QGroup.group
     private val member = QMember.member
@@ -60,6 +63,59 @@ class GroupRepositoryImpl(
         applyWhere(query, joined, bookmarked, requesterId)
 
         return query.fetchOne() ?: 0L
+    }
+
+    override fun findGroupLogsByGroupId(
+        groupId: Long,
+        offset: Int,
+        limit: Int,
+    ): List<GroupLogListDto> {
+        return jdbcTemplate.query(
+            """
+            SELECT id, member, message, created_at
+            FROM khlug_group_log
+            WHERE `group` = ?
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """.trimIndent(),
+            { rs, _ ->
+                GroupLogListDto(
+                    id = rs.getLong("id"),
+                    memberId = rs.getLong("member"),
+                    message = rs.getString("message"),
+                    createdAt = rs.getTimestamp("created_at").toLocalDateTime(),
+                )
+            },
+            groupId,
+            limit,
+            offset,
+        )
+    }
+
+    override fun countGroupLogsByGroupId(groupId: Long): Long {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM khlug_group_log WHERE `group` = ?",
+            Long::class.java,
+            groupId,
+        )
+    }
+
+    override fun insertGroupLog(
+        id: Long,
+        groupId: Long,
+        memberId: Long,
+        message: String,
+    ) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO khlug_group_log (id, `group`, member, message)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            id,
+            groupId,
+            memberId,
+            message,
+        )
     }
 
     private fun <T> applyJoins(

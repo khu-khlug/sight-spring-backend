@@ -67,7 +67,7 @@ class GroupMemberService(
         isMember: Boolean,
     ): Boolean =
         when (group.grade) {
-            GroupAccessGrade.PRIVATE -> isMember
+            GroupAccessGrade.PRIVATE -> isMember || group.author == requester.id
             GroupAccessGrade.MANAGER -> requester.manager
             GroupAccessGrade.MEMBER -> requester.studentStatus != StudentStatus.UNITED
             GroupAccessGrade.ALL -> true

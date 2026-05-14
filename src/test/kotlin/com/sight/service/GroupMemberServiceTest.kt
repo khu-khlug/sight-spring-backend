@@ -49,13 +49,14 @@ class GroupMemberServiceTest {
     private fun createGroup(
         id: Long = 100L,
         master: Long = 1L,
+        author: Long = master,
         grade: GroupAccessGrade = GroupAccessGrade.MEMBER,
         changedAt: LocalDateTime = LocalDateTime.now(),
     ) = Group(
         id = id,
         category = GroupCategory.STUDY,
         title = "테스트 그룹",
-        author = master,
+        author = author,
         master = master,
         grade = grade,
         changedAt = changedAt,
@@ -138,9 +139,9 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `PRIVATE 그룹은 비멤버가 조회하면 403을 던진다`() {
+    fun `PRIVATE 그룹은 비멤버이고 author도 아니면 403을 던진다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.PRIVATE)
+        val group = createGroup(grade = GroupAccessGrade.PRIVATE, master = 1L, author = 1L)
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -148,6 +149,18 @@ class GroupMemberServiceTest {
         assertThrows<ForbiddenException> {
             groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
         }
+    }
+
+    @Test
+    fun `PRIVATE 그룹은 비멤버라도 author면 조회 가능하다`() {
+        // given: 위임 이후 master가 다른 사람이어도 최초 생성자(author)는 열람 가능
+        val group = createGroup(grade = GroupAccessGrade.PRIVATE, master = 10L, author = 2L)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+        given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
+
+        // when (does not throw)
+        groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
     }
 
     @Test

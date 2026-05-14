@@ -206,8 +206,66 @@ class GroupMemberService(
         groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
     }
 
+    @Transactional
+    fun kickMember(
+        groupId: Long,
+        requesterId: Long,
+        kickedMemberId: Long,
+    ) {
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                NotFoundException("그룹을 찾을 수 없습니다")
+            }
+
+        if (group.master != requesterId) {
+            throw ForbiddenException("그룹장만 멤버를 내보낼 수 있습니다")
+        }
+
+        if (group.category == GroupCategory.MANAGE) {
+            throw BadRequestException("운영 카테고리 그룹에서는 멤버를 내보낼 수 없습니다")
+        }
+
+        if (kickedMemberId == requesterId) {
+            throw BadRequestException("자기 자신을 내보낼 수 없습니다")
+        }
+
+        val kickedMember =
+            memberRepository.findById(kickedMemberId).orElseThrow {
+                NotFoundException("회원을 찾을 수 없습니다")
+            }
+
+        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, kickedMemberId)) {
+            throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
+        }
+
+        groupMemberRepository.delete(groupId, kickedMemberId)
+        groupRepository.decrementCountMember(groupId)
+
+        val logMessage = "${kickedMember.college} ${kickedMember.realname} 내보냈습니다."
+        groupLogService.createLog(groupId, requesterId, logMessage)
+
+        val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        notificationService.createNotification(
+            userId = kickedMemberId,
+            category = NotificationCategory.GROUP,
+            title = "",
+            content = "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에서 내보내졌습니다.",
+        )
+
+        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+            pointService.givePoint(
+                targetUserId = kickedMemberId,
+                point = KICK_POINT,
+                message = "<u>$escapedTitle</u> 그룹에서 내보내졌습니다.",
+            )
+        }
+
+        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+    }
+
     companion object {
         private const val EXPOINT_EXCLUDED_GROUP_ID = 7549L
         private const val JOIN_POINT = 10
+        private const val KICK_POINT = -10
     }
 }

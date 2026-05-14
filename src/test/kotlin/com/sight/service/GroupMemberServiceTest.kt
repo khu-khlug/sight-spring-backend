@@ -597,4 +597,142 @@ class GroupMemberServiceTest {
             groupMemberService.joinGroup(groupId = 999L, requesterId = 1L)
         }
     }
+
+    @Test
+    fun `kickMember는 그룹장이 멤버를 내보낼 수 있다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+
+        // then
+        verify(groupMemberRepository).delete(100L, 5L)
+        verify(groupRepository).decrementCountMember(100L)
+        verify(groupLogService).createLog(eq(100L), eq(1L), eq("공과대학 이름5 내보냈습니다."))
+        verify(notificationService).createNotification(
+            userId = eq(5L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq("<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에서 내보내졌습니다."),
+            url = anyOrNull(),
+        )
+        verify(pointService).givePoint(
+            targetUserId = eq(5L),
+            point = eq(-10),
+            message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
+        )
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `kickMember는 그룹장이 아니면 403을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+
+        // then
+        assertThrows<ForbiddenException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 99L, kickedMemberId = 5L)
+        }
+    }
+
+    @Test
+    fun `kickMember는 운영 카테고리 그룹에서는 400을 던진다`() {
+        // given - master 통과 후 manage 차단
+        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+        }
+    }
+
+    @Test
+    fun `kickMember는 자기 자신을 내보낼 수 없다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 1L)
+        }
+    }
+
+    @Test
+    fun `kickMember는 그룹 7549에서는 포인트를 차감하지 않는다`() {
+        // given
+        val group = createGroup(id = 7549L, master = 1L)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(7549L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(7549L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.kickMember(groupId = 7549L, requesterId = 1L, kickedMemberId = 5L)
+
+        // then
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `kickMember는 SUSPEND 상태 그룹에서 상태 전환 메서드를 호출한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+
+        // when
+        groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+
+        // then
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `kickMember는 대상이 그룹 멤버가 아니면 400을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(false)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+        }
+    }
+
+    @Test
+    fun `kickMember는 그룹이 존재하지 않으면 404를 던진다`() {
+        // given
+        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.kickMember(groupId = 999L, requesterId = 1L, kickedMemberId = 5L)
+        }
+    }
+
+    @Test
+    fun `kickMember는 대상 회원이 존재하지 않으면 404를 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 999L)
+        }
+    }
 }

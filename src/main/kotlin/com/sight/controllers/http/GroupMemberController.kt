@@ -9,6 +9,7 @@ import com.sight.core.auth.UserRole
 import com.sight.service.GroupMemberService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -71,6 +72,21 @@ class GroupMemberController(
         groupMemberService.joinGroup(
             groupId = groupId,
             requesterId = requester.userId,
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @DeleteMapping("/groups/{groupId}/members/{memberId}")
+    fun kickGroupMember(
+        @PathVariable groupId: Long,
+        @PathVariable memberId: Long,
+        requester: Requester,
+    ) {
+        groupMemberService.kickMember(
+            groupId = groupId,
+            requesterId = requester.userId,
+            kickedMemberId = memberId,
         )
     }
 }

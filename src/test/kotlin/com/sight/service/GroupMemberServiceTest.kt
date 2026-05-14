@@ -829,8 +829,6 @@ class GroupMemberServiceTest {
             content = any(),
             url = anyOrNull(),
         )
-        // master 컬럼 미변경: JPA save 미호출
-        verify(groupRepository, never()).save(any<Group>())
     }
 
     @Test

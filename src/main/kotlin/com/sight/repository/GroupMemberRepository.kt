@@ -102,6 +102,17 @@ class GroupMemberRepository(
         )
     }
 
+    fun delete(
+        groupId: Long,
+        memberId: Long,
+    ) {
+        jdbcTemplate.update(
+            "DELETE FROM khlug_group_member WHERE `group` = ? AND member = ?",
+            groupId,
+            memberId,
+        )
+    }
+
     fun saveAll(groupMembers: List<GroupMember>) {
         jdbcTemplate.batchUpdate(
             "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",

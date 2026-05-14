@@ -125,6 +125,13 @@ class GroupRepositoryImpl(
         )
     }
 
+    override fun decrementCountMember(groupId: Long) {
+        jdbcTemplate.update(
+            "UPDATE khlug_group SET count_member = count_member - 1 WHERE id = ?",
+            groupId,
+        )
+    }
+
     override fun touchChangedAtAndPromoteFromSuspend(groupId: Long) {
         jdbcTemplate.update(
             "UPDATE khlug_group SET changed_at = now() WHERE id = ?",

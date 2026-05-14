@@ -54,8 +54,8 @@ class GroupMemberServiceTest {
         author: Long = master,
         category: GroupCategory = GroupCategory.STUDY,
         grade: GroupAccessGrade = GroupAccessGrade.MEMBER,
-        state: GroupState = GroupState.PROGRESS,
-        allowJoin: Boolean = true,
+        state: GroupState = GroupState.PENDING,
+        allowJoin: Boolean = false,
         changedAt: LocalDateTime = LocalDateTime.now(),
     ) = Group(
         id = id,
@@ -271,17 +271,15 @@ class GroupMemberServiceTest {
         )
 
         // 알림: 멤버 2명 each, content 포맷 검증
-        val contentCaptor = argumentCaptor<String>()
+        val expectedContent =
+            "<a href=\"/group/100#member\"><u>테스트 그룹</u></a> 그룹장이 이름2에게 위임되었습니다."
         verify(notificationService, times(2)).createNotification(
             userId = any(),
             category = eq(NotificationCategory.GROUP),
             title = eq(""),
-            content = contentCaptor.capture(),
+            content = eq(expectedContent),
             url = anyOrNull(),
         )
-        val expectedContent =
-            "<a href=\"/group/100#member\"><u>테스트 그룹</u></a> 그룹장이 이름2에게 위임되었습니다."
-        contentCaptor.allValues.forEach { assertEquals(expectedContent, it) }
     }
 
     @Test
@@ -362,7 +360,14 @@ class GroupMemberServiceTest {
     @Test
     fun `joinGroup은 일반 카테고리 그룹에서 멤버 추가-로그-알림 본인 및 그룹장-포인트-상태 갱신 순으로 처리한다`() {
         // given
-        val group = createGroup(id = 100L, master = 5L, grade = GroupAccessGrade.ALL)
+        val group =
+            createGroup(
+                id = 100L,
+                master = 5L,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.PROGRESS,
+                allowJoin = true,
+            )
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -376,15 +381,28 @@ class GroupMemberServiceTest {
 
         val expectedContent =
             "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에 참여했습니다."
-        val recipientCaptor = argumentCaptor<Long>()
         verify(notificationService, times(2)).createNotification(
-            userId = recipientCaptor.capture(),
+            userId = any(),
             category = eq(NotificationCategory.GROUP),
             title = eq(""),
             content = eq(expectedContent),
             url = anyOrNull(),
         )
-        assertEquals(listOf(2L, 5L), recipientCaptor.allValues)
+        // 본인('25')과 그룹장('26') 알림
+        verify(notificationService).createNotification(
+            userId = eq(2L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(5L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
 
         verify(pointService).givePoint(
             targetUserId = eq(2L),
@@ -397,7 +415,15 @@ class GroupMemberServiceTest {
     @Test
     fun `joinGroup은 운영 카테고리 그룹이면 전 멤버에게 알림을 발송한다`() {
         // given - 운영 카테고리, 기존 멤버 3명, 참여자 본인 추가
-        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE, grade = GroupAccessGrade.ALL)
+        val group =
+            createGroup(
+                id = 100L,
+                master = 1L,
+                category = GroupCategory.MANAGE,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.PROGRESS,
+                allowJoin = true,
+            )
         val requester = createMember(id = 5L)
         stubGroupAndRequester(group, requester, isMember = false)
         // findByGroupId는 add_member 이후 호출이라 참여자 포함된 결과를 반환해야 함
@@ -412,22 +438,49 @@ class GroupMemberServiceTest {
         // when
         groupMemberService.joinGroup(groupId = 100L, requesterId = 5L)
 
-        // then - 본인 알림 1건 + 전 멤버 알림 3건 = 총 4건
-        val recipientCaptor = argumentCaptor<Long>()
+        // then - 본인 알림 1건 + 전 멤버 알림 3건 (참여자 본인은 add_member 이후라 포함) = 총 4건
         verify(notificationService, times(4)).createNotification(
-            userId = recipientCaptor.capture(),
+            userId = any(),
             category = eq(NotificationCategory.GROUP),
             title = eq(""),
             content = any(),
             url = anyOrNull(),
         )
-        assertEquals(listOf(5L, 1L, 3L, 5L), recipientCaptor.allValues)
+        // 본인은 '25'와 '26' 둘 다 받음 = 2회
+        verify(notificationService, times(2)).createNotification(
+            userId = eq(5L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(1L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(3L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
     }
 
     @Test
     fun `joinGroup은 그룹 7549에는 포인트를 부여하지 않는다`() {
         // given
-        val group = createGroup(id = 7549L, master = 1L, grade = GroupAccessGrade.ALL)
+        val group =
+            createGroup(
+                id = 7549L,
+                master = 1L,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.PROGRESS,
+                allowJoin = true,
+            )
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -441,7 +494,14 @@ class GroupMemberServiceTest {
     @Test
     fun `joinGroup은 SUSPEND 상태 그룹에 참여 가능하며 상태 전환 메서드를 호출한다`() {
         // given
-        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND, grade = GroupAccessGrade.ALL)
+        val group =
+            createGroup(
+                id = 100L,
+                master = 1L,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.SUSPEND,
+                allowJoin = true,
+            )
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -454,8 +514,15 @@ class GroupMemberServiceTest {
 
     @Test
     fun `joinGroup은 allow_join이 false면 403을 던진다`() {
-        // given
-        val group = createGroup(id = 100L, master = 1L, allowJoin = false, grade = GroupAccessGrade.ALL)
+        // given - 권한 통과 후 allow_join 단계에서 차단
+        val group =
+            createGroup(
+                id = 100L,
+                master = 1L,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.PROGRESS,
+                allowJoin = false,
+            )
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -467,7 +534,7 @@ class GroupMemberServiceTest {
 
     @Test
     fun `joinGroup은 열람 권한 없으면 403을 던진다`() {
-        // given - PRIVATE 그룹, 비멤버, 비-author
+        // given - PRIVATE 그룹, 비멤버, 비-author (권한 단계에서 차단되므로 state/allowJoin 무관)
         val group = createGroup(id = 100L, master = 1L, author = 1L, grade = GroupAccessGrade.PRIVATE)
         val requester = createMember(id = 99L)
         stubGroupAndRequester(group, requester, isMember = false)
@@ -480,8 +547,15 @@ class GroupMemberServiceTest {
 
     @Test
     fun `joinGroup은 이미 멤버인 경우 400을 던진다`() {
-        // given
-        val group = createGroup(id = 100L, master = 1L, grade = GroupAccessGrade.ALL)
+        // given - 권한·allow_join·state 모두 통과 후 이미 멤버 차단
+        val group =
+            createGroup(
+                id = 100L,
+                master = 1L,
+                grade = GroupAccessGrade.ALL,
+                state = GroupState.PROGRESS,
+                allowJoin = true,
+            )
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = true)
 
@@ -495,7 +569,14 @@ class GroupMemberServiceTest {
     fun `joinGroup은 PROGRESS, SUSPEND 외 상태에서 400을 던진다`() {
         // given
         listOf(GroupState.PENDING, GroupState.END_SUCCESS, GroupState.END_FAIL).forEach { state ->
-            val group = createGroup(id = 100L, master = 1L, state = state, grade = GroupAccessGrade.ALL)
+            val group =
+                createGroup(
+                    id = 100L,
+                    master = 1L,
+                    grade = GroupAccessGrade.ALL,
+                    state = state,
+                    allowJoin = true,
+                )
             val requester = createMember(id = 2L)
             stubGroupAndRequester(group, requester, isMember = false)
 

@@ -16,7 +16,6 @@ import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupMemberListDto
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -230,8 +229,7 @@ class GroupMemberServiceTest {
     @Test
     fun `delegateMaster는 그룹장이 다른 멤버에게 그룹장을 위임할 수 있다`() {
         // given
-        val oldChangedAt = LocalDateTime.of(2020, 1, 1, 0, 0)
-        val group = createGroup(id = 100L, master = 1L, changedAt = oldChangedAt)
+        val group = createGroup(id = 100L, master = 1L)
         val requester = createMember(id = 1L)
         val newMaster = createMember(id = 2L)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))
@@ -248,12 +246,14 @@ class GroupMemberServiceTest {
         // when
         groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
 
-        // then - group save: master 갱신 + changedAt 갱신
+        // then - group save: master만 갱신 (changed_at/state는 atomic SQL 별도)
         val groupCaptor = argumentCaptor<Group>()
         verify(groupRepository).save(groupCaptor.capture())
         val saved = groupCaptor.firstValue
         assertEquals(2L, saved.master)
-        assertTrue(saved.changedAt.isAfter(oldChangedAt))
+
+        // changed_at 갱신 + SUSPEND→PROGRESS 전환 (legacy `Group::changed()` 미러링)
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
 
         // log 호출 (메시지 포맷: 레거시 그대로)
         verify(groupLogService).createLog(

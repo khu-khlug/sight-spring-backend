@@ -14,7 +14,6 @@ import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.util.HtmlUtils
-import java.time.LocalDateTime
 
 data class GroupMemberListItem(
     val userId: Long,
@@ -111,7 +110,8 @@ class GroupMemberService(
 
         val oldMaster = memberRepository.findById(requesterId).get()
 
-        groupRepository.save(group.copy(master = newMasterId, changedAt = LocalDateTime.now()))
+        groupRepository.save(group.copy(master = newMasterId))
+        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
 
         val logMessage =
             "그룹장이 ${oldMaster.college} ${oldMaster.realname}에서 " +

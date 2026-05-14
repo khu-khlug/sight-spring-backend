@@ -34,4 +34,8 @@ interface GroupRepositoryCustom {
         memberId: Long,
         message: String,
     )
+
+    fun incrementCountMember(groupId: Long)
+
+    fun touchChangedAtAndPromoteFromSuspend(groupId: Long)
 }

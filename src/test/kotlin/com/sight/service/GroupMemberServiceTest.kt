@@ -7,6 +7,7 @@ import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
+import com.sight.domain.group.GroupState
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -36,6 +37,7 @@ class GroupMemberServiceTest {
     private val memberRepository = mock<MemberRepository>()
     private val groupLogService = mock<GroupLogService>()
     private val notificationService = mock<NotificationService>()
+    private val pointService = mock<PointService>()
     private val groupMemberService =
         GroupMemberService(
             groupRepository = groupRepository,
@@ -43,21 +45,27 @@ class GroupMemberServiceTest {
             memberRepository = memberRepository,
             groupLogService = groupLogService,
             notificationService = notificationService,
+            pointService = pointService,
         )
 
     private fun createGroup(
         id: Long = 100L,
         master: Long = 1L,
         author: Long = master,
+        category: GroupCategory = GroupCategory.STUDY,
         grade: GroupAccessGrade = GroupAccessGrade.MEMBER,
+        state: GroupState = GroupState.PROGRESS,
+        allowJoin: Boolean = true,
         changedAt: LocalDateTime = LocalDateTime.now(),
     ) = Group(
         id = id,
-        category = GroupCategory.STUDY,
+        category = category,
         title = "테스트 그룹",
         author = author,
         master = master,
         grade = grade,
+        state = state,
+        allowJoin = allowJoin,
         changedAt = changedAt,
     )
 
@@ -348,6 +356,164 @@ class GroupMemberServiceTest {
         // then
         assertThrows<NotFoundException> {
             groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 999L)
+        }
+    }
+
+    @Test
+    fun `joinGroup은 일반 카테고리 그룹에서 멤버 추가-로그-알림 본인 및 그룹장-포인트-상태 갱신 순으로 처리한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 5L, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+
+        // when
+        groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+
+        // then
+        verify(groupMemberRepository).save(100L, 2L)
+        verify(groupRepository).incrementCountMember(100L)
+        verify(groupLogService).createLog(eq(100L), eq(2L), eq("그룹에 참여했습니다."))
+
+        val expectedContent =
+            "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에 참여했습니다."
+        val recipientCaptor = argumentCaptor<Long>()
+        verify(notificationService, times(2)).createNotification(
+            userId = recipientCaptor.capture(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = eq(expectedContent),
+            url = anyOrNull(),
+        )
+        assertEquals(listOf(2L, 5L), recipientCaptor.allValues)
+
+        verify(pointService).givePoint(
+            targetUserId = eq(2L),
+            point = eq(10),
+            message = eq("<u>테스트 그룹</u> 그룹에 참여했습니다."),
+        )
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `joinGroup은 운영 카테고리 그룹이면 전 멤버에게 알림을 발송한다`() {
+        // given - 운영 카테고리, 기존 멤버 3명, 참여자 본인 추가
+        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 5L)
+        stubGroupAndRequester(group, requester, isMember = false)
+        // findByGroupId는 add_member 이후 호출이라 참여자 포함된 결과를 반환해야 함
+        given(groupMemberRepository.findByGroupId(100L)).willReturn(
+            listOf(
+                GroupMember(group = 100L, member = 1L),
+                GroupMember(group = 100L, member = 3L),
+                GroupMember(group = 100L, member = 5L),
+            ),
+        )
+
+        // when
+        groupMemberService.joinGroup(groupId = 100L, requesterId = 5L)
+
+        // then - 본인 알림 1건 + 전 멤버 알림 3건 = 총 4건
+        val recipientCaptor = argumentCaptor<Long>()
+        verify(notificationService, times(4)).createNotification(
+            userId = recipientCaptor.capture(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
+        assertEquals(listOf(5L, 1L, 3L, 5L), recipientCaptor.allValues)
+    }
+
+    @Test
+    fun `joinGroup은 그룹 7549에는 포인트를 부여하지 않는다`() {
+        // given
+        val group = createGroup(id = 7549L, master = 1L, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+
+        // when
+        groupMemberService.joinGroup(groupId = 7549L, requesterId = 2L)
+
+        // then
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `joinGroup은 SUSPEND 상태 그룹에 참여 가능하며 상태 전환 메서드를 호출한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+
+        // when (does not throw)
+        groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+
+        // then
+        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+    }
+
+    @Test
+    fun `joinGroup은 allow_join이 false면 403을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, allowJoin = false, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+
+        // then
+        assertThrows<ForbiddenException> {
+            groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+        }
+    }
+
+    @Test
+    fun `joinGroup은 열람 권한 없으면 403을 던진다`() {
+        // given - PRIVATE 그룹, 비멤버, 비-author
+        val group = createGroup(id = 100L, master = 1L, author = 1L, grade = GroupAccessGrade.PRIVATE)
+        val requester = createMember(id = 99L)
+        stubGroupAndRequester(group, requester, isMember = false)
+
+        // then
+        assertThrows<ForbiddenException> {
+            groupMemberService.joinGroup(groupId = 100L, requesterId = 99L)
+        }
+    }
+
+    @Test
+    fun `joinGroup은 이미 멤버인 경우 400을 던진다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, grade = GroupAccessGrade.ALL)
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = true)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+        }
+    }
+
+    @Test
+    fun `joinGroup은 PROGRESS, SUSPEND 외 상태에서 400을 던진다`() {
+        // given
+        listOf(GroupState.PENDING, GroupState.END_SUCCESS, GroupState.END_FAIL).forEach { state ->
+            val group = createGroup(id = 100L, master = 1L, state = state, grade = GroupAccessGrade.ALL)
+            val requester = createMember(id = 2L)
+            stubGroupAndRequester(group, requester, isMember = false)
+
+            // then
+            assertThrows<BadRequestException> {
+                groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+            }
+        }
+    }
+
+    @Test
+    fun `joinGroup은 그룹이 존재하지 않으면 404를 던진다`() {
+        // given
+        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+
+        // then
+        assertThrows<NotFoundException> {
+            groupMemberService.joinGroup(groupId = 999L, requesterId = 1L)
         }
     }
 }

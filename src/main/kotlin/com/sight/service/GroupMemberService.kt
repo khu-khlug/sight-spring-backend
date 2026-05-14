@@ -5,6 +5,8 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupState
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.notification.NotificationCategory
@@ -33,6 +35,7 @@ class GroupMemberService(
     private val memberRepository: MemberRepository,
     private val groupLogService: GroupLogService,
     private val notificationService: NotificationService,
+    private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
     fun listGroupMembers(
@@ -130,5 +133,81 @@ class GroupMemberService(
                 content = notificationContent,
             )
         }
+    }
+
+    @Transactional
+    fun joinGroup(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                NotFoundException("그룹을 찾을 수 없습니다")
+            }
+
+        val requester = memberRepository.findById(requesterId).get()
+        val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
+
+        if (!canViewGroup(group, requester, isMember)) {
+            throw ForbiddenException("그룹에 참여할 수 있는 권한이 없습니다")
+        }
+
+        if (!group.allowJoin) {
+            throw ForbiddenException("이 그룹은 참여가 제한되어 있습니다")
+        }
+
+        if (group.state !in setOf(GroupState.PROGRESS, GroupState.SUSPEND)) {
+            throw BadRequestException("참여할 수 없는 그룹 상태입니다")
+        }
+
+        if (isMember) {
+            throw BadRequestException("이미 그룹 멤버입니다")
+        }
+
+        groupMemberRepository.save(groupId, requesterId)
+        groupRepository.incrementCountMember(groupId)
+
+        groupLogService.createLog(groupId, requesterId, "그룹에 참여했습니다.")
+
+        val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        val notificationContent =
+            "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에 참여했습니다."
+
+        notificationService.createNotification(
+            userId = requesterId,
+            category = NotificationCategory.GROUP,
+            title = "",
+            content = notificationContent,
+        )
+
+        val additionalRecipients =
+            if (group.category == GroupCategory.MANAGE) {
+                groupMemberRepository.findByGroupId(groupId).map { it.member }
+            } else {
+                listOf(group.master)
+            }
+        additionalRecipients.forEach { memberId ->
+            notificationService.createNotification(
+                userId = memberId,
+                category = NotificationCategory.GROUP,
+                title = "",
+                content = notificationContent,
+            )
+        }
+
+        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+            pointService.givePoint(
+                targetUserId = requesterId,
+                point = JOIN_POINT,
+                message = "<u>$escapedTitle</u> 그룹에 참여했습니다.",
+            )
+        }
+
+        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+    }
+
+    companion object {
+        private const val EXPOINT_EXCLUDED_GROUP_ID = 7549L
+        private const val JOIN_POINT = 10
     }
 }

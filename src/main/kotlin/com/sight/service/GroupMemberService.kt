@@ -217,12 +217,8 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.master != requesterId) {
+        if (group.category != GroupCategory.MANAGE && group.master != requesterId) {
             throw ForbiddenException("그룹장만 멤버를 내보낼 수 있습니다")
-        }
-
-        if (group.category == GroupCategory.MANAGE) {
-            throw BadRequestException("운영 카테고리 그룹에서는 멤버를 내보낼 수 없습니다")
         }
 
         if (kickedMemberId == requesterId) {

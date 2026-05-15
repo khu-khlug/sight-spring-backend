@@ -642,15 +642,19 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `kickMember는 운영 카테고리 그룹에서는 400을 던진다`() {
-        // given - master 통과 후 manage 차단
+    fun `kickMember는 운영 카테고리 그룹에서 그룹장이 아닌 회원도 멤버를 내보낼 수 있다`() {
+        // given - 운영 카테고리는 그룹장 권한 체크 건너뜀
         val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
+        val kickedMember = createMember(id = 5L)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+
+        // when - 그룹장(1L)이 아닌 99L이 요청
+        groupMemberService.kickMember(groupId = 100L, requesterId = 99L, kickedMemberId = 5L)
 
         // then
-        assertThrows<BadRequestException> {
-            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
-        }
+        verify(groupMemberRepository).delete(100L, 5L)
     }
 
     @Test

@@ -1,9 +1,13 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
+import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
+import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
@@ -34,6 +38,7 @@ data class GroupListResult(
 @Service
 class GroupService(
     private val groupRepository: GroupRepository,
+    private val groupBookmarkRepository: GroupBookmarkRepository,
 ) {
     @Transactional(readOnly = true)
     fun listGroups(
@@ -51,6 +56,30 @@ class GroupService(
             count = count,
             groups = groups.map { it.toGroupListItem() },
         )
+    }
+
+    @Transactional
+    fun addBookmark(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
+            throw BadRequestException("이미 즐겨찾기한 그룹입니다.")
+        }
+        groupBookmarkRepository.save(GroupBookmark(member = requesterId, group = groupId))
+    }
+
+    @Transactional
+    fun cancelBookmark(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (!groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
+            throw NotFoundException("이미 즐겨찾기 되어있지 않습니다.")
+        }
+        groupBookmarkRepository.deleteByMemberAndGroup(requesterId, groupId)
     }
 
     private fun GroupListDto.toGroupListItem(): GroupListItem =

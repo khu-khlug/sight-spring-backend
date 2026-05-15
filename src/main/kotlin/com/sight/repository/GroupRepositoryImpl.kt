@@ -75,7 +75,7 @@ class GroupRepositoryImpl(
             SELECT id, member, message, created_at
             FROM khlug_group_log
             WHERE `group` = ?
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT ? OFFSET ?
             """.trimIndent(),
             { rs, _ ->

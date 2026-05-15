@@ -35,5 +35,5 @@ data class Schedule(
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now(),
 ) {
-    fun getCategory(): ScheduleCategory? = ScheduleCategory.fromCode(categoryCode)
+    fun getCategory(): ScheduleCategoryOld? = ScheduleCategoryOld.fromCode(categoryCode)
 }

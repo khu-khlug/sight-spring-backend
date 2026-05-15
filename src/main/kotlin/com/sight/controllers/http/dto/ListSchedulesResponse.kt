@@ -1,7 +1,7 @@
 package com.sight.controllers.http.dto
 
 import com.sight.domain.schedule.Schedule
-import com.sight.domain.schedule.ScheduleCategory
+import com.sight.domain.schedule.ScheduleCategoryOld
 
 data class ListSchedulesResponse(
     val count: Int,
@@ -21,7 +21,7 @@ data class ScheduleDto(
     val id: String,
     val title: String,
     val startTime: String,
-    val category: ScheduleCategory?,
+    val category: ScheduleCategoryOld?,
 ) {
     companion object {
         fun from(schedule: Schedule): ScheduleDto {
@@ -29,7 +29,7 @@ data class ScheduleDto(
                 id = schedule.id.toString(),
                 title = schedule.title,
                 startTime = schedule.scheduledAt.toString(),
-                category = ScheduleCategory.fromCode(schedule.categoryCode),
+                category = ScheduleCategoryOld.fromCode(schedule.categoryCode),
             )
         }
     }

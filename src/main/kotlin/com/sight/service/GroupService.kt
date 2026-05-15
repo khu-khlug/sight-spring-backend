@@ -1,9 +1,14 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
+import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
+import com.sight.domain.notification.NotificationCategory
+import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
@@ -34,6 +39,9 @@ data class GroupListResult(
 @Service
 class GroupService(
     private val groupRepository: GroupRepository,
+    private val groupMemberRepository: GroupMemberRepository,
+    private val pointService: PointService,
+    private val notificationService: NotificationService,
 ) {
     @Transactional(readOnly = true)
     fun listGroups(
@@ -51,6 +59,54 @@ class GroupService(
             count = count,
             groups = groups.map { it.toGroupListItem() },
         )
+    }
+
+    @Transactional
+    fun publishPortfolio(
+        groupId: Long,
+        requesterId: Long,
+    ): Boolean {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (group.master != requesterId) throw ForbiddenException("그룹장만 포트폴리오를 발행할 수 있습니다.")
+        if (group.portfolio) throw BadRequestException("이미 발행된 포트폴리오입니다.")
+
+        groupRepository.save(group.copy(portfolio = true))
+
+        val members = groupMemberRepository.findByGroupId(groupId)
+        members.forEach { member ->
+            pointService.givePoint(member.member, 10, "포트폴리오 발행")
+            notificationService.createNotification(
+                userId = member.member,
+                category = NotificationCategory.GROUP,
+                title = "포트폴리오 발행",
+                content = "${group.title} 그룹의 포트폴리오가 발행되었습니다.",
+            )
+        }
+
+        return true
+    }
+
+    @Transactional
+    fun cancelPortfolio(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (group.master != requesterId) throw ForbiddenException("그룹장만 포트폴리오를 취소할 수 있습니다.")
+        if (!group.portfolio) throw NotFoundException("발행된 포트폴리오가 없습니다.")
+
+        groupRepository.save(group.copy(portfolio = false))
+
+        val members = groupMemberRepository.findByGroupId(groupId)
+        members.forEach { member ->
+            pointService.givePoint(member.member, -10, "포트폴리오 취소")
+            notificationService.createNotification(
+                userId = member.member,
+                category = NotificationCategory.GROUP,
+                title = "포트폴리오 취소",
+                content = "${group.title} 그룹의 포트폴리오가 취소되었습니다.",
+            )
+        }
     }
 
     private fun GroupListDto.toGroupListItem(): GroupListItem =

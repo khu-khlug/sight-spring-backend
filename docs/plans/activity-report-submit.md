@@ -7,10 +7,10 @@
 - 보고서(`isPresentation=false`) 또는 세미나 발표(`isPresentation=true`) 중 하나 선택
 - 파일 제출 필수
 
-### 파일 검증 흐름 (`r2FileUploadId` + `reportFileR2Key`)
+### 파일 검증 흐름 (`fileUploadId` + `reportFileKey`)
 
-1. `r2_file_upload`에서 `id = r2FileUploadId` row 조회 — 없으면 400
-2. `r2Key != reportFileR2Key` — 400
+1. `file_upload`에서 `id = fileUploadId` row 조회 — 없으면 400
+2. `fileKey != reportFileKey` — 400
 3. `api_path != "/group/:groupId/activity-report/upload-link"` — 400
 4. `memberId != 요청자` — 400
 5. `isVerified == true` (이미 사용된 key) — 400
@@ -31,7 +31,7 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | ----------------------- | ----------------------------------------------------------- |
 | `group`                 | 그룹 존재 확인 + `master` 컬럼으로 그룹장 여부 확인         |
 | `big_seminar`+`schedule`| 현재로부터 가장 가까운 세미나 존재 여부 확인 (`schedule.endAt`) |
-| `r2_file_upload`        | 파일 검증 + `isVerified` UPDATE                             |
+| `file_upload`        | 파일 검증 + `isVerified` UPDATE                             |
 | `group_activity_report` | 활동보고 INSERT                                             |
 | `group_member`          | 전체 멤버 목록 조회 (ExPoint 일괄 처리 시 사용)             |
 | `members`               | `expoint` 직접 UPDATE                                       |
@@ -48,8 +48,8 @@ POST /group/:groupId/activity-report
 | 이름              | 타입    | 설명                                              |
 | ----------------- | ------- | ------------------------------------------------- |
 | `isPresentation`  | boolean | false=보고서, true=세미나 발표                    |
-| `reportFileR2Key`      | string  | R2 object key (파일 하나만, 여러 개면 압축)       |
-| `r2FileUploadId`  | id      | 업로드 링크 발급 시 받은 `r2_file_upload.id`      |
+| `reportFileKey`      | string  | R2 object key (파일 하나만, 여러 개면 압축)       |
+| `fileUploadId`  | id      | 업로드 링크 발급 시 받은 `file_upload.id`      |
 
 #### 응답
 
@@ -63,7 +63,7 @@ POST /group/:groupId/activity-report
 | `groupId`        | bigint    | 제출한 그룹                       |
 | `seminarId`      | id        | 해당하는 세미나                   |
 | `isPresentation` | boolean   | 발표 여부                         |
-| `reportFileR2Key`     | string    | R2 파일 key                       |
+| `reportFileKey`     | string    | R2 파일 key                       |
 | `created_at`     | timestamp | 생성 일자                         |
 | `updated_at`     | timestamp | 변경 일자                         |
 
@@ -72,13 +72,13 @@ POST /group/:groupId/activity-report
 1. 그룹장이 접수 중인 세미나가 있을 때 보고서 제출 → `group_activity_report` INSERT, 201 반환
 2. 그룹장이 접수 중인 세미나가 있을 때 세미나 발표 자료 제출 → `isPresentation=true`로 INSERT, 201 반환
 3. 접수 중인 세미나(`schedule.endAt`이 현재보다 나중)가 없을 때 요청 → 400
-4. 요청 바디에 `reportFileR2Key` 또는 `r2FileUploadId` 없음 → 400
+4. 요청 바디에 `reportFileKey` 또는 `fileUploadId` 없음 → 400
 5. 그룹원(비그룹장) 요청 → 403
 6. 존재하지 않는 `groupId` 요청 → 404
 
 - 파일 검증 관련
-  1. `r2FileUploadId`에 해당하는 row 없음 → 400
-  2. `r2FileUploadId`와 `reportFileR2Key`(key) 불일치 → 400
+  1. `fileUploadId`에 해당하는 row 없음 → 400
+  2. `fileUploadId`와 `reportFileKey`(key) 불일치 → 400
   3. `api_path` 불일치 (다른 용도로 발급된 key) → 400
   4. `memberId` 불일치 (다른 사람이 발급받은 key) → 400
   5. `isVerified == true` (이미 사용된 key) → 400

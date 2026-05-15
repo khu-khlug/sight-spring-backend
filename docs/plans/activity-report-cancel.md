@@ -20,7 +20,7 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | `group`                 | 그룹 존재 확인 + `master` 컬럼으로 그룹장 여부 확인 |
 | `group_activity_report` | 활동보고 DELETE                                     |
 | `big_seminar`+`schedule`| 접수 기간 내 여부 확인 (`schedule.endAt`)           |
-| `r2_file_upload`        | 해당 파일 row DELETE                                |
+| `file_upload`        | 해당 파일 row DELETE                                |
 | `group_member`          | 전체 멤버 목록 조회 (ExPoint 일괄 처리 시 사용)     |
 | `members`               | `expoint` 직접 UPDATE                               |
 | `expoint_log`           | ExPoint 변동 이력 INSERT                            |
@@ -45,8 +45,8 @@ DELETE /group/:groupId/activity-report/:reportId
 4. 그룹장이 삭제 요청 → 204
 5. 운영진이 삭제 요청 → 204
 6. 삭제 성공 시
-   - `group_activity_report.reportFileR2Key`로 R2 파일 삭제
-   - `r2_file_upload` row DELETE
+   - `group_activity_report.reportFileKey`로 R2 파일 삭제
+   - `file_upload` row DELETE
    - `group_activity_report` row DELETE
    - 그룹원 전원 경험치 -50
    - 그룹 멤버 전체 + 운영진에게 알림 발송

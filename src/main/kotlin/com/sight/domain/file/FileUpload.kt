@@ -9,14 +9,14 @@ import org.hibernate.annotations.CreationTimestamp
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "r2_file_upload")
-data class R2FileUpload(
+@Table(name = "file_upload")
+data class FileUpload(
     @Id
     @Column(name = "id", nullable = false, length = 100)
     val id: String,
 
-    @Column(name = "r2_key", nullable = false, length = 255)
-    val r2Key: String,
+    @Column(name = "file_key", nullable = false, length = 255)
+    val fileKey: String,
 
     @Column(name = "member_id", nullable = false)
     val memberId: Long,

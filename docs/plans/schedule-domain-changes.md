@@ -6,7 +6,7 @@
 |------|---------|---------|
 | `categoryCode: Long` | 숫자 코드 저장 | `category: ScheduleCategory` + `@Enumerated(EnumType.STRING)` |
 | `getCategory()` | `fromCode(categoryCode)` 헬퍼 메서드 | 제거 (직접 `category` 사용) |
-| `location` | 없음 | `String?` 추가 |
+| `location` | 없음 | `String?` 추가, `khlug_406`, `khlug_405`, `khlug_410`은 각 동방용으로 예약됨 |
 | `expoint` | 없음 | `Int` 추가 (기본값 0) |
 | `endAt` | 없음 | `LocalDateTime` 추가 |
 | `checkCode` | 없음 | `String?` 추가 |
@@ -58,5 +58,5 @@ OTHER("기타")
 ### 주의사항
 
 - DB 마이그레이션 필요: `category` 컬럼을 숫자 코드에서 문자열 enum 값으로 변환
-  - `7742` → `"동아리"`, `7743` → `"학사"`, `7744` → `"외부"`
-  - `32529`, `32530`, `32531` (ROOM_*) → 데이터 마이그레이션 전략 필요 (삭제 or `"기타"` 처리)
+  - `7742` → `"CLUB"`, `7743` → `"ACADEMIC"`, `7744` → `"EXTERNAL"`
+  - `32529`, `32530`, `32531` (ROOM_*) → 데이터 마이그레이션 전략 필요 (삭제 or `category=GROUP_ACTIVITY`+`location=khlug_*`로 처리)

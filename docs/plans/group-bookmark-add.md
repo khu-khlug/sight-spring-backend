@@ -2,7 +2,7 @@
 
 ### 비즈니스 규칙
 
-- 본인의 북마크만 추가 가능
+- 본인의 북마크만 추가 가능 (userId는 인증 토큰에서 추출)
 - ExPoint 변동 없음
 - 추가 시 본인에게 알림
 
@@ -16,7 +16,7 @@
 ### API
 
 ```
-POST /users/:userId/bookmark/:groupId
+POST /groups/:groupId/bookmark
 ```
 
 #### 응답
@@ -32,5 +32,5 @@ POST /users/:userId/bookmark/:groupId
 1. 즐겨찾기 안 된 그룹에 요청 → `group_bookmark` row INSERT, 201 반환
 2. 이미 즐겨찾기 된 그룹에 요청 → 400 반환
 3. 존재하지 않는 그룹 ID 요청 → 404 반환
-4. 다른 회원의 북마크에 추가 요청 → 403 반환
+4. 미인증 요청 → 401 반환
 5. 추가 성공 시 → 본인에게 알림 발송

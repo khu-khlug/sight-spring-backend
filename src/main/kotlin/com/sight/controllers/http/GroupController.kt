@@ -17,6 +17,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -121,6 +122,26 @@ class GroupController(
                 answerId = request.groupMatchingParams!!.answerId,
             )
         }
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.addBookmark(groupId, requester.userId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.cancelBookmark(groupId, requester.userId)
     }
 
     @Auth([UserRole.MANAGER])

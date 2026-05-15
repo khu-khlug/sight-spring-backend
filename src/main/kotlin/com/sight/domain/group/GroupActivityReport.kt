@@ -21,8 +21,8 @@ data class GroupActivityReport(
     @Column(name = "seminar_id", nullable = false, length = 100)
     val seminarId: String,
 
-    @Column(name = "report_file_r2_key", nullable = false, length = 255)
-    val reportFileR2Key: String,
+    @Column(name = "report_file_key", nullable = false, length = 255)
+    val reportFileKey: String,
 
     @Column(name = "is_presentation", nullable = false, columnDefinition = "TINYINT")
     val isPresentation: Boolean,

@@ -7,6 +7,7 @@ import com.sight.controllers.http.dto.CreateGroupResponse
 import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
+import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -17,6 +18,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -121,6 +123,26 @@ class GroupController(
                 answerId = request.groupMatchingParams!!.answerId,
             )
         }
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/portfolio")
+    fun publishPortfolio(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ): PublishPortfolioResponse {
+        val published = groupService.publishPortfolio(groupId, requester.userId)
+        return PublishPortfolioResponse(published = published)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/groups/{groupId}/portfolio")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelPortfolio(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.cancelPortfolio(groupId, requester.userId)
     }
 
     @Auth([UserRole.MANAGER])

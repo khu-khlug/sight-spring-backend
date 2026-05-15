@@ -37,11 +37,11 @@ POST /group/:groupId/activity-report/upload-link
 | 이름             | 타입   | 설명                              |
 | ---------------- | ------ | --------------------------------- |
 | `url`            | string | R2 Presigned URL (만료 시간 있음) |
-| `key`            | string | R2 object key                     |
+| `fileKey`            | string | R2 object key                     |
 | `r2FileUploadId` | id     | `r2_file_upload.id`               |
 
 #### 테스트 케이스
 
-1. 그룹장이 요청 → presigned URL + key + r2FileUploadId 반환, `r2_file_upload`에 `{ key, memberId, api, isVerified=false }` INSERT, 200
+1. 그룹장이 요청 → presigned URL + fileKey + r2FileUploadId 반환, `r2_file_upload`에 `{ key, memberId, api, isVerified=false }` INSERT, 200
 2. 그룹원(비그룹장) 요청 → 403
 3. 존재하지 않는 `groupId` 요청 → 404

@@ -9,7 +9,7 @@
 ### 파일 검증 흐름 (`fileUploadId` 변경 시)
 
 1. `file_upload`에서 `id = fileUploadId` row 조회 — 없으면 400
-2. `api_path != "/group/:groupId/activity-report/upload-link"` — 400
+2. `api_path != "/groups/:groupId/activity-report/upload-link"` — 400
 3. `memberId != 요청자` — 400
 4. `isVerified == true` (이미 사용된 key) — 400
 5. R2에 해당 key 파일 미존재 — row 삭제 후 400 (파일이 없으면 row도 유효하지 않음)
@@ -27,7 +27,7 @@
 ### API
 
 ```
-PATCH /group/:groupId/activity-report/:reportId
+PATCH /groups/:groupId/activity-report/:reportId
 ```
 
 #### 요청 바디

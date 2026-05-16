@@ -25,7 +25,7 @@
 ### API
 
 ```
-POST /group/:groupId/activity-report/upload-link
+POST /groups/:groupId/activity-report/upload-link
 ```
 
 #### 응답

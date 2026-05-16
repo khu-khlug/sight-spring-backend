@@ -28,7 +28,7 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 ### API
 
 ```
-DELETE /group/:groupId/activity-report/:reportId
+DELETE /groups/:groupId/activity-report/:reportId
 ```
 
 #### 응답

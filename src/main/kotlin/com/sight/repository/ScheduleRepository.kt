@@ -10,6 +10,8 @@ import java.time.LocalDateTime
 
 @Repository
 interface ScheduleRepository : JpaRepository<Schedule, Long> {
+    fun findByEndAtAfter(endAt: LocalDateTime): List<Schedule>
+
     @Query("SELECT s FROM Schedule s WHERE s.scheduledAt >= :from AND s.state = 'public' ORDER BY s.scheduledAt ASC")
     fun findUpcoming(
         @Param("from") from: LocalDateTime,

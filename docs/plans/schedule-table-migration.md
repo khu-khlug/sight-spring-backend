@@ -11,5 +11,5 @@ Schedule 도메인 변경(category enum 전환, location/expoint/endAt/checkCode
      - `7742` → `'CLUB'`
      - `7743` → `'ACADEMIC'`
      - `7744` → `'EXTERNAL'`
-     - `32529`, `32530`, `32531` (ROOM_*) → 별도 전략 필요
+     - `32529`, `32530`, `32531` (ROOM_*) →  `GROUP_ACTIVITY`+`location='khlug_*'`
 2. 마이그레이션 완료 및 검증 후 `khlug_schedule` 테이블 DROP

@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.domain.schedule.Schedule
+import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
 import com.sight.repository.ScheduleRepository
 import org.junit.jupiter.api.BeforeEach
@@ -31,19 +32,21 @@ class ScheduleServiceTest {
             listOf(
                 Schedule(
                     id = 1L,
-                    categoryCode = 7742L,
+                    category = ScheduleCategory.CLUB,
                     title = "동아리 정기 모임",
                     author = 1L,
                     state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 2, 14, 0),
+                    endAt = LocalDateTime.of(2024, 1, 2, 16, 0),
                 ),
                 Schedule(
                     id = 2L,
-                    categoryCode = 32529L,
-                    title = "405호 스터디",
+                    category = ScheduleCategory.SEMINAR,
+                    title = "세미나",
                     author = 2L,
                     state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 3, 18, 0),
+                    endAt = LocalDateTime.of(2024, 1, 3, 20, 0),
                 ),
             )
         whenever(scheduleRepository.findUpcoming(any(), any())).thenReturn(schedules)
@@ -54,7 +57,7 @@ class ScheduleServiceTest {
         // then
         assertEquals(2, result.size)
         assertEquals("동아리 정기 모임", result[0].title)
-        assertEquals("405호 스터디", result[1].title)
+        assertEquals("세미나", result[1].title)
         verify(scheduleRepository).findUpcoming(any(), any())
     }
 
@@ -82,19 +85,21 @@ class ScheduleServiceTest {
             listOf(
                 Schedule(
                     id = 1L,
-                    categoryCode = 7742L,
+                    category = ScheduleCategory.CLUB,
                     title = "일정1",
                     author = 1L,
                     state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 2, 14, 0),
+                    endAt = LocalDateTime.of(2024, 1, 2, 16, 0),
                 ),
                 Schedule(
                     id = 2L,
-                    categoryCode = 7743L,
+                    category = ScheduleCategory.ACADEMIC,
                     title = "일정2",
                     author = 1L,
                     state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.of(2024, 1, 3, 14, 0),
+                    endAt = LocalDateTime.of(2024, 1, 3, 16, 0),
                 ),
             )
         whenever(scheduleRepository.findUpcoming(any(), any())).thenReturn(schedules)

@@ -9,6 +9,7 @@ import com.sight.controllers.http.dto.SubmitActivityReportRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.service.ActivityReportResult
 import com.sight.service.GroupActivityReportService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -128,7 +129,7 @@ class GroupActivityReportController(
         )
     }
 
-    private fun com.sight.service.ActivityReportResult.toResponse(): ActivityReportResponse =
+    private fun ActivityReportResult.toResponse(): ActivityReportResponse =
         ActivityReportResponse(
             id = id,
             groupId = groupId,

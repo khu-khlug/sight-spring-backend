@@ -98,7 +98,10 @@ class GroupActivityReportService(
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (group.master != requesterId) throw ForbiddenException("그룹장만 활동보고를 제출할 수 있습니다.")
 
-        val seminar = findNextSeminar() ?: throw BadRequestException("접수 중인 세미나가 없습니다.")
+        val seminar = findNextSeminar() ?: throw BadRequestException("활동보고 기간이 아닙니다.")
+        if (groupActivityReportRepository.existsByGroupIdAndSeminarId(groupId, seminar.id)) {
+            throw BadRequestException("이미 활동보고를 제출했습니다.")
+        }
         val fileUpload = validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
 
         val report =
@@ -149,6 +152,7 @@ class GroupActivityReportService(
 
         val report =
             groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
+        if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
@@ -194,10 +198,11 @@ class GroupActivityReportService(
         isManager: Boolean,
     ) {
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (!isManager && group.master != requesterId) throw ForbiddenException("그룹장 또는 운영진만 활동보고를 취소할 수 있습니다.")
+
         val report =
             groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
-
-        if (!isManager && group.master != requesterId) throw ForbiddenException("그룹장 또는 운영진만 활동보고를 취소할 수 있습니다.")
+        if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
@@ -234,10 +239,14 @@ class GroupActivityReportService(
         }
 
         val reports = groupActivityReportRepository.findByGroupId(groupId)
+
+        val seminars = bigSeminarRepository.findAllById(reports.map { it.seminarId }).associateBy { it.id }
+        val schedules = scheduleRepository.findAllById(seminars.values.map { it.scheduleId }).associateBy { it.id }
+
         val items =
             reports.map { report ->
-                val seminar = bigSeminarRepository.findById(report.seminarId).orElse(null)
-                val schedule = seminar?.let { scheduleRepository.findById(it.scheduleId).orElse(null) }
+                val seminar = seminars[report.seminarId]
+                val schedule = seminar?.let { schedules[it.scheduleId] }
 
                 ActivityReportListItem(
                     id = report.id,
@@ -257,9 +266,10 @@ class GroupActivityReportService(
 
     private fun findNextSeminar(): BigSeminar? {
         val now = LocalDateTime.now()
-        val upcomingScheduleIds = scheduleRepository.findByEndAtAfter(now).map { it.id }
-        if (upcomingScheduleIds.isEmpty()) return null
-        return bigSeminarRepository.findFirstByScheduleIdIn(upcomingScheduleIds)
+        val upcomingSchedules = scheduleRepository.findByEndAtAfterOrderByScheduledAtAsc(now)
+        return upcomingSchedules.firstNotNullOfOrNull { schedule ->
+            bigSeminarRepository.findByScheduleId(schedule.id)
+        }
     }
 
     private fun validateGroupActivitySubmitPeriod(seminarId: String) {

@@ -6,4 +6,9 @@ enum class GroupState(val value: String) {
     SUSPEND("suspend"), // 중단
     END_SUCCESS("end-success"), // 종료 (성공)
     END_FAIL("end-fail"), // 종료 (실패)
+    ;
+
+    companion object {
+        fun fromValue(value: String): GroupState? = entries.find { it.value == value }
+    }
 }

@@ -3,21 +3,7 @@ package com.sight.controllers.http.dto
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 
-data class ListSchedulesResponse(
-    val count: Int,
-    val schedules: List<ScheduleDto>,
-) {
-    companion object {
-        fun from(schedules: List<Schedule>): ListSchedulesResponse {
-            return ListSchedulesResponse(
-                count = schedules.size,
-                schedules = schedules.map { ScheduleDto.from(it) },
-            )
-        }
-    }
-}
-
-data class ScheduleDto(
+data class CreateScheduleResponse(
     val id: String,
     val title: String,
     val category: ScheduleCategory,
@@ -25,11 +11,13 @@ data class ScheduleDto(
     val startTime: String,
     val endTime: String,
     val expoint: Int,
+    val checkCode: String,
     val author: Long,
+    val createdAt: String,
 ) {
     companion object {
-        fun from(schedule: Schedule): ScheduleDto {
-            return ScheduleDto(
+        fun from(schedule: Schedule): CreateScheduleResponse {
+            return CreateScheduleResponse(
                 id = schedule.id.toString(),
                 title = schedule.title,
                 category = schedule.category,
@@ -37,7 +25,9 @@ data class ScheduleDto(
                 startTime = schedule.scheduledAt.toString(),
                 endTime = schedule.endAt.toString(),
                 expoint = schedule.expoint,
+                checkCode = schedule.checkCode!!,
                 author = schedule.author,
+                createdAt = schedule.createdAt.toString(),
             )
         }
     }

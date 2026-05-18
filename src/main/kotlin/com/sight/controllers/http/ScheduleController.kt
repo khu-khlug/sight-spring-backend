@@ -38,7 +38,7 @@ class ScheduleController(
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         from: LocalDateTime?,
-        @RequestParam(defaultValue = "5")
+        @RequestParam(defaultValue = "50")
         @Min(1)
         @Max(50)
         limit: Int,
@@ -47,7 +47,7 @@ class ScheduleController(
         val schedules =
             when (parsedStatus) {
                 ScheduleListStatus.IN_PROGRESS -> scheduleService.listInProgressSchedules(limit)
-                null -> scheduleService.listSchedules(from ?: LocalDateTime.now(), limit)
+                null -> scheduleService.listSchedules(from, limit)
             }
         return ListSchedulesResponse.from(schedules)
     }

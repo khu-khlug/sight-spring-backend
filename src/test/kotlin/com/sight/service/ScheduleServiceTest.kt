@@ -70,6 +70,15 @@ class ScheduleServiceTest {
     }
 
     @Test
+    fun `listSchedules는 from이 null이면 findAllActive를 호출한다`() {
+        whenever(scheduleRepository.findAllActive(any())).thenReturn(emptyList())
+
+        scheduleService.listSchedules(null, 50)
+
+        verify(scheduleRepository).findAllActive(any())
+    }
+
+    @Test
     fun `listSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
         // given
         val from = LocalDateTime.of(2024, 1, 1, 0, 0)

@@ -23,11 +23,15 @@ class ScheduleService(
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
-        from: LocalDateTime,
+        from: LocalDateTime?,
         limit: Int,
     ): List<Schedule> {
         val pageable = PageRequest.of(0, limit)
-        return scheduleRepository.findUpcoming(from, pageable)
+        return if (from != null) {
+            scheduleRepository.findUpcoming(from, pageable)
+        } else {
+            scheduleRepository.findAllActive(pageable)
+        }
     }
 
     @Transactional(readOnly = true)

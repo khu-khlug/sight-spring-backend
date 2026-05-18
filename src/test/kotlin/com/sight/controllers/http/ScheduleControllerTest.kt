@@ -6,6 +6,7 @@ import com.sight.domain.schedule.ScheduleState
 import com.sight.service.ScheduleService
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
@@ -42,7 +43,7 @@ class ScheduleControllerTest {
                 expoint = 10,
                 checkCode = "1234",
             )
-        given(scheduleService.listSchedules(any(), any())).willReturn(listOf(schedule))
+        given(scheduleService.listSchedules(anyOrNull(), any())).willReturn(listOf(schedule))
 
         mockMvc.perform(get("/schedules"))
             .andExpect(status().isOk)
@@ -70,7 +71,7 @@ class ScheduleControllerTest {
                 endAt = LocalDateTime.now().plusHours(1),
                 checkCode = "1234",
             )
-        given(scheduleService.listSchedules(any(), any())).willReturn(listOf(schedule))
+        given(scheduleService.listSchedules(anyOrNull(), any())).willReturn(listOf(schedule))
 
         mockMvc.perform(get("/schedules"))
             .andExpect(status().isOk)
@@ -79,7 +80,7 @@ class ScheduleControllerTest {
 
     @Test
     fun `인증 없이도 일정 목록을 조회할 수 있다`() {
-        given(scheduleService.listSchedules(any(), any())).willReturn(emptyList())
+        given(scheduleService.listSchedules(anyOrNull(), any())).willReturn(emptyList())
 
         mockMvc.perform(get("/schedules"))
             .andExpect(status().isOk)

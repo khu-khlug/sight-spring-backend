@@ -128,6 +128,7 @@ class ScheduleServiceTest {
                 scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
                 endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 10,
+                checkCode = null,
             )
 
         assertEquals(ScheduleCategory.CLUB, result.category)
@@ -135,6 +136,26 @@ class ScheduleServiceTest {
         assertEquals("khlug_406", result.location)
         assertNotNull(result.checkCode)
         verify(scheduleRepository).save(any<Schedule>())
+    }
+
+    @Test
+    fun `createSchedule은 checkCode가 명시되면 그 값을 그대로 저장한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
+
+        val result =
+            scheduleService.createSchedule(
+                requester = requester,
+                title = "test",
+                category = ScheduleCategory.CLUB,
+                location = null,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                expoint = 0,
+                checkCode = "9999",
+            )
+
+        assertEquals("9999", result.checkCode)
     }
 
     @Test
@@ -150,6 +171,7 @@ class ScheduleServiceTest {
                 scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
                 endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 0,
+                checkCode = null,
             )
         }
     }
@@ -167,6 +189,7 @@ class ScheduleServiceTest {
                 scheduledAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 endAt = LocalDateTime.of(2026, 5, 18, 14, 0),
                 expoint = 0,
+                checkCode = null,
             )
         }
     }

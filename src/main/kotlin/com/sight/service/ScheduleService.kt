@@ -51,6 +51,7 @@ class ScheduleService(
         scheduledAt: LocalDateTime,
         endAt: LocalDateTime,
         expoint: Int,
+        checkCode: String?,
     ): Schedule {
         if (requester.role == UserRole.USER && category != ScheduleCategory.GROUP_ACTIVITY) {
             throw ForbiddenException("USER는 그룹활동 카테고리만 생성 가능합니다.")
@@ -70,7 +71,7 @@ class ScheduleService(
                 endAt = endAt,
                 location = location,
                 expoint = expoint,
-                checkCode = generateCheckCode(),
+                checkCode = checkCode ?: generateCheckCode(),
             )
         return scheduleRepository.save(schedule)
     }

@@ -54,6 +54,7 @@ class ScheduleControllerTest {
             .andExpect(jsonPath("$.schedules[0].author").value(10))
             .andExpect(jsonPath("$.schedules[0].scheduledAt").exists())
             .andExpect(jsonPath("$.schedules[0].endAt").exists())
+            .andExpect(jsonPath("$.schedules[0].state").value("public"))
     }
 
     @Test

@@ -78,6 +78,7 @@ class ScheduleController(
                 scheduledAt = request.scheduledAt,
                 endAt = request.endAt,
                 expoint = request.expoint,
+                checkCode = request.checkCode,
             )
         return CreateScheduleResponse.from(schedule)
     }

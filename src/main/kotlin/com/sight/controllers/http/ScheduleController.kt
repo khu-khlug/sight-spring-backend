@@ -1,10 +1,10 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.AttendanceFilter
 import com.sight.controllers.http.dto.CreateScheduleRequest
 import com.sight.controllers.http.dto.CreateScheduleResponse
 import com.sight.controllers.http.dto.GetScheduleResponse
 import com.sight.controllers.http.dto.ListSchedulesResponse
-import com.sight.controllers.http.dto.ScheduleListStatus
 import com.sight.controllers.http.dto.UpdateScheduleRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
@@ -34,7 +34,7 @@ class ScheduleController(
 ) {
     @GetMapping("/schedules")
     fun listSchedules(
-        @RequestParam(required = false) status: String?,
+        @RequestParam(required = false) attendance: String?,
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         from: LocalDateTime?,
@@ -43,10 +43,10 @@ class ScheduleController(
         @Max(50)
         limit: Int,
     ): ListSchedulesResponse {
-        val parsedStatus = status?.let { ScheduleListStatus.fromQueryParam(it) }
+        val parsedAttendance = attendance?.let { AttendanceFilter.fromQueryParam(it) }
         val schedules =
-            when (parsedStatus) {
-                ScheduleListStatus.IN_PROGRESS -> scheduleService.listInProgressSchedules(limit)
+            when (parsedAttendance) {
+                AttendanceFilter.ACTIVE -> scheduleService.listAttendanceActiveSchedules(limit)
                 null -> scheduleService.listSchedules(from, limit)
             }
         return ListSchedulesResponse.from(schedules)

@@ -35,9 +35,9 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
-    fun listInProgressSchedules(limit: Int): List<Schedule> {
+    fun listAttendanceActiveSchedules(limit: Int): List<Schedule> {
         val pageable = PageRequest.of(0, limit)
-        return scheduleRepository.findInProgress(LocalDateTime.now(), pageable)
+        return scheduleRepository.findAttendanceActive(LocalDateTime.now(), pageable)
     }
 
     @Transactional(readOnly = true)
@@ -75,7 +75,7 @@ class ScheduleService(
                 endAt = endAt,
                 location = location,
                 expoint = expoint,
-                checkCode = checkCode ?: generateCheckCode(),
+                checkCode = checkCode,
             )
         return scheduleRepository.save(schedule)
     }
@@ -167,10 +167,6 @@ class ScheduleService(
         val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60
         val randomPart = Random.nextLong(0L, 1000L)
         return minimumId + timePart * 1000 + randomPart
-    }
-
-    private fun generateCheckCode(): String {
-        return "%04d".format(Random.nextInt(0, 10000))
     }
 
     companion object {

@@ -19,7 +19,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ScheduleServiceTest {
@@ -124,7 +124,7 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `createSchedule은 정상 등록한다`() {
+    fun `createSchedule은 checkCode가 null이면 null 상태로 저장한다`() {
         val requester = Requester(userId = 1L, role = UserRole.MANAGER)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
 
@@ -143,7 +143,7 @@ class ScheduleServiceTest {
         assertEquals(ScheduleCategory.CLUB, result.category)
         assertEquals(1L, result.author)
         assertEquals("khlug_406", result.location)
-        assertNotNull(result.checkCode)
+        assertNull(result.checkCode)
         verify(scheduleRepository).save(any<Schedule>())
     }
 
@@ -388,36 +388,37 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `listInProgressSchedules는 진행 중인 일정 목록을 반환한다`() {
+    fun `listAttendanceActiveSchedules는 출석 활성 일정 목록을 반환한다`() {
         // given
         val schedules =
             listOf(
                 Schedule(
                     id = 1L,
                     category = ScheduleCategory.CLUB,
-                    title = "진행 중",
+                    title = "출석 활성",
                     author = 1L,
                     state = ScheduleState.PUBLIC,
                     scheduledAt = LocalDateTime.now().minusHours(1),
                     endAt = LocalDateTime.now().plusHours(1),
+                    checkCode = "1234",
                 ),
             )
-        whenever(scheduleRepository.findInProgress(any(), any())).thenReturn(schedules)
+        whenever(scheduleRepository.findAttendanceActive(any(), any())).thenReturn(schedules)
 
         // when
-        val result = scheduleService.listInProgressSchedules(5)
+        val result = scheduleService.listAttendanceActiveSchedules(5)
 
         // then
         assertEquals(1, result.size)
-        assertEquals("진행 중", result[0].title)
-        verify(scheduleRepository).findInProgress(any(), any())
+        assertEquals("출석 활성", result[0].title)
+        verify(scheduleRepository).findAttendanceActive(any(), any())
     }
 
     @Test
-    fun `listInProgressSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
-        whenever(scheduleRepository.findInProgress(any(), any())).thenReturn(emptyList())
+    fun `listAttendanceActiveSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
+        whenever(scheduleRepository.findAttendanceActive(any(), any())).thenReturn(emptyList())
 
-        val result = scheduleService.listInProgressSchedules(5)
+        val result = scheduleService.listAttendanceActiveSchedules(5)
 
         assertTrue(result.isEmpty())
     }

@@ -87,43 +87,44 @@ class ScheduleControllerTest {
     }
 
     @Test
-    fun `status가 in-progress이면 진행 중인 일정 목록을 반환한다`() {
+    fun `attendance가 active이면 출석 활성 일정 목록을 반환한다`() {
         val schedule =
             Schedule(
                 id = 1L,
                 category = ScheduleCategory.CLUB,
-                title = "진행 중",
+                title = "출석 활성",
                 author = 10L,
                 state = ScheduleState.PUBLIC,
                 scheduledAt = LocalDateTime.now().minusHours(1),
                 endAt = LocalDateTime.now().plusHours(1),
+                checkCode = "1234",
             )
-        given(scheduleService.listInProgressSchedules(any())).willReturn(listOf(schedule))
+        given(scheduleService.listAttendanceActiveSchedules(any())).willReturn(listOf(schedule))
 
-        mockMvc.perform(get("/schedules").param("status", "in-progress"))
+        mockMvc.perform(get("/schedules").param("attendance", "active"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.count").value(1))
-            .andExpect(jsonPath("$.schedules[0].title").value("진행 중"))
+            .andExpect(jsonPath("$.schedules[0].title").value("출석 활성"))
 
-        verify(scheduleService).listInProgressSchedules(any())
+        verify(scheduleService).listAttendanceActiveSchedules(any())
     }
 
     @Test
-    fun `status가 in-progress이면 from 파라미터는 무시되고 listSchedules는 호출되지 않는다`() {
-        given(scheduleService.listInProgressSchedules(any())).willReturn(emptyList())
+    fun `attendance가 active이면 from 파라미터는 무시되고 listSchedules는 호출되지 않는다`() {
+        given(scheduleService.listAttendanceActiveSchedules(any())).willReturn(emptyList())
 
         mockMvc.perform(
             get("/schedules")
-                .param("status", "in-progress")
+                .param("attendance", "active")
                 .param("from", "2026-05-18T14:00:00"),
         ).andExpect(status().isOk)
 
-        verify(scheduleService).listInProgressSchedules(any())
+        verify(scheduleService).listAttendanceActiveSchedules(any())
     }
 
     @Test
-    fun `지원하지 않는 status 값은 400을 반환한다`() {
-        mockMvc.perform(get("/schedules").param("status", "unknown"))
+    fun `지원하지 않는 attendance 값은 400을 반환한다`() {
+        mockMvc.perform(get("/schedules").param("attendance", "unknown"))
             .andExpect(status().isBadRequest)
 
         verifyNoInteractions(scheduleService)

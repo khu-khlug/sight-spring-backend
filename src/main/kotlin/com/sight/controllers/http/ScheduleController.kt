@@ -46,7 +46,7 @@ class ScheduleController(
         val parsedStatus = status?.let { ScheduleListStatus.fromQueryParam(it) }
         val schedules =
             when (parsedStatus) {
-                ScheduleListStatus.ACTIVE -> scheduleService.listInProgressSchedules(limit)
+                ScheduleListStatus.IN_PROGRESS -> scheduleService.listInProgressSchedules(limit)
                 null -> scheduleService.listSchedules(from ?: LocalDateTime.now(), limit)
             }
         return ListSchedulesResponse.from(schedules)
@@ -75,8 +75,8 @@ class ScheduleController(
                 title = request.title,
                 category = request.category,
                 location = request.location,
-                startTime = request.startTime,
-                endTime = request.endTime,
+                scheduledAt = request.scheduledAt,
+                endAt = request.endAt,
                 expoint = request.expoint,
             )
         return CreateScheduleResponse.from(schedule)
@@ -96,8 +96,8 @@ class ScheduleController(
                 title = request.title,
                 category = request.category,
                 location = request.location,
-                startTime = request.startTime,
-                endTime = request.endTime,
+                scheduledAt = request.scheduledAt,
+                endAt = request.endAt,
                 expoint = request.expoint,
             )
         return GetScheduleResponse.from(schedule, requester.role)

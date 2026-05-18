@@ -48,14 +48,14 @@ class ScheduleService(
         title: String,
         category: ScheduleCategory,
         location: String?,
-        startTime: LocalDateTime,
-        endTime: LocalDateTime,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
         expoint: Int,
     ): Schedule {
         if (requester.role == UserRole.USER && category != ScheduleCategory.GROUP_ACTIVITY) {
             throw ForbiddenException("USER는 그룹활동 카테고리만 생성 가능합니다.")
         }
-        if (!endTime.isAfter(startTime)) {
+        if (!endAt.isAfter(scheduledAt)) {
             throw BadRequestException("종료 시각은 시작 시각 이후여야 합니다.")
         }
 
@@ -66,8 +66,8 @@ class ScheduleService(
                 title = title,
                 author = requester.userId,
                 state = ScheduleState.PUBLIC,
-                scheduledAt = startTime,
-                endAt = endTime,
+                scheduledAt = scheduledAt,
+                endAt = endAt,
                 location = location,
                 expoint = expoint,
                 checkCode = generateCheckCode(),
@@ -82,8 +82,8 @@ class ScheduleService(
         title: String,
         category: ScheduleCategory,
         location: String?,
-        startTime: LocalDateTime,
-        endTime: LocalDateTime,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
         expoint: Int,
     ): Schedule {
         val existing =
@@ -102,7 +102,7 @@ class ScheduleService(
             }
         }
 
-        if (!endTime.isAfter(startTime)) {
+        if (!endAt.isAfter(scheduledAt)) {
             throw BadRequestException("종료 시각은 시작 시각 이후여야 합니다.")
         }
 
@@ -111,8 +111,8 @@ class ScheduleService(
                 title = title,
                 category = category,
                 location = location,
-                scheduledAt = startTime,
-                endAt = endTime,
+                scheduledAt = scheduledAt,
+                endAt = endAt,
                 expoint = expoint,
                 updatedAt = LocalDateTime.now(),
             )

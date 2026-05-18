@@ -125,8 +125,8 @@ class ScheduleServiceTest {
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = "khlug_406",
-                startTime = LocalDateTime.of(2026, 5, 18, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 10,
             )
 
@@ -147,15 +147,15 @@ class ScheduleServiceTest {
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = null,
-                startTime = LocalDateTime.of(2026, 5, 18, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 0,
             )
         }
     }
 
     @Test
-    fun `createSchedule은 endTime이 startTime 이후가 아니면 BadRequestException 던진다`() {
+    fun `createSchedule은 endAt이 scheduledAt 이후가 아니면 BadRequestException 던진다`() {
         val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<BadRequestException> {
@@ -164,8 +164,8 @@ class ScheduleServiceTest {
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = null,
-                startTime = LocalDateTime.of(2026, 5, 18, 16, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 14, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 14, 0),
                 expoint = 0,
             )
         }
@@ -195,8 +195,8 @@ class ScheduleServiceTest {
                 title = "new",
                 category = ScheduleCategory.SEMINAR,
                 location = "khlug_406",
-                startTime = LocalDateTime.of(2026, 5, 20, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 20, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 20, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 20, 16, 0),
                 expoint = 5,
             )
 
@@ -217,8 +217,8 @@ class ScheduleServiceTest {
                 title = "x",
                 category = ScheduleCategory.CLUB,
                 location = null,
-                startTime = LocalDateTime.of(2026, 5, 18, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 0,
             )
         }
@@ -246,8 +246,8 @@ class ScheduleServiceTest {
                 title = "x",
                 category = ScheduleCategory.GROUP_ACTIVITY,
                 location = null,
-                startTime = LocalDateTime.of(2026, 5, 18, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 0,
             )
         }
@@ -275,8 +275,8 @@ class ScheduleServiceTest {
                 title = "x",
                 category = ScheduleCategory.CLUB,
                 location = null,
-                startTime = LocalDateTime.of(2026, 5, 18, 14, 0),
-                endTime = LocalDateTime.of(2026, 5, 18, 16, 0),
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
                 expoint = 0,
             )
         }

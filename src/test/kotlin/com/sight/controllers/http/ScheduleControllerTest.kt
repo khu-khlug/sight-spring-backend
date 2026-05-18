@@ -47,13 +47,13 @@ class ScheduleControllerTest {
         mockMvc.perform(get("/schedules"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.count").value(1))
-            .andExpect(jsonPath("$.schedules[0].id").value("1"))
+            .andExpect(jsonPath("$.schedules[0].id").value(1))
             .andExpect(jsonPath("$.schedules[0].title").value("동아리 정기 모임"))
             .andExpect(jsonPath("$.schedules[0].location").value("khlug_406"))
             .andExpect(jsonPath("$.schedules[0].expoint").value(10))
             .andExpect(jsonPath("$.schedules[0].author").value(10))
-            .andExpect(jsonPath("$.schedules[0].startTime").exists())
-            .andExpect(jsonPath("$.schedules[0].endTime").exists())
+            .andExpect(jsonPath("$.schedules[0].scheduledAt").exists())
+            .andExpect(jsonPath("$.schedules[0].endAt").exists())
     }
 
     @Test
@@ -85,7 +85,7 @@ class ScheduleControllerTest {
     }
 
     @Test
-    fun `status가 active이면 진행 중인 일정 목록을 반환한다`() {
+    fun `status가 in-progress이면 진행 중인 일정 목록을 반환한다`() {
         val schedule =
             Schedule(
                 id = 1L,
@@ -98,7 +98,7 @@ class ScheduleControllerTest {
             )
         given(scheduleService.listInProgressSchedules(any())).willReturn(listOf(schedule))
 
-        mockMvc.perform(get("/schedules").param("status", "active"))
+        mockMvc.perform(get("/schedules").param("status", "in-progress"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.count").value(1))
             .andExpect(jsonPath("$.schedules[0].title").value("진행 중"))
@@ -107,12 +107,12 @@ class ScheduleControllerTest {
     }
 
     @Test
-    fun `status가 active이면 from 파라미터는 무시되고 listSchedules는 호출되지 않는다`() {
+    fun `status가 in-progress이면 from 파라미터는 무시되고 listSchedules는 호출되지 않는다`() {
         given(scheduleService.listInProgressSchedules(any())).willReturn(emptyList())
 
         mockMvc.perform(
             get("/schedules")
-                .param("status", "active")
+                .param("status", "in-progress")
                 .param("from", "2026-05-18T14:00:00"),
         ).andExpect(status().isOk)
 

@@ -13,9 +13,9 @@ data class UpdateScheduleRequest(
     val category: ScheduleCategory,
     val location: String?,
     @field:NotNull
-    val startTime: LocalDateTime,
+    val scheduledAt: LocalDateTime,
     @field:NotNull
-    val endTime: LocalDateTime,
+    val endAt: LocalDateTime,
     @field:PositiveOrZero
     val expoint: Int,
 )

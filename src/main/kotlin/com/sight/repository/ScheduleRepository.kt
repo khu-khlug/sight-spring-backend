@@ -20,4 +20,14 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
     fun findActiveById(
         @Param("id") id: Long,
     ): Schedule?
+
+    @Query(
+        "SELECT s FROM Schedule s " +
+            "WHERE s.scheduledAt <= :now AND s.endAt > :now AND s.state = 'public' " +
+            "ORDER BY s.scheduledAt ASC",
+    )
+    fun findInProgress(
+        @Param("now") now: LocalDateTime,
+        pageable: Pageable,
+    ): List<Schedule>
 }

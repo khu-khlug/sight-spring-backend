@@ -4,6 +4,7 @@ import com.sight.controllers.http.dto.CreateScheduleRequest
 import com.sight.controllers.http.dto.CreateScheduleResponse
 import com.sight.controllers.http.dto.GetScheduleResponse
 import com.sight.controllers.http.dto.ListSchedulesResponse
+import com.sight.controllers.http.dto.ScheduleListStatus
 import com.sight.controllers.http.dto.UpdateScheduleRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
@@ -33,6 +34,7 @@ class ScheduleController(
 ) {
     @GetMapping("/schedules")
     fun listSchedules(
+        @RequestParam(required = false) status: String?,
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         from: LocalDateTime?,
@@ -41,8 +43,12 @@ class ScheduleController(
         @Max(50)
         limit: Int,
     ): ListSchedulesResponse {
-        val fromDateTime = from ?: LocalDateTime.now()
-        val schedules = scheduleService.listSchedules(fromDateTime, limit)
+        val parsedStatus = status?.let { ScheduleListStatus.fromQueryParam(it) }
+        val schedules =
+            when (parsedStatus) {
+                ScheduleListStatus.ACTIVE -> scheduleService.listInProgressSchedules(limit)
+                null -> scheduleService.listSchedules(from ?: LocalDateTime.now(), limit)
+            }
         return ListSchedulesResponse.from(schedules)
     }
 

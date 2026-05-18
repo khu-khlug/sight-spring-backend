@@ -7,6 +7,8 @@ import com.sight.service.ScheduleService
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -80,5 +82,48 @@ class ScheduleControllerTest {
 
         mockMvc.perform(get("/schedules"))
             .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `status가 active이면 진행 중인 일정 목록을 반환한다`() {
+        val schedule =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.CLUB,
+                title = "진행 중",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.now().minusHours(1),
+                endAt = LocalDateTime.now().plusHours(1),
+            )
+        given(scheduleService.listInProgressSchedules(any())).willReturn(listOf(schedule))
+
+        mockMvc.perform(get("/schedules").param("status", "active"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.schedules[0].title").value("진행 중"))
+
+        verify(scheduleService).listInProgressSchedules(any())
+    }
+
+    @Test
+    fun `status가 active이면 from 파라미터는 무시되고 listSchedules는 호출되지 않는다`() {
+        given(scheduleService.listInProgressSchedules(any())).willReturn(emptyList())
+
+        mockMvc.perform(
+            get("/schedules")
+                .param("status", "active")
+                .param("from", "2026-05-18T14:00:00"),
+        ).andExpect(status().isOk)
+
+        verify(scheduleService).listInProgressSchedules(any())
+    }
+
+    @Test
+    fun `지원하지 않는 status 값은 400을 반환한다`() {
+        mockMvc.perform(get("/schedules").param("status", "unknown"))
+            .andExpect(status().isBadRequest)
+
+        verifyNoInteractions(scheduleService)
     }
 }

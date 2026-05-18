@@ -356,6 +356,41 @@ class ScheduleServiceTest {
     }
 
     @Test
+    fun `listInProgressSchedules는 진행 중인 일정 목록을 반환한다`() {
+        // given
+        val schedules =
+            listOf(
+                Schedule(
+                    id = 1L,
+                    category = ScheduleCategory.CLUB,
+                    title = "진행 중",
+                    author = 1L,
+                    state = ScheduleState.PUBLIC,
+                    scheduledAt = LocalDateTime.now().minusHours(1),
+                    endAt = LocalDateTime.now().plusHours(1),
+                ),
+            )
+        whenever(scheduleRepository.findInProgress(any(), any())).thenReturn(schedules)
+
+        // when
+        val result = scheduleService.listInProgressSchedules(5)
+
+        // then
+        assertEquals(1, result.size)
+        assertEquals("진행 중", result[0].title)
+        verify(scheduleRepository).findInProgress(any(), any())
+    }
+
+    @Test
+    fun `listInProgressSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
+        whenever(scheduleRepository.findInProgress(any(), any())).thenReturn(emptyList())
+
+        val result = scheduleService.listInProgressSchedules(5)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
     fun `listSchedules는 limit 개수만큼 일정을 반환한다`() {
         // given
         val from = LocalDateTime.of(2024, 1, 1, 0, 0)

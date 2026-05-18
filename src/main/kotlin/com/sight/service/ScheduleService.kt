@@ -31,6 +31,12 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
+    fun listInProgressSchedules(limit: Int): List<Schedule> {
+        val pageable = PageRequest.of(0, limit)
+        return scheduleRepository.findInProgress(LocalDateTime.now(), pageable)
+    }
+
+    @Transactional(readOnly = true)
     fun getScheduleById(id: Long): Schedule {
         return scheduleRepository.findActiveById(id)
             ?: throw NotFoundException("존재하지 않는 일정입니다.")

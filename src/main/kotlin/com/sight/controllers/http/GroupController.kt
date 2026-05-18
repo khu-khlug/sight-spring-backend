@@ -38,6 +38,10 @@ class GroupController(
         @RequestParam(defaultValue = "10") @Min(1) @Max(100) limit: Int,
         @RequestParam(required = false) bookmarked: Boolean?,
         @RequestParam(required = false) joined: Boolean?,
+        @RequestParam(required = false) category: List<String>?,
+        @RequestParam(required = false) state: String?,
+        @RequestParam(required = false) interest: String?,
+        @RequestParam(required = false) keyword: String?,
         @RequestParam(required = false) orderBy: GroupOrderBy?,
         requester: Requester,
     ): ListGroupsResponse {
@@ -47,6 +51,10 @@ class GroupController(
                 limit = limit,
                 bookmarked = bookmarked,
                 joined = joined,
+                categories = category,
+                state = state,
+                interest = interest,
+                keyword = keyword,
                 orderBy = orderBy,
                 requesterId = requester.userId,
             )

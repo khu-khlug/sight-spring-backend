@@ -26,12 +26,27 @@ class GroupServiceTest {
         groupService = GroupService(groupRepository)
         given(
             groupRepository.findGroups(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
             ),
         ).willReturn(emptyList())
         given(
             groupRepository.countGroups(
-                any(), any(), any(), any(), any(), any(), any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
             ),
         ).willReturn(0L)
     }
@@ -54,13 +69,24 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(20), eq(50), eq(null), eq(null),
-            isNull(), isNull(), isNull(), isNull(),
-            eq(null), eq(1L),
+            eq(20),
+            eq(50),
+            eq(null),
+            eq(null),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
         verify(groupRepository).countGroups(
-            eq(null), eq(null),
-            isNull(), isNull(), isNull(), isNull(),
+            eq(null),
+            eq(null),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
             eq(1L),
         )
     }
@@ -83,13 +109,24 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(true),
-            isNull(), isNull(), isNull(), isNull(),
-            eq(null), eq(123L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(true),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(123L),
         )
         verify(groupRepository).countGroups(
-            eq(null), eq(true),
-            isNull(), isNull(), isNull(), isNull(),
+            eq(null),
+            eq(true),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
             eq(123L),
         )
     }
@@ -112,13 +149,24 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(6), eq(true), eq(null),
-            isNull(), isNull(), isNull(), isNull(),
-            eq(GroupOrderBy.CHANGED_AT), eq(123L),
+            eq(0),
+            eq(6),
+            eq(true),
+            eq(null),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(GroupOrderBy.CHANGED_AT),
+            eq(123L),
         )
         verify(groupRepository).countGroups(
-            eq(true), eq(null),
-            isNull(), isNull(), isNull(), isNull(),
+            eq(true),
+            eq(null),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
             eq(123L),
         )
     }
@@ -141,13 +189,24 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(true), eq(true),
-            isNull(), isNull(), isNull(), isNull(),
-            eq(GroupOrderBy.CHANGED_AT), eq(123L),
+            eq(0),
+            eq(10),
+            eq(true),
+            eq(true),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(GroupOrderBy.CHANGED_AT),
+            eq(123L),
         )
         verify(groupRepository).countGroups(
-            eq(true), eq(true),
-            isNull(), isNull(), isNull(), isNull(),
+            eq(true),
+            eq(true),
+            isNull(),
+            isNull(),
+            isNull(),
+            isNull(),
             eq(123L),
         )
     }
@@ -172,9 +231,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            eq(listOf(GroupCategory.STUDY)), isNull(), isNull(), isNull(),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            eq(listOf(GroupCategory.STUDY)),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -196,9 +262,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            eq(listOf(GroupCategory.STUDY, GroupCategory.PROJECT)), isNull(), isNull(), isNull(),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            eq(listOf(GroupCategory.STUDY, GroupCategory.PROJECT)),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -244,9 +317,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            isNull(), eq(GroupState.PROGRESS), isNull(), isNull(),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            isNull(),
+            eq(GroupState.PROGRESS),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -268,9 +348,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            isNull(), eq(GroupState.END_SUCCESS), isNull(), isNull(),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            isNull(),
+            eq(GroupState.END_SUCCESS),
+            isNull(),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -316,9 +403,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            isNull(), isNull(), eq("웹"), isNull(),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            isNull(),
+            isNull(),
+            eq("웹"),
+            isNull(),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -340,9 +434,16 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
-            isNull(), isNull(), isNull(), eq("Spring"),
-            eq(null), eq(1L),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
+            isNull(),
+            isNull(),
+            isNull(),
+            eq("Spring"),
+            eq(null),
+            eq(1L),
         )
     }
 
@@ -366,15 +467,20 @@ class GroupServiceTest {
 
         // then
         verify(groupRepository).findGroups(
-            eq(0), eq(10), eq(null), eq(null),
+            eq(0),
+            eq(10),
+            eq(null),
+            eq(null),
             eq(listOf(GroupCategory.STUDY, GroupCategory.PROJECT)),
             eq(GroupState.PROGRESS),
             eq("웹"),
             eq("Spring"),
-            eq(GroupOrderBy.CHANGED_AT), eq(1L),
+            eq(GroupOrderBy.CHANGED_AT),
+            eq(1L),
         )
         verify(groupRepository).countGroups(
-            eq(null), eq(null),
+            eq(null),
+            eq(null),
             eq(listOf(GroupCategory.STUDY, GroupCategory.PROJECT)),
             eq(GroupState.PROGRESS),
             eq("웹"),
@@ -388,7 +494,13 @@ class GroupServiceTest {
         // given
         given(
             groupRepository.countGroups(
-                eq(null), eq(null), eq(listOf(GroupCategory.STUDY)), eq(GroupState.PROGRESS), eq(null), eq(null), eq(1L)
+                eq(null),
+                eq(null),
+                eq(listOf(GroupCategory.STUDY)),
+                eq(GroupState.PROGRESS),
+                eq(null),
+                eq(null),
+                eq(1L),
             ),
         ).willReturn(42L)
 

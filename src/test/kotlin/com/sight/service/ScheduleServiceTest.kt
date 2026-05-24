@@ -400,37 +400,55 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `listAttendanceActiveSchedules는 출석 활성 일정 목록을 반환한다`() {
-        // given
-        val schedules =
-            listOf(
-                Schedule(
-                    id = 1L,
-                    category = ScheduleCategory.CLUB,
-                    title = "출석 활성",
-                    author = 1L,
-                    state = ScheduleState.PUBLIC,
-                    scheduledAt = LocalDateTime.now().minusHours(1),
-                    endAt = LocalDateTime.now().plusHours(1),
-                    checkCode = "1234",
-                ),
+    fun `listActiveSchedules는 checkCode가 있고 진행 중인 일정만 반환한다`() {
+        val now = LocalDateTime.now()
+        val activeSchedule =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.CLUB,
+                title = "출석 진행 중",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = now.minusHours(1),
+                endAt = now.plusHours(1),
+                checkCode = "1234",
             )
-        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(schedules)
+        val endedSchedule =
+            activeSchedule.copy(
+                id = 2L,
+                title = "종료된 일정",
+                scheduledAt = now.minusHours(3),
+                endAt = now.minusHours(1),
+                checkCode = "1234",
+            )
+        val futureSchedule =
+            activeSchedule.copy(
+                id = 3L,
+                title = "시작 전 일정",
+                scheduledAt = now.plusHours(1),
+                endAt = now.plusHours(2),
+                checkCode = "1234",
+            )
+        val noCheckCodeSchedule =
+            activeSchedule.copy(
+                id = 4L,
+                title = "코드 없는 일정",
+                checkCode = null,
+            )
+        given(scheduleRepository.findAttendanceActive(any(), any()))
+            .willReturn(listOf(activeSchedule, endedSchedule, futureSchedule, noCheckCodeSchedule))
 
-        // when
-        val result = scheduleService.listAttendanceActiveSchedules(5)
+        val result = scheduleService.listActiveSchedules()
 
-        // then
-        assertEquals(1, result.size)
-        assertEquals("출석 활성", result[0].title)
+        assertEquals(listOf(activeSchedule), result)
         verify(scheduleRepository).findAttendanceActive(any(), any())
     }
 
     @Test
-    fun `listAttendanceActiveSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
+    fun `listActiveSchedules는 출석 진행 중인 일정이 없으면 빈 목록을 반환한다`() {
         given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(emptyList())
 
-        val result = scheduleService.listAttendanceActiveSchedules(5)
+        val result = scheduleService.listActiveSchedules()
 
         assertTrue(result.isEmpty())
     }

@@ -44,9 +44,11 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
-    fun listAttendanceActiveSchedules(limit: Int): List<Schedule> {
-        val pageable = PageRequest.of(0, limit)
-        return scheduleRepository.findAttendanceActive(LocalDateTime.now(), pageable)
+    fun listActiveSchedules(): List<Schedule> {
+        val now = LocalDateTime.now()
+        val pageable = PageRequest.of(0, DEFAULT_ACTIVE_SCHEDULE_LIMIT)
+        return scheduleRepository.findAttendanceActive(now, pageable)
+            .filter { it.isAttendanceActive(now) }
     }
 
     @Transactional(readOnly = true)
@@ -276,8 +278,13 @@ class ScheduleService(
         return minimumId + timePart * 1000 + randomPart
     }
 
+    private fun Schedule.isAttendanceActive(now: LocalDateTime): Boolean {
+        return !scheduledAt.isAfter(now) && !endAt.isBefore(now) && checkCode != null
+    }
+
     companion object {
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        private const val DEFAULT_ACTIVE_SCHEDULE_LIMIT = 50
         private const val MAX_SCHEDULE_ID_RETRY = 3
     }
 }

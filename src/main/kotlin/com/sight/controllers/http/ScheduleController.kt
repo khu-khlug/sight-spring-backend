@@ -1,6 +1,5 @@
 package com.sight.controllers.http
 
-import com.sight.controllers.http.dto.AttendanceFilter
 import com.sight.controllers.http.dto.CreateScheduleRequest
 import com.sight.controllers.http.dto.CreateScheduleResponse
 import com.sight.controllers.http.dto.GetScheduleResponse
@@ -34,7 +33,6 @@ class ScheduleController(
 ) {
     @GetMapping("/schedules")
     fun listSchedules(
-        @RequestParam(required = false) attendance: String?,
         @RequestParam(required = false)
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         from: LocalDateTime?,
@@ -43,12 +41,7 @@ class ScheduleController(
         @Max(50)
         limit: Int,
     ): ListSchedulesResponse {
-        val parsedAttendance = attendance?.let { AttendanceFilter.fromQueryParam(it) }
-        val schedules =
-            when (parsedAttendance) {
-                AttendanceFilter.ACTIVE -> scheduleService.listAttendanceActiveSchedules(limit)
-                null -> scheduleService.listSchedules(from, limit)
-            }
+        val schedules = scheduleService.listSchedules(from, limit)
         return ListSchedulesResponse.from(schedules)
     }
 

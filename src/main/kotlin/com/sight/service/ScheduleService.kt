@@ -8,7 +8,10 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
+import com.sight.repository.ScheduleMemberApplyRepository
 import com.sight.repository.ScheduleRepository
+import com.sight.service.dto.ListScheduleAttendancesResult
+import com.sight.service.dto.ScheduleAttendanceItem
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,6 +23,7 @@ import kotlin.random.Random
 @Service
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
+    private val scheduleMemberApplyRepository: ScheduleMemberApplyRepository,
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
@@ -44,6 +48,24 @@ class ScheduleService(
     fun getScheduleById(id: Long): Schedule {
         return scheduleRepository.findActiveById(id)
             ?: throw NotFoundException("존재하지 않는 일정입니다.")
+    }
+
+    @Transactional(readOnly = true)
+    fun listScheduleAttendances(scheduleId: Long): ListScheduleAttendancesResult {
+        if (scheduleRepository.findActiveById(scheduleId) == null) {
+            throw NotFoundException("존재하지 않는 일정입니다.")
+        }
+
+        val attendances =
+            scheduleMemberApplyRepository.findByScheduleIdOrderByCreatedAtAsc(scheduleId).map { apply ->
+                ScheduleAttendanceItem(
+                    userId = apply.memberId,
+                    isChecked = apply.attendedAt != null,
+                    createdAt = apply.createdAt,
+                )
+            }
+
+        return ListScheduleAttendancesResult(attendances = attendances)
     }
 
     @Transactional

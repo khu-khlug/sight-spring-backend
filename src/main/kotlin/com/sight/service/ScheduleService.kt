@@ -124,6 +124,36 @@ class ScheduleService(
     }
 
     @Transactional
+    fun removeScheduleAttendance(
+        requester: Requester,
+        scheduleId: Long,
+        userId: Long,
+    ) {
+        if (requester.role != UserRole.MANAGER) {
+            throw ForbiddenException("권한이 부족합니다.")
+        }
+
+        val schedule =
+            scheduleRepository.findActiveById(scheduleId)
+                ?: throw NotFoundException("존재하지 않는 일정입니다.")
+        val attendance =
+            scheduleMemberApplyRepository.findByMemberIdAndScheduleId(
+                memberId = userId,
+                scheduleId = scheduleId,
+            ) ?: throw NotFoundException("출석 기록을 찾을 수 없습니다.")
+
+        scheduleMemberApplyRepository.delete(attendance)
+
+        if (schedule.expoint > 0) {
+            pointService.givePoint(
+                targetUserId = userId,
+                point = -schedule.expoint,
+                message = "${schedule.title} 출석 취소",
+            )
+        }
+    }
+
+    @Transactional
     fun createSchedule(
         requester: Requester,
         title: String,

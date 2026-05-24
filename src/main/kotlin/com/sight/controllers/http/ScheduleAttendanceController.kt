@@ -9,6 +9,7 @@ import com.sight.core.auth.UserRole
 import com.sight.service.ScheduleService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -44,5 +45,20 @@ class ScheduleAttendanceController(
                 code = request.code,
             )
         return CreateScheduleAttendanceResponse.from(result)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/schedules/{scheduleId}/attendances/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeScheduleAttendance(
+        requester: Requester,
+        @PathVariable scheduleId: Long,
+        @PathVariable userId: Long,
+    ) {
+        scheduleService.removeScheduleAttendance(
+            requester = requester,
+            scheduleId = scheduleId,
+            userId = userId,
+        )
     }
 }

@@ -4,9 +4,11 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
+import com.sight.domain.schedule.ScheduleMemberApply
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
+import com.sight.repository.ScheduleMemberApplyRepository
 import com.sight.repository.ScheduleRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -14,16 +16,19 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ScheduleServiceTest {
     private val scheduleRepository: ScheduleRepository = mock()
     private val bigSeminarRepository: BigSeminarRepository = mock()
+    private val scheduleMemberApplyRepository: ScheduleMemberApplyRepository = mock()
     private lateinit var scheduleService: ScheduleService
 
     @BeforeEach
@@ -32,6 +37,7 @@ class ScheduleServiceTest {
             ScheduleService(
                 scheduleRepository = scheduleRepository,
                 bigSeminarRepository = bigSeminarRepository,
+                scheduleMemberApplyRepository = scheduleMemberApplyRepository,
             )
     }
 
@@ -81,6 +87,7 @@ class ScheduleServiceTest {
     @Test
     fun `listSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
         val from = LocalDateTime.of(2024, 1, 1, 0, 0)
+        val limit = 5
         given(scheduleRepository.findUpcoming(any(), any())).willReturn(emptyList())
 
         val result = scheduleService.listSchedules(from, 5)
@@ -370,5 +377,200 @@ class ScheduleServiceTest {
             endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
             checkCode = checkCode,
         )
+    @Test
+    fun `deleteSchedule은 USER가 타인 작성 일정을 삭제 시도 시 ForbiddenException 던진다`() {
+        val existing =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.GROUP_ACTIVITY,
+                title = "x",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+            )
+        given(scheduleRepository.findActiveById(1L)).willReturn(existing)
+        val requester = Requester(userId = 99L, role = UserRole.USER)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.deleteSchedule(requester, 1L)
+        }
+    }
+
+    @Test
+    fun `deleteSchedule은 USER가 본인 작성 비그룹활동 일정을 삭제 시도 시 ForbiddenException 던진다`() {
+        val existing =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.CLUB,
+                title = "x",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+            )
+        given(scheduleRepository.findActiveById(1L)).willReturn(existing)
+        val requester = Requester(userId = 10L, role = UserRole.USER)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.deleteSchedule(requester, 1L)
+        }
+    }
+
+    @Test
+    fun `listAttendanceActiveSchedules는 출석 활성 일정 목록을 반환한다`() {
+        // given
+        val schedules =
+            listOf(
+                Schedule(
+                    id = 1L,
+                    category = ScheduleCategory.CLUB,
+                    title = "출석 활성",
+                    author = 1L,
+                    state = ScheduleState.PUBLIC,
+                    scheduledAt = LocalDateTime.now().minusHours(1),
+                    endAt = LocalDateTime.now().plusHours(1),
+                    checkCode = "1234",
+                ),
+            )
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(schedules)
+
+        // when
+        val result = scheduleService.listAttendanceActiveSchedules(5)
+
+        // then
+        assertEquals(1, result.size)
+        assertEquals("출석 활성", result[0].title)
+        verify(scheduleRepository).findAttendanceActive(any(), any())
+    }
+
+    @Test
+    fun `listAttendanceActiveSchedules는 일정이 없을 때 빈 목록을 반환한다`() {
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(emptyList())
+
+        val result = scheduleService.listAttendanceActiveSchedules(5)
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `listSchedules는 limit 개수만큼 일정을 반환한다`() {
+        // given
+        val from = LocalDateTime.of(2024, 1, 1, 0, 0)
+        val limit = 2
+        val schedules =
+            listOf(
+                Schedule(
+                    id = 1L,
+                    category = ScheduleCategory.CLUB,
+                    title = "일정1",
+                    author = 1L,
+                    state = ScheduleState.PUBLIC,
+                    scheduledAt = LocalDateTime.of(2024, 1, 2, 14, 0),
+                    endAt = LocalDateTime.of(2024, 1, 2, 16, 0),
+                ),
+                Schedule(
+                    id = 2L,
+                    category = ScheduleCategory.ACADEMIC,
+                    title = "일정2",
+                    author = 1L,
+                    state = ScheduleState.PUBLIC,
+                    scheduledAt = LocalDateTime.of(2024, 1, 3, 14, 0),
+                    endAt = LocalDateTime.of(2024, 1, 3, 16, 0),
+                ),
+            )
+        given(scheduleRepository.findUpcoming(any(), any())).willReturn(schedules)
+
+        // when
+        val result = scheduleService.listSchedules(from, limit)
+
+        // then
+        assertEquals(2, result.size)
+    }
+
+    @Test
+    fun `listScheduleAttendances는 일정의 출석자 목록을 반환한다`() {
+        val scheduleId = 100L
+        val schedule =
+            Schedule(
+                id = scheduleId,
+                category = ScheduleCategory.CLUB,
+                title = "테스트 일정",
+                author = 1L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 15, 10, 0),
+                endAt = LocalDateTime.of(2026, 5, 15, 18, 0),
+            )
+        val createdAt = LocalDateTime.of(2026, 5, 15, 10, 0)
+        val applies =
+            listOf(
+                ScheduleMemberApply(
+                    memberId = 1L,
+                    scheduleId = scheduleId,
+                    attendedAt = LocalDateTime.of(2026, 5, 15, 14, 0),
+                    createdAt = createdAt,
+                ),
+                ScheduleMemberApply(
+                    memberId = 2L,
+                    scheduleId = scheduleId,
+                    attendedAt = null,
+                    createdAt = createdAt.plusHours(1),
+                ),
+            )
+
+        given(scheduleRepository.findActiveById(scheduleId)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByScheduleIdOrderByCreatedAtAsc(scheduleId)).willReturn(applies)
+
+        val result = scheduleService.listScheduleAttendances(scheduleId)
+
+        assertEquals(2, result.count)
+        assertEquals(2, result.attendances.size)
+        assertEquals(1L, result.attendances[0].userId)
+        assertTrue(result.attendances[0].isChecked)
+        assertEquals(createdAt, result.attendances[0].createdAt)
+        assertEquals(2L, result.attendances[1].userId)
+        assertFalse(result.attendances[1].isChecked)
+        verify(scheduleRepository).findActiveById(scheduleId)
+        verify(scheduleMemberApplyRepository).findByScheduleIdOrderByCreatedAtAsc(scheduleId)
+    }
+
+    @Test
+    fun `listScheduleAttendances는 출석자가 없으면 빈 목록을 반환한다`() {
+        val scheduleId = 100L
+        val schedule =
+            Schedule(
+                id = scheduleId,
+                category = ScheduleCategory.CLUB,
+                title = "테스트 일정",
+                author = 1L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 15, 10, 0),
+                endAt = LocalDateTime.of(2026, 5, 15, 18, 0),
+            )
+
+        given(scheduleRepository.findActiveById(scheduleId)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByScheduleIdOrderByCreatedAtAsc(scheduleId))
+            .willReturn(emptyList())
+
+        val result = scheduleService.listScheduleAttendances(scheduleId)
+
+        assertEquals(0, result.count)
+        assertTrue(result.attendances.isEmpty())
+        verify(scheduleRepository).findActiveById(scheduleId)
+        verify(scheduleMemberApplyRepository).findByScheduleIdOrderByCreatedAtAsc(scheduleId)
+    }
+
+    @Test
+    fun `listScheduleAttendances는 존재하지 않는 일정이면 NotFoundException을 발생시킨다`() {
+        val scheduleId = 999L
+
+        given(scheduleRepository.findActiveById(scheduleId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            scheduleService.listScheduleAttendances(scheduleId)
+        }
+
+        verify(scheduleRepository).findActiveById(scheduleId)
+        verify(scheduleMemberApplyRepository, never()).findByScheduleIdOrderByCreatedAtAsc(any())
     }
 }

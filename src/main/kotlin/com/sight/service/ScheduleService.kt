@@ -1,14 +1,19 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ConflictException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
+import com.sight.domain.schedule.ScheduleMemberApply
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
 import com.sight.repository.ScheduleMemberApplyRepository
 import com.sight.repository.ScheduleRepository
+import com.sight.service.dto.CheckScheduleAttendanceResult
 import com.sight.service.dto.ListScheduleAttendancesResult
 import com.sight.service.dto.ScheduleAttendanceItem
 import org.springframework.data.domain.PageRequest
@@ -24,6 +29,7 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val bigSeminarRepository: BigSeminarRepository,
     private val scheduleMemberApplyRepository: ScheduleMemberApplyRepository,
+    private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
@@ -60,6 +66,56 @@ class ScheduleService(
             }
 
         return ListScheduleAttendancesResult(attendances = attendances)
+    }
+
+    @Transactional
+    fun checkScheduleAttendance(
+        requester: Requester,
+        scheduleId: Long,
+        code: String,
+    ): CheckScheduleAttendanceResult {
+        val schedule =
+            scheduleRepository.findActiveById(scheduleId)
+                ?: throw NotFoundException("존재하지 않는 일정입니다.")
+
+        if (scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, scheduleId)) {
+            throw ConflictException("이미 출석체크한 일정입니다.")
+        }
+
+        val now = LocalDateTime.now()
+        if (schedule.checkCode == null) {
+            throw BadRequestException("출석 코드가 설정되지 않은 일정입니다.")
+        }
+        if (now.isBefore(schedule.scheduledAt) || now.isAfter(schedule.endAt)) {
+            throw BadRequestException("출석체크 가능한 시간이 아닙니다.")
+        }
+        if (code != schedule.checkCode) {
+            throw UnauthorizedException("출석 코드가 일치하지 않습니다.")
+        }
+
+        val attendance =
+            scheduleMemberApplyRepository.save(
+                ScheduleMemberApply(
+                    memberId = requester.userId,
+                    scheduleId = scheduleId,
+                    attendedAt = now,
+                ),
+            )
+
+        if (schedule.expoint > 0) {
+            pointService.givePoint(
+                targetUserId = requester.userId,
+                point = schedule.expoint,
+                message = "${schedule.title} 출석",
+            )
+        }
+
+        return CheckScheduleAttendanceResult(
+            scheduleId = attendance.scheduleId,
+            userId = attendance.memberId,
+            expointGranted = schedule.expoint,
+            createdAt = attendance.createdAt,
+        )
     }
 
     @Transactional

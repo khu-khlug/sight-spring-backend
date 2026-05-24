@@ -8,4 +8,9 @@ import org.springframework.stereotype.Repository
 @Repository
 interface ScheduleMemberApplyRepository : JpaRepository<ScheduleMemberApply, ScheduleMemberApplyId> {
     fun findByScheduleIdOrderByCreatedAtAsc(scheduleId: Long): List<ScheduleMemberApply>
+
+    fun existsByMemberIdAndScheduleId(
+        memberId: Long,
+        scheduleId: Long,
+    ): Boolean
 }

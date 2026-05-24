@@ -1,7 +1,10 @@
 package com.sight.service
 
+import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
@@ -392,11 +395,63 @@ class ScheduleServiceTest {
         verify(scheduleRepository).findAllActive(any())
     }
 
+    @Test
+    fun `listActiveSchedules returns only active attendance schedules`() {
+        val now = LocalDateTime.now()
+        val activeSchedule =
+            scheduleOf(
+                id = 1L,
+                scheduledAt = now.minusHours(1),
+                endAt = now.plusHours(1),
+                checkCode = "1234",
+            )
+        val endedSchedule =
+            scheduleOf(
+                id = 2L,
+                scheduledAt = now.minusHours(3),
+                endAt = now.minusHours(1),
+                checkCode = "1234",
+            )
+        val futureSchedule =
+            scheduleOf(
+                id = 3L,
+                scheduledAt = now.plusHours(1),
+                endAt = now.plusHours(2),
+                checkCode = "1234",
+            )
+        val noCheckCodeSchedule =
+            scheduleOf(
+                id = 4L,
+                scheduledAt = now.minusHours(1),
+                endAt = now.plusHours(1),
+                checkCode = null,
+            )
+        given(scheduleRepository.findAttendanceActive(any(), any()))
+            .willReturn(listOf(activeSchedule, endedSchedule, futureSchedule, noCheckCodeSchedule))
+
+        val result = scheduleService.listActiveSchedules()
+
+        assertEquals(listOf(activeSchedule), result)
+        verify(scheduleRepository).findAttendanceActive(any(), any())
+    }
+
+    @Test
+    fun `listActiveSchedules returns empty list when no active attendance schedules exist`() {
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(emptyList())
+
+        val result = scheduleService.listActiveSchedules()
+
+        assertTrue(result.isEmpty())
+        verify(scheduleRepository).findAttendanceActive(any(), any())
+    }
+
     private fun scheduleOf(
         id: Long = 1L,
         category: ScheduleCategory = ScheduleCategory.CLUB,
         author: Long = 10L,
         checkCode: String? = null,
+        scheduledAt: LocalDateTime = LocalDateTime.of(2026, 5, 18, 14, 0),
+        endAt: LocalDateTime = LocalDateTime.of(2026, 5, 18, 16, 0),
     ): Schedule {
         return Schedule(
             id = id,
@@ -404,8 +459,8 @@ class ScheduleServiceTest {
             title = "일정",
             author = author,
             state = ScheduleState.PUBLIC,
-            scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
-            endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+            scheduledAt = scheduledAt,
+            endAt = endAt,
             checkCode = checkCode,
         )
     }

@@ -1,7 +1,10 @@
 package com.sight.service
 
+import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
@@ -41,6 +44,14 @@ class ScheduleService(
         } else {
             scheduleRepository.findAllActive(pageable)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun listActiveSchedules(): List<Schedule> {
+        val now = LocalDateTime.now()
+        val pageable = PageRequest.of(0, DEFAULT_ACTIVE_SCHEDULE_LIMIT)
+        return scheduleRepository.findAttendanceActive(now, pageable)
+            .filter { it.isAttendanceActive(now) }
     }
 
     @Transactional(readOnly = true)
@@ -325,8 +336,13 @@ class ScheduleService(
         return minimumId + timePart * 1000 + randomPart
     }
 
+    private fun Schedule.isAttendanceActive(now: LocalDateTime): Boolean {
+        return !scheduledAt.isAfter(now) && !endAt.isBefore(now) && checkCode != null
+    }
+
     companion object {
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
+        private const val DEFAULT_ACTIVE_SCHEDULE_LIMIT = 50
         private const val MAX_SCHEDULE_ID_RETRY = 3
     }
 }

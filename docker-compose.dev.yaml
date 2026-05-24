@@ -9,6 +9,7 @@ services:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
       - DISCORD_ENABLED=false
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     env_file:
       - "/home/nananina/.env"
     depends_on:

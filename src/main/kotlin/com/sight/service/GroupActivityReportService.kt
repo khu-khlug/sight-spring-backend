@@ -3,14 +3,11 @@ package com.sight.service
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
-import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.file.FileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.notification.NotificationCategory
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
-import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupActivityReportRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -18,12 +15,6 @@ import com.sight.repository.ScheduleRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-
-data class UploadLinkResult(
-    val url: String,
-    val fileKey: String,
-    val fileUploadId: String,
-)
 
 data class ActivityReportResult(
     val id: String,
@@ -55,13 +46,13 @@ data class ActivityReportListResult(
 class GroupActivityReportService(
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
-    private val fileUploadRepository: FileUploadRepository,
     private val groupActivityReportRepository: GroupActivityReportRepository,
     private val bigSeminarRepository: BigSeminarRepository,
     private val scheduleRepository: ScheduleRepository,
     private val storageService: StorageService,
     private val pointService: PointService,
     private val notificationService: NotificationService,
+    private val fileUploadService: FileUploadService,
 ) {
     @Transactional
     fun getUploadLink(
@@ -72,19 +63,7 @@ class GroupActivityReportService(
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (group.master != requesterId) throw ForbiddenException("그룹장만 업로드 링크를 발급할 수 있습니다.")
 
-        val fileKey = UlidCreator.getUlid().toString()
-        val url = storageService.generateUploadUrl(fileKey)
-        val fileUpload =
-            fileUploadRepository.save(
-                FileUpload(
-                    id = UlidCreator.getUlid().toString(),
-                    fileKey = fileKey,
-                    memberId = requesterId,
-                    apiPath = requestPath,
-                ),
-            )
-
-        return UploadLinkResult(url = url, fileKey = fileKey, fileUploadId = fileUpload.id)
+        return fileUploadService.createUploadLink(requesterId, requestPath)
     }
 
     @Transactional
@@ -102,7 +81,7 @@ class GroupActivityReportService(
         if (groupActivityReportRepository.existsByGroupIdAndSeminarId(groupId, seminar.id)) {
             throw BadRequestException("이미 활동보고를 제출했습니다.")
         }
-        val fileUpload = validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
+        val fileUpload = fileUploadService.validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
 
         val report =
             groupActivityReportRepository.save(
@@ -115,11 +94,11 @@ class GroupActivityReportService(
                 ),
             )
 
-        fileUploadRepository.save(fileUpload.copy(isVerified = true))
+        fileUploadService.markAsUsed(fileUpload)
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->
-            pointService.givePoint(member.member, 50, "활동보고 제출")
+            pointService.givePoint(member.member, 150, "활동보고 제출")
             notificationService.createNotification(
                 userId = member.member,
                 category = NotificationCategory.GROUP,
@@ -150,26 +129,26 @@ class GroupActivityReportService(
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (group.master != requesterId) throw ForbiddenException("그룹장만 활동보고를 수정할 수 있습니다.")
 
-        val report =
+        var report =
             groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
         if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
-        var updatedReport = report
+        var oldFileKey: String? = null
 
         if (fileUploadId != null) {
-            val fileUpload = validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
-            storageService.deleteFile(report.reportFileKey)
-            updatedReport = updatedReport.copy(reportFileKey = fileUpload.fileKey)
-            fileUploadRepository.save(fileUpload.copy(isVerified = true))
+            val fileUpload = fileUploadService.validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
+            oldFileKey = report.reportFileKey
+            report = report.copy(reportFileKey = fileUpload.fileKey)
+            fileUploadService.markAsUsed(fileUpload)
         }
 
         if (isPresentation != null) {
-            updatedReport = updatedReport.copy(isPresentation = isPresentation)
+            report = report.copy(isPresentation = isPresentation)
         }
 
-        val savedReport = groupActivityReportRepository.save(updatedReport)
+        val savedReport = groupActivityReportRepository.save(report)
 
         val members = groupMemberRepository.findByGroupId(groupId)
         val notificationContent = buildEditNotificationContent(isPresentation, fileUploadId, group.title)
@@ -186,6 +165,8 @@ class GroupActivityReportService(
             title = "활동보고 수정",
             content = notificationContent,
         )
+
+        oldFileKey?.let { storageService.deleteFile(it) }
 
         return savedReport.toResult()
     }
@@ -206,13 +187,12 @@ class GroupActivityReportService(
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
-        storageService.deleteFile(report.reportFileKey)
-        fileUploadRepository.deleteByFileKey(report.reportFileKey)
+        fileUploadService.deleteByFileKey(report.reportFileKey)
         groupActivityReportRepository.delete(report)
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->
-            pointService.givePoint(member.member, -50, "활동보고 취소")
+            pointService.givePoint(member.member, -150, "활동보고 취소")
             notificationService.createNotification(
                 userId = member.member,
                 category = NotificationCategory.GROUP,
@@ -225,6 +205,8 @@ class GroupActivityReportService(
             title = "활동보고 취소",
             content = "${group.title} 그룹의 활동보고가 취소되었습니다.",
         )
+
+        storageService.deleteFile(report.reportFileKey)
     }
 
     @Transactional(readOnly = true)
@@ -275,32 +257,11 @@ class GroupActivityReportService(
     private fun validateGroupActivitySubmitPeriod(seminarId: String) {
         val seminar =
             bigSeminarRepository.findById(seminarId)
-                .orElseThrow { InternalServerErrorException("세미나를 찾을 수 없습니다.") }
+                .orElseThrow { NotFoundException("세미나를 찾을 수 없습니다.") }
         val schedule =
             scheduleRepository.findById(seminar.scheduleId)
-                .orElseThrow { InternalServerErrorException("스케줄을 찾을 수 없습니다.") }
+                .orElseThrow { NotFoundException("스케줄을 찾을 수 없습니다.") }
         if (schedule.endAt <= LocalDateTime.now()) throw BadRequestException("접수 기간이 지났습니다.")
-    }
-
-    private fun validateFileUpload(
-        fileUploadId: String,
-        requesterId: Long,
-        uploadLinkRequestPath: String,
-    ): FileUpload {
-        val fileUpload =
-            fileUploadRepository.findById(fileUploadId)
-                .orElseThrow { BadRequestException("파일을 찾을 수 없습니다.") }
-        if (fileUpload.apiPath != uploadLinkRequestPath) {
-            throw BadRequestException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
-        }
-        if (fileUpload.memberId != requesterId) throw BadRequestException("링크 발급자가 아닙니다.")
-        if (fileUpload.isVerified) throw BadRequestException("이미 사용된 업로드 링크입니다.")
-        if (!storageService.isFileExists(fileUpload.fileKey)) {
-            // 실제 스토리지에는 없는데 데이터베이스에 남아있는 경우임
-            fileUploadRepository.delete(fileUpload)
-            throw BadRequestException("파일을 찾을 수 없습니다.")
-        }
-        return fileUpload
     }
 
     private fun buildEditNotificationContent(

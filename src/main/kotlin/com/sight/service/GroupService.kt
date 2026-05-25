@@ -4,10 +4,13 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
 import com.sight.domain.notification.NotificationCategory
+import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupListDto
@@ -39,6 +42,7 @@ data class GroupListResult(
 @Service
 class GroupService(
     private val groupRepository: GroupRepository,
+    private val groupBookmarkRepository: GroupBookmarkRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val pointService: PointService,
     private val notificationService: NotificationService,
@@ -59,6 +63,30 @@ class GroupService(
             count = count,
             groups = groups.map { it.toGroupListItem() },
         )
+    }
+
+    @Transactional
+    fun addBookmark(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
+            throw UnprocessableEntityException("이미 즐겨찾기한 그룹입니다.")
+        }
+        groupBookmarkRepository.save(GroupBookmark(member = requesterId, group = groupId))
+    }
+
+    @Transactional
+    fun cancelBookmark(
+        groupId: Long,
+        requesterId: Long,
+    ) {
+        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (!groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
+            throw UnprocessableEntityException("즐겨찾기 되어있지 않습니다.")
+        }
+        groupBookmarkRepository.deleteByMemberAndGroup(requesterId, groupId)
     }
 
     @Transactional

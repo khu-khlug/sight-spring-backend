@@ -126,6 +126,26 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.addBookmark(groupId, requester.userId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.cancelBookmark(groupId, requester.userId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
     @PostMapping("/groups/{groupId}/portfolio")
     fun publishPortfolio(
         @PathVariable groupId: Long,

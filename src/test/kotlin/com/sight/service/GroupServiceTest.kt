@@ -3,19 +3,23 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
+import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.util.Optional
 import kotlin.test.assertFailsWith
@@ -23,6 +27,7 @@ import kotlin.test.assertTrue
 
 class GroupServiceTest {
     private val groupRepository = mock<GroupRepository>()
+    private val groupBookmarkRepository = mock<GroupBookmarkRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
     private val pointService = mock<PointService>()
     private val notificationService = mock<NotificationService>()
@@ -41,7 +46,7 @@ class GroupServiceTest {
 
     @BeforeEach
     fun setUp() {
-        groupService = GroupService(groupRepository, groupMemberRepository, pointService, notificationService)
+        groupService = GroupService(groupRepository, groupBookmarkRepository, groupMemberRepository, pointService, notificationService)
         given(groupRepository.findGroups(any(), any(), any(), any(), any(), any())).willReturn(emptyList())
         given(groupRepository.countGroups(any(), any(), any())).willReturn(0L)
     }
@@ -98,6 +103,80 @@ class GroupServiceTest {
         // then
         verify(groupRepository).findGroups(eq(0), eq(10), eq(true), eq(true), eq(GroupOrderBy.CHANGED_AT), eq(123L))
         verify(groupRepository).countGroups(eq(true), eq(true), eq(123L))
+    }
+
+    @Test
+    fun `addBookmark는 그룹이 존재하고 즐겨찾기하지 않은 경우 즐겨찾기를 추가한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(false)
+
+        // when
+        groupService.addBookmark(groupId = 1L, requesterId = 10L)
+
+        // then
+        verify(groupBookmarkRepository).save(argThat { member == 10L && group == 1L })
+    }
+
+    @Test
+    fun `addBookmark는 이미 즐겨찾기한 그룹에 요청하면 422를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(true)
+
+        // when & then
+        assertFailsWith<UnprocessableEntityException> {
+            groupService.addBookmark(groupId = 1L, requesterId = 10L)
+        }
+        verify(groupBookmarkRepository, never()).save(any())
+    }
+
+    @Test
+    fun `addBookmark는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.addBookmark(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `cancelBookmark는 즐겨찾기된 그룹에 요청하면 즐겨찾기를 취소한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(true)
+
+        // when
+        groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+
+        // then
+        verify(groupBookmarkRepository).deleteByMemberAndGroup(10L, 1L)
+    }
+
+    @Test
+    fun `cancelBookmark는 즐겨찾기하지 않은 그룹에 요청하면 422를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(false)
+
+        // when & then
+        assertFailsWith<UnprocessableEntityException> {
+            groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+        }
+        verify(groupBookmarkRepository, never()).deleteByMemberAndGroup(any(), any())
+    }
+
+    @Test
+    fun `cancelBookmark는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+        }
     }
 
     @Test

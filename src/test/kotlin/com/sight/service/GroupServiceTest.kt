@@ -101,7 +101,7 @@ class GroupServiceTest {
     }
 
     @Test
-    fun `publishPortfolio는 그룹장이 미발행 그룹에 요청하면 portfolio를 true로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
+    fun `publishPortfolio는 그룹장이 미발행 그룹에 요청하면 포트폴리오 발행 여부를 true로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
         // given
         val members = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
@@ -151,7 +151,7 @@ class GroupServiceTest {
     }
 
     @Test
-    fun `cancelPortfolio는 그룹장이 발행 중인 그룹에 요청하면 portfolio를 false로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
+    fun `cancelPortfolio는 그룹장이 발행 중인 그룹에 요청하면 포트폴리오 발행 여부를 false로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
         // given
         val publishedGroup = baseGroup.copy(portfolio = true)
         val members = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))

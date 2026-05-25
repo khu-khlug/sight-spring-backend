@@ -1,8 +1,8 @@
 package com.sight.service
 
-import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
@@ -65,7 +65,7 @@ class GroupService(
     ) {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
-            throw BadRequestException("이미 즐겨찾기한 그룹입니다.")
+            throw UnprocessableEntityException("이미 즐겨찾기한 그룹입니다.")
         }
         groupBookmarkRepository.save(GroupBookmark(member = requesterId, group = groupId))
     }
@@ -77,7 +77,7 @@ class GroupService(
     ) {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (!groupBookmarkRepository.existsByMemberAndGroup(requesterId, groupId)) {
-            throw NotFoundException("이미 즐겨찾기 되어있지 않습니다.")
+            throw UnprocessableEntityException("즐겨찾기 되어있지 않습니다.")
         }
         groupBookmarkRepository.deleteByMemberAndGroup(requesterId, groupId)
     }

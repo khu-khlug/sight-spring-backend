@@ -1,7 +1,7 @@
 package com.sight.service
 
-import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
@@ -110,13 +110,13 @@ class GroupServiceTest {
     }
 
     @Test
-    fun `addBookmark는 이미 즐겨찾기한 그룹에 요청하면 400을 반환한다`() {
+    fun `addBookmark는 이미 즐겨찾기한 그룹에 요청하면 422를 반환한다`() {
         // given
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(true)
 
         // when & then
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<UnprocessableEntityException> {
             groupService.addBookmark(groupId = 1L, requesterId = 10L)
         }
         verify(groupBookmarkRepository, never()).save(any())
@@ -147,13 +147,13 @@ class GroupServiceTest {
     }
 
     @Test
-    fun `cancelBookmark는 즐겨찾기하지 않은 그룹에 요청하면 404를 반환한다`() {
+    fun `cancelBookmark는 즐겨찾기하지 않은 그룹에 요청하면 422를 반환한다`() {
         // given
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(false)
 
         // when & then
-        assertFailsWith<NotFoundException> {
+        assertFailsWith<UnprocessableEntityException> {
             groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
         }
         verify(groupBookmarkRepository, never()).deleteByMemberAndGroup(any(), any())

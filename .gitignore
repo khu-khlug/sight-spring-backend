@@ -97,3 +97,5 @@ test-results/
 *-ref
 
 .env
+.obsidian/
+

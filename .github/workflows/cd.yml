@@ -44,6 +44,9 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: INTERNAL_API_KEY
           script: |
             docker load < /home/nananina/sight-dev-backend.tar.gz
-            cd /home/nananina && docker compose -f docker-compose.dev.yaml up -d
+            cd /home/nananina && INTERNAL_API_KEY=$INTERNAL_API_KEY docker compose -f docker-compose.dev.yaml up -d
+        env:
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}

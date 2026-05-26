@@ -10,7 +10,7 @@ import jakarta.persistence.Table
 import java.time.LocalDateTime
 
 @Entity
-@Table(name = "khlug_schedule")
+@Table(name = "schedule")
 data class Schedule(
     @Id
     val id: Long,

@@ -35,8 +35,7 @@ POST /schedules/{scheduleId}/attendances/@me
 
 1. 유효한 코드로 출석할 수 있다
    - `scheduledAt ≤ now ≤ endAt`, `code == schedule.checkCode`, 첫 출석 → 201, attendance row 생성, `schedule.expoint`만큼 ExPoint 적립.
-2. 같은 일정에 두 번 출석체크하면 멱등 응답
-   - 두 번째 호출 → 200, 기존 attendance 정보 반환, ExPoint 추가 적립 없음 (`expointGranted=0`).
+2. 같은 일정에 두 번 출석체크하면 409 응답
 3. 코드가 일치하지 않으면 401
    - 잘못된 `code` → 401, attendance row 미생성, ExPoint 미적립.
 4. 출첵 시간 윈도 밖이면 400
@@ -44,6 +43,4 @@ POST /schedules/{scheduleId}/attendances/@me
 5. `checkCode`가 `null`인 일정은 출첵 불가 → 400
 6. `expoint=0` 일정도 출첵은 가능, 적립만 0
    - 정상 출석 처리, attendance row 생성, `expointGranted=0`.
-7. 시도 횟수 제한 초과 → 429
-   - 사용자×scheduleId 단위 분당 N회 초과.
-8. 존재하지 않는 일정 → 404
+7. 존재하지 않는 일정 → 404

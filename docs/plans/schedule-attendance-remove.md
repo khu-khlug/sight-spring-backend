@@ -28,7 +28,7 @@ DELETE /schedules/{scheduleId}/attendances/{userId}
 
 1. 정상 삭제 → 204. attendance row 삭제. 적립 ExPoint(`schedule.expoint`) 회수.
 2. ExPoint 회수는 transaction 시스템 통한 음수 적립으로 기록된다.
-3. 처음부터 출석한 적 없음 → 404
+3. 처음부터 출석한 적 없음 (스케줄id는 있는데 (scheduleId, userId)를 검증할때 없음) → 404
 4. 권한 없음 → 403
-5. 일정 자체가 없거나 삭제됨 → 404
+5. 일정 자체가 없음 → 404
 6. 같은 `(scheduleId, userId)`에 두 번 DELETE → 첫 번째 204, 두 번째 404

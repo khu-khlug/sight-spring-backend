@@ -1,6 +1,6 @@
 # 일정 생성
 
-새 일정을 등록합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 `category=GROUP_ACTIVITY`인 일정만 생성할 수 있습니다. 그 외 카테고리는 운영진(`MANAGER`)만 생성할 수 있습니다. `checkCode`를 지정하지 않으면 해당 일정은 출석 체크 대상에서 제외됩니다.
+새 일정을 등록합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 `category=GROUP_ACTIVITY`인 일정만 생성할 수 있습니다. 그 외 카테고리는 운영진(`MANAGER`)만 생성할 수 있습니다. 출첵 코드는 `generateCheckCode=true`인 경우에만 백엔드가 4자리 숫자 코드를 생성·저장합니다. `generateCheckCode`가 false이거나 미전송이면 출첵 코드 없이(출석 체크 비활성) 저장됩니다.
 
 ## API
 
@@ -22,7 +22,7 @@ POST /schedules
 | `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)                                                                                    |
 | `endAt`       | 문자열 | 종료 일시 (ISO 8601)                                                                                    |
 | `expoint`     |  숫자  | (선택, 기본 0) 출석 시 부여될 ExPoint. 0 이상                                                           |
-| `checkCode`   | 문자열 | (선택) 출첵 코드. 미전송 시 null로 저장 (출석 체크 비활성 일정)                                         |
+| `generateCheckCode` | 불리언 | (선택, 기본 `false`) `true`면 백엔드가 4자리 숫자 출첵 코드를 생성·저장. `false`/미전송이면 출첵 코드 없음(출석 체크 비활성) |
 
 ### 응답 코드 및 응답 바디
 
@@ -40,15 +40,15 @@ POST /schedules
 | `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)         |
 | `endAt`       | 문자열 | 종료 일시 (ISO 8601)         |
 | `expoint`     |  숫자  | 출석 시 부여될 ExPoint       |
-| `checkCode`   | 문자열 | 출첵 코드 (nullable)         |
+| `checkCode`   | 문자열 | 백엔드가 생성한 출첵 코드 (생성 안 했으면 nullable)         |
 | `author`      |  숫자  | 작성자 회원 ID               |
 | `createdAt`   | 문자열 | 생성 일시 (ISO 8601)         |
 
 ### 테스트 케이스
 
 1. 정상 등록 → 201, 응답에 `id`/`createdAt`이 포함된다
-2. `checkCode` 미전송 시 null로 저장되어 응답의 `checkCode`도 null이다
-3. `checkCode` 전송 시 그 값을 그대로 저장한다
+2. `generateCheckCode` 미전송/`false` 시 `checkCode`가 null로 저장되어 응답의 `checkCode`도 null이다
+3. `generateCheckCode=true` 시 백엔드가 4자리 숫자 출첵 코드를 생성·저장하고 응답 `checkCode`에 반환한다
 4. `endAt < scheduledAt`이면 400을 반환한다
 5. 허용되지 않는 `category` 값이면 400을 반환한다
 6. `expoint`가 음수이면 400을 반환한다

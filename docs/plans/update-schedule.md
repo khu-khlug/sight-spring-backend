@@ -1,6 +1,6 @@
 # 일정 수정
 
-기존 일정의 정보를 수정합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 본인이 작성하고 `category=GROUP_ACTIVITY`인 일정만 수정할 수 있습니다. 또한 일반 회원은 일정의 `category`를 `GROUP_ACTIVITY` 외 값으로 변경할 수 없습니다. 그 외 모든 경우는 운영진(`MANAGER`)만 수정할 수 있습니다. 일정 시작(`scheduledAt`) 이후에도 수정이 가능합니다.
+기존 일정의 정보를 수정합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 본인이 작성하고 `category=GROUP_ACTIVITY`인 일정만 수정할 수 있습니다. 또한 일반 회원은 일정의 `category`를 `GROUP_ACTIVITY` 외 값으로 변경할 수 없습니다. 그 외 모든 경우는 운영진(`MANAGER`)만 수정할 수 있습니다. 일정 시작(`scheduledAt`)·종료(`endAt`) 이후에도 시점 제한 없이 수정할 수 있습니다.
 
 ## API
 
@@ -16,7 +16,7 @@ PUT /schedules/{scheduleId}
 
 | 이름        |  타입  | 설명                                                                                                    |
 | :---------- | :----: | :------------------------------------------------------------------------------------------------------ |
-| `title`     | 문자열 | 일정 제목                                                                                               |
+| `title`     | 문자열 | 일정 제목 (카테고리와 무관하게 자유 입력; `GROUP_ACTIVITY`도 그룹명으로 고정되지 않음)                   |
 | `category`  | 문자열 | `CLUB`, `ACADEMIC`, `EXTERNAL`, `MANAGEMENT`, `GROUP_ACTIVITY`, `SEMINAR`, `AFTERPARTY`, `OTHER` 중 하나 |
 | `location`  | 문자열 | 장소 (nullable)                                                                                         |
 | `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)                                                                                    |
@@ -37,7 +37,7 @@ PUT /schedules/{scheduleId}
 2. 수정 시 `checkCode`는 변경되지 않는다
 3. 없는 일정 → 404
 4. `endAt < scheduledAt` → 400
-5. 일정 시작 이후에도 `scheduledAt`/`endAt` 수정 가능 → 200
+5. 일정 시작·종료 이후에도 `scheduledAt`/`endAt` 수정 가능 → 200 (시점 제한 없음)
 6. 일반 회원(`USER`)이 본인 작성 + `category=GROUP_ACTIVITY`인 일정 수정 → 200
 7. 일반 회원이 타인 작성 그룹활동 일정 수정 시도 → 403
 8. 일반 회원이 본인 작성이지만 `category != GROUP_ACTIVITY`인 일정 수정 시도 → 403

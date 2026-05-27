@@ -18,4 +18,9 @@ interface ScheduleMemberApplyRepository : JpaRepository<ScheduleMemberApply, Sch
         memberId: Long,
         scheduleId: Long,
     ): ScheduleMemberApply?
+
+    fun findByMemberIdInAndScheduleId(
+        memberIds: List<Long>,
+        scheduleId: Long,
+    ): List<ScheduleMemberApply>
 }

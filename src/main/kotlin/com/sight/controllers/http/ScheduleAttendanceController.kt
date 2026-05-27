@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CreateScheduleAttendanceListRequest
 import com.sight.controllers.http.dto.CreateScheduleAttendanceRequest
 import com.sight.controllers.http.dto.CreateScheduleAttendanceResponse
 import com.sight.controllers.http.dto.ListScheduleAttendancesResponse
@@ -59,6 +60,21 @@ class ScheduleAttendanceController(
             requester = requester,
             scheduleId = scheduleId,
             userId = userId,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/schedules/{scheduleId}/attendances")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addScheduleAttendances(
+        requester: Requester,
+        @PathVariable scheduleId: Long,
+        @Valid @RequestBody request: CreateScheduleAttendanceListRequest,
+    ) {
+        scheduleService.addScheduleAttendances(
+            requester = requester,
+            scheduleId = scheduleId,
+            userIds = request.userIds,
         )
     }
 }

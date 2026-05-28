@@ -662,7 +662,7 @@ class UserServiceTest {
         // then
         verify(pointService).givePoint(
             targetUserId = eq(userId),
-            point = eq(700),
+            point = eq(800),
             message = eq("사이트 접속 차단이 해제되었습니다."),
         )
     }

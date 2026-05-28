@@ -239,7 +239,7 @@ class UserService(
 
         pointService.givePoint(
             targetUserId = userId,
-            point = 700,
+            point = 800,
             message = "사이트 접속 차단이 해제되었습니다.",
         )
         notificationService.createNotificationForManagers(

@@ -1,8 +1,9 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
 import org.springframework.stereotype.Service
@@ -46,10 +47,10 @@ class FileUploadService(
     ): FileUpload {
         val fileUpload =
             fileUploadRepository.findById(fileUploadId)
-                .orElseThrow { BadRequestException("파일을 찾을 수 없습니다.") }
-        if (fileUpload.apiPath != apiPath) throw BadRequestException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
-        if (fileUpload.memberId != memberId) throw BadRequestException("링크 발급자가 아닙니다.")
-        if (fileUpload.isUsed) throw BadRequestException("이미 사용된 업로드 링크입니다.")
+                .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+        if (fileUpload.apiPath != apiPath) throw UnprocessableEntityException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
+        if (fileUpload.memberId != memberId) throw ForbiddenException("링크 발급자가 아닙니다.")
+        if (fileUpload.isUsed) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
         if (!storageService.isFileExists(fileUpload.fileKey)) {
             throw NotFoundException("파일을 찾을 수 없습니다.")
         }

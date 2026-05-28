@@ -161,4 +161,44 @@ class ApplicationFormControllerTest {
             authorUserId = managerRequester.userId,
         )
     }
+
+    @Test
+    fun `가입 신청서 불합격 처리 API가 정상 작동하면 204 No Content를 반환한다`() {
+        // given
+        val applicationFormId = "form-ulid"
+        val managerRequester = Requester(userId = 12345L, role = UserRole.MANAGER)
+        val auth =
+            UsernamePasswordAuthenticationToken(
+                managerRequester,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_MANAGER")),
+            )
+        SecurityContextHolder.getContext().authentication = auth
+
+        val expectedForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.REJECTED,
+            )
+
+        given(
+            applicationFormService.rejectApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = managerRequester.userId,
+            ),
+        ).willReturn(expectedForm)
+
+        // when & then
+        mockMvc.perform(
+            patch("/application-forms/$applicationFormId/reject"),
+        )
+            .andExpect(status().isNoContent)
+
+        verify(applicationFormService).rejectApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = managerRequester.userId,
+        )
+    }
 }

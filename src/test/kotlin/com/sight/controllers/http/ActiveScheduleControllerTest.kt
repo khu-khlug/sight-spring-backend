@@ -44,7 +44,7 @@ class ActiveScheduleControllerTest {
             ),
         )
 
-        mockMvc.perform(get("/active-schedules"))
+        mockMvc.perform(get("/active-attendances"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.count").value(1))
             .andExpect(jsonPath("$.schedules[0].id").value(1))
@@ -62,7 +62,7 @@ class ActiveScheduleControllerTest {
     fun `출석 진행 중인 일정이 없으면 schedule은 null이다`() {
         given(scheduleService.listActiveSchedules()).willReturn(emptyList())
 
-        mockMvc.perform(get("/active-schedules"))
+        mockMvc.perform(get("/active-attendances"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.count").value(0))
             .andExpect(jsonPath("$.schedules").isArray)
@@ -87,7 +87,7 @@ class ActiveScheduleControllerTest {
             ),
         )
 
-        mockMvc.perform(get("/active-schedules"))
+        mockMvc.perform(get("/active-attendances"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.schedules[0].checkCode").doesNotExist())
             .andExpect(jsonPath("$.schedule.checkCode").doesNotExist())

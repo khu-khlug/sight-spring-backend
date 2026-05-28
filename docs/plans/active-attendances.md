@@ -5,7 +5,7 @@
 ## API
 
 ```
-GET /active-schedules
+GET /active-attendances
 ```
 
 ### 쿼리 파라미터

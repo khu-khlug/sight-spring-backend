@@ -3,6 +3,7 @@ package com.sight.config
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.EnableAspectJAutoProxy
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
@@ -39,6 +40,8 @@ class SecurityConfig {
                 }
                 .authorizeHttpRequests { auth ->
                     auth.requestMatchers("/ping", "/actuator/**", "/test/public", "/error")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/application-forms")
                         .permitAll()
                         .anyRequest()
                         .authenticated()

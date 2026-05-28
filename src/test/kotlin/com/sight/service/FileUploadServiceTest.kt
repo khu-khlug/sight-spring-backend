@@ -1,7 +1,8 @@
 package com.sight.service
 
-import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
 import org.junit.jupiter.api.BeforeEach
@@ -52,20 +53,21 @@ class FileUploadServiceTest {
     fun `validateFileUpload는 유효한 파일이면 FileUpload를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(Optional.of(baseFileUpload))
 
-        val result = service.validateFileUpload(
-            fileUploadId = "file-1",
-            memberId = 10L,
-            apiPath = "/groups/1/activity-report/upload-link",
-        )
+        val result =
+            service.validateFileUpload(
+                fileUploadId = "file-1",
+                memberId = 10L,
+                apiPath = "/groups/1/activity-report/upload-link",
+            )
 
         assert(result.id == "file-1")
     }
 
     @Test
-    fun `validateFileUpload는 fileUploadId에 해당하는 row가 없으면 400을 반환한다`() {
+    fun `validateFileUpload는 fileUploadId에 해당하는 row가 없으면 404를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(Optional.empty())
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<NotFoundException> {
             service.validateFileUpload(
                 fileUploadId = "file-1",
                 memberId = 10L,
@@ -75,12 +77,12 @@ class FileUploadServiceTest {
     }
 
     @Test
-    fun `validateFileUpload는 apiPath가 불일치하면 400을 반환한다`() {
+    fun `validateFileUpload는 apiPath가 불일치하면 422를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
             Optional.of(baseFileUpload.copy(apiPath = "/other/path")),
         )
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<UnprocessableEntityException> {
             service.validateFileUpload(
                 fileUploadId = "file-1",
                 memberId = 10L,
@@ -90,12 +92,12 @@ class FileUploadServiceTest {
     }
 
     @Test
-    fun `validateFileUpload는 memberId가 불일치하면 400을 반환한다`() {
+    fun `validateFileUpload는 memberId가 불일치하면 403을 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
             Optional.of(baseFileUpload.copy(memberId = 99L)),
         )
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<ForbiddenException> {
             service.validateFileUpload(
                 fileUploadId = "file-1",
                 memberId = 10L,
@@ -105,12 +107,12 @@ class FileUploadServiceTest {
     }
 
     @Test
-    fun `validateFileUpload는 isUsed가 true이면 400을 반환한다`() {
+    fun `validateFileUpload는 isUsed가 true이면 422를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
             Optional.of(baseFileUpload.copy(isUsed = true)),
         )
 
-        assertFailsWith<BadRequestException> {
+        assertFailsWith<UnprocessableEntityException> {
             service.validateFileUpload(
                 fileUploadId = "file-1",
                 memberId = 10L,

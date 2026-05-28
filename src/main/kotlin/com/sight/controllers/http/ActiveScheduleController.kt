@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController
 class ActiveScheduleController(
     private val scheduleService: ScheduleService,
 ) {
-    @Auth([UserRole.USER, UserRole.MANAGER])
+    @Auth([UserRole.USER, UserRole.MANAGER, UserRole.SYSTEM])
     @GetMapping("/active-schedules")
     fun listActiveSchedules(): ListActiveSchedulesResponse {
         val schedules = scheduleService.listActiveSchedules()

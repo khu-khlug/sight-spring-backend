@@ -5,6 +5,8 @@ import com.sight.controllers.http.dto.CreateApplicationCommentRequest
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.application.ApplicationComment
+import com.sight.domain.application.ApplicationForm
+import com.sight.domain.application.ApplicationFormStatus
 import com.sight.service.ApplicationFormService
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -20,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -117,5 +120,45 @@ class ApplicationFormControllerTest {
                 .content(objectMapper.writeValueAsString(requestDto)),
         )
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `가입 신청서 합격 처리 API가 정상 작동하면 204 No Content를 반환한다`() {
+        // given
+        val applicationFormId = "form-ulid"
+        val managerRequester = Requester(userId = 12345L, role = UserRole.MANAGER)
+        val auth =
+            UsernamePasswordAuthenticationToken(
+                managerRequester,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_MANAGER")),
+            )
+        SecurityContextHolder.getContext().authentication = auth
+
+        val expectedForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.PASSED,
+            )
+
+        given(
+            applicationFormService.passApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = managerRequester.userId,
+            ),
+        ).willReturn(expectedForm)
+
+        // when & then
+        mockMvc.perform(
+            patch("/application-forms/$applicationFormId/pass"),
+        )
+            .andExpect(status().isNoContent)
+
+        verify(applicationFormService).passApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = managerRequester.userId,
+        )
     }
 }

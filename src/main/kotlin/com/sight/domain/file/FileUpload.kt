@@ -24,9 +24,9 @@ data class FileUpload(
     @Column(name = "api_path", nullable = false, length = 255)
     val apiPath: String,
 
-    @Column(name = "is_verified", nullable = false, columnDefinition = "TINYINT")
+    @Column(name = "is_used", nullable = false, columnDefinition = "TINYINT")
     @ColumnDefault("0")
-    val isVerified: Boolean = false,
+    val isUsed: Boolean = false,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

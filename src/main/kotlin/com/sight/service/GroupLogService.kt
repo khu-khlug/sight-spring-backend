@@ -3,9 +3,10 @@ package com.sight.service
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupLog
+import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -29,6 +30,7 @@ data class GroupLogListResult(
 class GroupLogService(
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
+    private val groupLogRepository: GroupLogRepository,
 ) {
     @Transactional(readOnly = true)
     fun listGroupLogs(
@@ -69,18 +71,18 @@ class GroupLogService(
         memberId: Long,
         message: String,
     ) {
-        var lastException: DataIntegrityViolationException? = null
         repeat(MAX_GROUP_LOG_ID_RETRY + 1) {
-            try {
-                groupRepository.insertGroupLog(createNewGroupLogId(), groupId, memberId, message)
+            val id = createNewGroupLogId()
+            if (!groupLogRepository.existsById(id)) {
+                groupLogRepository.save(
+                    GroupLog(id = id, group = groupId, member = memberId, message = message),
+                )
                 return
-            } catch (e: DataIntegrityViolationException) {
-                lastException = e
             }
         }
         throw InternalServerErrorException(
-            "group_log ID 채번을 ${MAX_GROUP_LOG_ID_RETRY}회 재시도한 후에도 충돌이 발생했습니다",
-        ).apply { lastException?.let { initCause(it) } }
+            "group_log ID 채번을 ${MAX_GROUP_LOG_ID_RETRY}회 재시도한 후에도 빈 ID를 찾지 못했습니다",
+        )
     }
 
     private fun createNewGroupLogId(): Long {

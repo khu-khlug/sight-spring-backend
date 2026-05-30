@@ -27,11 +27,4 @@ interface GroupRepositoryCustom {
     ): List<GroupLogListDto>
 
     fun countGroupLogsByGroupId(groupId: Long): Long
-
-    fun insertGroupLog(
-        id: Long,
-        groupId: Long,
-        memberId: Long,
-        message: String,
-    )
 }

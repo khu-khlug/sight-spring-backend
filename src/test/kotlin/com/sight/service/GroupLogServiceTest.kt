@@ -3,6 +3,8 @@ package com.sight.service
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupLog
+import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupLogListDto
@@ -10,24 +12,24 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
-import org.mockito.kotlin.doNothing
-import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
-import org.springframework.dao.DataIntegrityViolationException
 import java.time.LocalDateTime
 
 class GroupLogServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
+    private val groupLogRepository = mock<GroupLogRepository>()
     private val groupLogService =
         GroupLogService(
             groupRepository = groupRepository,
             groupMemberRepository = groupMemberRepository,
+            groupLogRepository = groupLogRepository,
         )
 
     @Test
@@ -109,42 +111,41 @@ class GroupLogServiceTest {
     }
 
     @Test
-    fun `createLog는 채번한 ID로 한 번 insert한다`() {
-        // given
-        doNothing().whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
+    fun `createLog는 충돌 없는 ID로 로그를 저장한다`() {
+        // given - 채번한 ID가 비어 있음
+        given(groupLogRepository.existsById(any())).willReturn(false)
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트 메시지")
 
         // then
-        verify(groupRepository).insertGroupLog(any(), eq(100L), eq(1L), eq("테스트 메시지"))
+        verify(groupLogRepository).save(
+            argThat<GroupLog> { group == 100L && member == 1L && message == "테스트 메시지" },
+        )
     }
 
     @Test
-    fun `createLog는 ID 충돌 시 재시도하여 성공한다`() {
-        // given - 2번 실패 후 3번째 성공
-        doThrow(DataIntegrityViolationException("collision1"))
-            .doThrow(DataIntegrityViolationException("collision2"))
-            .doNothing()
-            .whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
+    fun `createLog는 ID 충돌 시 빈 ID를 찾을 때까지 재채번한다`() {
+        // given - 2번 충돌 후 3번째 빈 ID
+        given(groupLogRepository.existsById(any())).willReturn(true, true, false)
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
 
-        // then - 총 3번 호출됨
-        verify(groupRepository, times(3)).insertGroupLog(any(), any(), any(), any())
+        // then - existsById 3번 확인 후 save 1번
+        verify(groupLogRepository, times(3)).existsById(any())
+        verify(groupLogRepository).save(any())
     }
 
     @Test
-    fun `createLog는 4회 연속 충돌 시 InternalServerErrorException을 던진다`() {
-        // given - 항상 충돌 (4회 모두 실패)
-        doThrow(DataIntegrityViolationException("collision"))
-            .whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
+    fun `createLog는 빈 ID를 찾지 못하면 InternalServerErrorException을 던진다`() {
+        // given - 항상 충돌
+        given(groupLogRepository.existsById(any())).willReturn(true)
 
         // then
         assertThrows<InternalServerErrorException> {
             groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
         }
-        verify(groupRepository, times(4)).insertGroupLog(any(), any(), any(), any())
+        verify(groupLogRepository, never()).save(any())
     }
 }

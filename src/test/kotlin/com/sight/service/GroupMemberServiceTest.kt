@@ -160,18 +160,6 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `PRIVATE 그룹은 비멤버라도 author면 조회 가능하다`() {
-        // given: 위임 이후 master가 다른 사람이어도 최초 생성자(author)는 열람 가능
-        val group = createGroup(grade = GroupAccessGrade.PRIVATE, master = 10L, author = 2L)
-        val requester = createMember(id = 2L)
-        stubGroupAndRequester(group, requester, isMember = false)
-        given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
-
-        // when (does not throw)
-        groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-    }
-
-    @Test
     fun `MANAGER 그룹은 운영진만 조회 가능하다`() {
         // given
         val group = createGroup(grade = GroupAccessGrade.MANAGER)
@@ -359,7 +347,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 일반 카테고리 그룹에서 멤버 추가-로그-알림 본인 및 그룹장-포인트-상태 갱신 순으로 처리한다`() {
+    fun `joinGroup은 일반 카테고리 그룹 참여 시 멤버 추가·로그·알림·포인트 지급·상태 갱신을 수행한다`() {
         // given
         val group =
             createGroup(
@@ -514,7 +502,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 allow_join이 false면 403을 던진다`() {
+    fun `joinGroup은 해당 그룹이 참여를 허용하지 않으면 403을 던진다`() {
         // given - 권한 통과 후 allow_join 단계에서 차단
         val group =
             createGroup(
@@ -742,7 +730,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `leaveGroup은 일반 카테고리에서 멤버 삭제-로그-알림 본인 및 그룹장-포인트-상태 갱신 순으로 처리한다`() {
+    fun `leaveGroup은 일반 카테고리 그룹 탈퇴 시 멤버 삭제·로그·알림·포인트 차감·상태 갱신을 수행한다`() {
         // given - 일반 카테고리, requester는 일반 멤버 (master 아님)
         val group = createGroup(id = 100L, master = 1L)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))

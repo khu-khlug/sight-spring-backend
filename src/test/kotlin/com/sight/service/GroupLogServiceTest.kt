@@ -9,14 +9,15 @@ import com.sight.repository.dto.GroupLogListDto
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.mockito.BDDMockito.willDoNothing
-import org.mockito.BDDMockito.willThrow
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.springframework.dao.DataIntegrityViolationException
 import java.time.LocalDateTime
 
@@ -110,7 +111,7 @@ class GroupLogServiceTest {
     @Test
     fun `createLog는 채번한 ID로 한 번 insert한다`() {
         // given
-        willDoNothing().given(groupRepository).insertGroupLog(any(), any(), any(), any())
+        doNothing().whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트 메시지")
@@ -122,10 +123,10 @@ class GroupLogServiceTest {
     @Test
     fun `createLog는 ID 충돌 시 재시도하여 성공한다`() {
         // given - 2번 실패 후 3번째 성공
-        willThrow(DataIntegrityViolationException("collision1"))
-            .willThrow(DataIntegrityViolationException("collision2"))
-            .willDoNothing()
-            .given(groupRepository).insertGroupLog(any(), any(), any(), any())
+        doThrow(DataIntegrityViolationException("collision1"))
+            .doThrow(DataIntegrityViolationException("collision2"))
+            .doNothing()
+            .whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // when
         groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
@@ -137,8 +138,8 @@ class GroupLogServiceTest {
     @Test
     fun `createLog는 4회 연속 충돌 시 InternalServerErrorException을 던진다`() {
         // given - 항상 충돌 (4회 모두 실패)
-        willThrow(DataIntegrityViolationException("collision"))
-            .given(groupRepository).insertGroupLog(any(), any(), any(), any())
+        doThrow(DataIntegrityViolationException("collision"))
+            .whenever(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // then
         assertThrows<InternalServerErrorException> {

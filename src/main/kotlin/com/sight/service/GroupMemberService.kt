@@ -6,6 +6,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupPolicy
 import com.sight.domain.group.GroupState
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
@@ -195,7 +196,7 @@ class GroupMemberService(
             )
         }
 
-        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
                 point = 40,
@@ -248,7 +249,7 @@ class GroupMemberService(
             content = "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에서 내보내졌습니다.",
         )
 
-        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = kickedMemberId,
                 point = -40,
@@ -309,7 +310,7 @@ class GroupMemberService(
             )
         }
 
-        if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
+        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
                 point = -40,
@@ -318,9 +319,5 @@ class GroupMemberService(
         }
 
         groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
-    }
-
-    companion object {
-        private const val EXPOINT_EXCLUDED_GROUP_ID = 7549L
     }
 }

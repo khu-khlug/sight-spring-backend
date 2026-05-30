@@ -7,6 +7,7 @@ import com.sight.domain.group.Group
 import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
+import com.sight.domain.group.GroupPolicy
 import com.sight.domain.group.GroupState
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
@@ -471,11 +472,11 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 그룹 7549에는 포인트를 부여하지 않는다`() {
+    fun `joinGroup은 그룹 활용 실습 그룹에는 포인트를 부여하지 않는다`() {
         // given
         val group =
             createGroup(
-                id = 7549L,
+                id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID,
                 master = 1L,
                 grade = GroupAccessGrade.ALL,
                 state = GroupState.PROGRESS,
@@ -485,7 +486,7 @@ class GroupMemberServiceTest {
         stubGroupAndRequester(group, requester, isMember = false)
 
         // when
-        groupMemberService.joinGroup(groupId = 7549L, requesterId = 2L)
+        groupMemberService.joinGroup(groupId = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, requesterId = 2L)
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
@@ -670,16 +671,16 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `kickMember는 그룹 7549에서는 포인트를 차감하지 않는다`() {
+    fun `kickMember는 그룹 활용 실습 그룹에서는 포인트를 차감하지 않는다`() {
         // given
-        val group = createGroup(id = 7549L, master = 1L)
+        val group = createGroup(id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, master = 1L)
         val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(7549L)).willReturn(Optional.of(group))
+        given(groupRepository.findById(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID)).willReturn(Optional.of(group))
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(7549L, 5L)).willReturn(true)
+        given(groupMemberRepository.existsByGroupIdAndMemberId(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, 5L)).willReturn(true)
 
         // when
-        groupMemberService.kickMember(groupId = 7549L, requesterId = 1L, kickedMemberId = 5L)
+        groupMemberService.kickMember(groupId = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, requesterId = 1L, kickedMemberId = 5L)
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
@@ -850,14 +851,14 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `leaveGroup은 그룹 7549에서는 포인트를 차감하지 않는다`() {
+    fun `leaveGroup은 그룹 활용 실습 그룹에서는 포인트를 차감하지 않는다`() {
         // given
-        val group = createGroup(id = 7549L, master = 1L)
-        given(groupRepository.findById(7549L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(7549L, 5L)).willReturn(true)
+        val group = createGroup(id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, master = 1L)
+        given(groupRepository.findById(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, 5L)).willReturn(true)
 
         // when
-        groupMemberService.leaveGroup(groupId = 7549L, requesterId = 5L)
+        groupMemberService.leaveGroup(groupId = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, requesterId = 5L)
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())

@@ -48,7 +48,10 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        val requester = memberRepository.findById(requesterId).get()
+        val requester =
+            memberRepository.findById(requesterId).orElseThrow {
+                NotFoundException("회원을 찾을 수 없습니다")
+            }
 
         val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
         if (!canViewGroup(group, requester, isMember)) {
@@ -112,7 +115,10 @@ class GroupMemberService(
             throw BadRequestException("위임 대상이 그룹 멤버가 아닙니다")
         }
 
-        val oldMaster = memberRepository.findById(requesterId).get()
+        val oldMaster =
+            memberRepository.findById(requesterId).orElseThrow {
+                NotFoundException("회원을 찾을 수 없습니다")
+            }
 
         groupRepository.save(group.copy(master = newMasterId))
         groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
@@ -146,7 +152,10 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        val requester = memberRepository.findById(requesterId).get()
+        val requester =
+            memberRepository.findById(requesterId).orElseThrow {
+                NotFoundException("회원을 찾을 수 없습니다")
+            }
         val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
 
         if (!canViewGroup(group, requester, isMember)) {

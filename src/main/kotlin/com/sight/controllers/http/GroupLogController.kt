@@ -8,11 +8,13 @@ import com.sight.core.auth.UserRole
 import com.sight.service.GroupLogService
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
+@Validated
 @RestController
 class GroupLogController(
     private val groupLogService: GroupLogService,

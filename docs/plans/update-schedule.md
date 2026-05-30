@@ -1,11 +1,13 @@
-# 일정 수정
+# 일정 수정 (운영진)
 
-기존 일정의 정보를 수정합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 본인이 작성하고 `category=GROUP_ACTIVITY`인 일정만 수정할 수 있습니다. 또한 일반 회원은 일정의 `category`를 `GROUP_ACTIVITY` 외 값으로 변경할 수 없습니다. 그 외 모든 경우는 운영진(`MANAGER`)만 수정할 수 있습니다. 일정 시작(`scheduledAt`)·종료(`endAt`) 이후에도 시점 제한 없이 수정할 수 있습니다.
+운영진(`MANAGER`)이 일반 일정의 정보를 수정합니다. 운영진 인증이 필요합니다. 이 엔드포인트는 운영진 카테고리(`CLUB`, `ACADEMIC`, `EXTERNAL`, `MANAGEMENT`, `AFTERPARTY`, `OTHER`) 일정만 수정합니다. `category`는 변경할 수 없으며(카테고리 변경은 [`update-schedule-category.md`](update-schedule-category.md) 참조), 그룹 활동·세미나 일정은 각 전용 엔드포인트를 사용합니다. 일정 시작(`scheduledAt`)·종료(`endAt`) 이후에도 시점 제한 없이 수정할 수 있습니다.
+
+> 그룹 활동 일정은 [`update-group-activity-schedule.md`](update-group-activity-schedule.md), 세미나 일정은 [`update-big-seminar-schedule.md`](update-big-seminar-schedule.md)를 참조하세요.
 
 ## API
 
 ```
-PUT /schedules/{scheduleId}
+PATCH /schedules/{scheduleId}
 ```
 
 ### 쿼리 파라미터
@@ -14,14 +16,13 @@ PUT /schedules/{scheduleId}
 
 ### 요청 바디
 
-| 이름        |  타입  | 설명                                                                                                    |
-| :---------- | :----: | :------------------------------------------------------------------------------------------------------ |
-| `title`     | 문자열 | 일정 제목 (카테고리와 무관하게 자유 입력; `GROUP_ACTIVITY`도 그룹명으로 고정되지 않음)                   |
-| `category`  | 문자열 | `CLUB`, `ACADEMIC`, `EXTERNAL`, `MANAGEMENT`, `GROUP_ACTIVITY`, `SEMINAR`, `AFTERPARTY`, `OTHER` 중 하나 |
-| `location`  | 문자열 | 장소 (nullable)                                                                                         |
-| `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)                                                                                    |
-| `endAt`   | 문자열 | 종료 일시 (ISO 8601)                                                                                    |
-| `expoint`   |  숫자  | 0 이상                                                                                                  |
+| 이름          |  타입  | 설명                       |
+| :------------ | :----: | :------------------------- |
+| `title`       | 문자열 | 일정 제목                  |
+| `location`    | 문자열 | 장소 (nullable)            |
+| `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)       |
+| `endAt`       | 문자열 | 종료 일시 (ISO 8601)       |
+| `expoint`     |  숫자  | 0 이상                     |
 
 ### 응답 코드 및 응답 바디
 
@@ -36,10 +37,8 @@ PUT /schedules/{scheduleId}
 1. 정상 수정 → 200
 2. 수정 시 `checkCode`는 변경되지 않는다
 3. 없는 일정 → 404
-4. `endAt < scheduledAt` → 400
-5. 일정 시작·종료 이후에도 `scheduledAt`/`endAt` 수정 가능 → 200 (시점 제한 없음)
-6. 일반 회원(`USER`)이 본인 작성 + `category=GROUP_ACTIVITY`인 일정 수정 → 200
-7. 일반 회원이 타인 작성 그룹활동 일정 수정 시도 → 403
-8. 일반 회원이 본인 작성이지만 `category != GROUP_ACTIVITY`인 일정 수정 시도 → 403
-9. 일반 회원이 본인 작성 그룹활동 일정의 `category`를 다른 값으로 변경 시도 → 403
-10. 인증되지 않은 요청 → 401
+4. 대상 일정이 운영진 카테고리가 아니면(예: `GROUP_ACTIVITY`/`SEMINAR`) → 400 (전용 엔드포인트 사용)
+5. `endAt < scheduledAt` → 400
+6. 일정 시작·종료 이후에도 `scheduledAt`/`endAt` 수정 가능 → 200 (시점 제한 없음)
+7. 인증되지 않은 요청 → 401
+8. 일반 회원(`USER`)이 수정 시도 → 403

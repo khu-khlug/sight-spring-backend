@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface MemberRepository : JpaRepository<Member, Long>, MemberRepositoryCustom {
     fun findByManagerTrue(): List<Member>
+
+    fun findByNumberIsNotNull(): List<Member>
 }

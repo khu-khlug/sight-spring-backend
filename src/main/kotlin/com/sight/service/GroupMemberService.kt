@@ -17,6 +17,7 @@ import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.util.HtmlUtils
+import java.time.LocalDateTime
 
 data class GroupMemberListItem(
     val userId: Long,
@@ -120,8 +121,7 @@ class GroupMemberService(
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        groupRepository.save(group.copy(master = newMasterId))
-        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+        saveWithTouch(group.copy(master = newMasterId))
 
         val logMessage =
             "그룹장이 ${oldMaster.college} ${oldMaster.realname}에서 " +
@@ -175,7 +175,6 @@ class GroupMemberService(
         }
 
         groupMemberRepository.save(groupId, requesterId)
-        groupRepository.incrementCountMember(groupId)
 
         groupLogService.createLog(groupId, requesterId, "그룹에 참여했습니다.")
 
@@ -213,7 +212,7 @@ class GroupMemberService(
             )
         }
 
-        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+        saveWithTouch(group.copy(countMember = group.countMember + 1))
     }
 
     @Transactional
@@ -245,7 +244,6 @@ class GroupMemberService(
         }
 
         groupMemberRepository.delete(groupId, kickedMemberId)
-        groupRepository.decrementCountMember(groupId)
 
         val logMessage = "${kickedMember.college} ${kickedMember.realname} 내보냈습니다."
         groupLogService.createLog(groupId, requesterId, logMessage)
@@ -266,7 +264,7 @@ class GroupMemberService(
             )
         }
 
-        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+        saveWithTouch(group.copy(countMember = group.countMember - 1))
     }
 
     @Transactional
@@ -289,7 +287,6 @@ class GroupMemberService(
         }
 
         groupMemberRepository.delete(groupId, requesterId)
-        groupRepository.decrementCountMember(groupId)
 
         groupLogService.createLog(groupId, requesterId, "그룹에서 나갔습니다.")
 
@@ -327,6 +324,16 @@ class GroupMemberService(
             )
         }
 
-        groupRepository.touchChangedAtAndPromoteFromSuspend(groupId)
+        saveWithTouch(group.copy(countMember = group.countMember - 1))
+    }
+
+    // 그룹 변경 시 changed_at 갱신 + SUSPEND면 PROGRESS로 승격하여 저장
+    private fun saveWithTouch(group: Group) {
+        groupRepository.save(
+            group.copy(
+                changedAt = LocalDateTime.now(),
+                state = if (group.state == GroupState.SUSPEND) GroupState.PROGRESS else group.state,
+            ),
+        )
     }
 }

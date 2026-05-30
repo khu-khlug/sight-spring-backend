@@ -118,31 +118,6 @@ class GroupRepositoryImpl(
         )
     }
 
-    override fun incrementCountMember(groupId: Long) {
-        jdbcTemplate.update(
-            "UPDATE khlug_group SET count_member = count_member + 1 WHERE id = ?",
-            groupId,
-        )
-    }
-
-    override fun decrementCountMember(groupId: Long) {
-        jdbcTemplate.update(
-            "UPDATE khlug_group SET count_member = count_member - 1 WHERE id = ?",
-            groupId,
-        )
-    }
-
-    override fun touchChangedAtAndPromoteFromSuspend(groupId: Long) {
-        jdbcTemplate.update(
-            "UPDATE khlug_group SET changed_at = now() WHERE id = ?",
-            groupId,
-        )
-        jdbcTemplate.update(
-            "UPDATE khlug_group SET state = 'progress' WHERE id = ? AND state = 'suspend'",
-            groupId,
-        )
-    }
-
     private fun <T> applyJoins(
         query: JPAQuery<T>,
         joined: Boolean?,

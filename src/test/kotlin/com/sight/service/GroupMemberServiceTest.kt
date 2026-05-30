@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
@@ -243,14 +244,11 @@ class GroupMemberServiceTest {
         // when
         groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
 
-        // then - group save: master만 갱신 (changed_at/state는 atomic SQL 별도)
+        // then - group save: master 갱신 + changed_at/state 갱신
         val groupCaptor = argumentCaptor<Group>()
         verify(groupRepository).save(groupCaptor.capture())
         val saved = groupCaptor.firstValue
         assertEquals(2L, saved.master)
-
-        // changed_at 갱신 + SUSPEND→PROGRESS 전환 (legacy `Group::changed()` 미러링)
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
 
         // log 호출 (메시지 포맷: 레거시 그대로)
         verify(groupLogService).createLog(
@@ -365,7 +363,6 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).save(100L, 2L)
-        verify(groupRepository).incrementCountMember(100L)
         verify(groupLogService).createLog(eq(100L), eq(2L), eq("그룹에 참여했습니다."))
 
         val expectedContent =
@@ -398,7 +395,7 @@ class GroupMemberServiceTest {
             point = eq(40),
             message = eq("<u>테스트 그룹</u> 그룹에 참여했습니다."),
         )
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { countMember == 1L })
     }
 
     @Test
@@ -481,7 +478,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 SUSPEND 상태 그룹에 참여 가능하며 상태 전환 메서드를 호출한다`() {
+    fun `joinGroup은 SUSPEND 상태 그룹에 참여하면 상태가 PROGRESS로 전환된다`() {
         // given
         val group =
             createGroup(
@@ -498,7 +495,7 @@ class GroupMemberServiceTest {
         groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
 
         // then
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
     }
 
     @Test
@@ -601,7 +598,6 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).delete(100L, 5L)
-        verify(groupRepository).decrementCountMember(100L)
         verify(groupLogService).createLog(eq(100L), eq(1L), eq("공과대학 이름5 내보냈습니다."))
         verify(notificationService).createNotification(
             userId = eq(5L),
@@ -615,7 +611,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
         )
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { countMember == -1L })
     }
 
     @Test
@@ -675,7 +671,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `kickMember는 SUSPEND 상태 그룹에서 상태 전환 메서드를 호출한다`() {
+    fun `kickMember는 SUSPEND 상태 그룹에서 내보내면 상태가 PROGRESS로 전환된다`() {
         // given
         val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
         val kickedMember = createMember(id = 5L)
@@ -687,7 +683,7 @@ class GroupMemberServiceTest {
         groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
 
         // then
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
     }
 
     @Test
@@ -741,7 +737,6 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).delete(100L, 5L)
-        verify(groupRepository).decrementCountMember(100L)
         verify(groupLogService).createLog(eq(100L), eq(5L), eq("그룹에서 나갔습니다."))
 
         val expectedContent = "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에서 나갔습니다."
@@ -773,7 +768,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 나갔습니다."),
         )
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { countMember == -1L })
     }
 
     @Test
@@ -825,7 +820,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `leaveGroup은 SUSPEND 상태 그룹에서 상태 전환 메서드를 호출한다`() {
+    fun `leaveGroup은 SUSPEND 상태 그룹에서 탈퇴하면 상태가 PROGRESS로 전환된다`() {
         // given
         val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))
@@ -835,7 +830,7 @@ class GroupMemberServiceTest {
         groupMemberService.leaveGroup(groupId = 100L, requesterId = 5L)
 
         // then
-        verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
+        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
     }
 
     @Test

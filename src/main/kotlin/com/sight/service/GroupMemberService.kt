@@ -198,7 +198,7 @@ class GroupMemberService(
         if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
-                point = 10,
+                point = 40,
                 message = "<u>$escapedTitle</u> 그룹에 참여했습니다.",
             )
         }
@@ -251,7 +251,7 @@ class GroupMemberService(
         if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = kickedMemberId,
-                point = -10,
+                point = -40,
                 message = "<u>$escapedTitle</u> 그룹에서 내보내졌습니다.",
             )
         }
@@ -312,7 +312,7 @@ class GroupMemberService(
         if (groupId != EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
-                point = -10,
+                point = -40,
                 message = "<u>$escapedTitle</u> 그룹에서 나갔습니다.",
             )
         }

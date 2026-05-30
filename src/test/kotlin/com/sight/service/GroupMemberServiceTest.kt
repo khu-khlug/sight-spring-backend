@@ -406,7 +406,7 @@ class GroupMemberServiceTest {
 
         verify(pointService).givePoint(
             targetUserId = eq(2L),
-            point = eq(10),
+            point = eq(40),
             message = eq("<u>테스트 그룹</u> 그룹에 참여했습니다."),
         )
         verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
@@ -623,7 +623,7 @@ class GroupMemberServiceTest {
         )
         verify(pointService).givePoint(
             targetUserId = eq(5L),
-            point = eq(-10),
+            point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
         )
         verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)
@@ -781,7 +781,7 @@ class GroupMemberServiceTest {
 
         verify(pointService).givePoint(
             targetUserId = eq(5L),
-            point = eq(-10),
+            point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 나갔습니다."),
         )
         verify(groupRepository).touchChangedAtAndPromoteFromSuspend(100L)

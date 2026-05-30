@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.core.exception.ForbiddenException
+import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -134,13 +135,13 @@ class GroupLogServiceTest {
     }
 
     @Test
-    fun `createLog는 4회 연속 충돌 시 IllegalStateException을 던진다`() {
+    fun `createLog는 4회 연속 충돌 시 InternalServerErrorException을 던진다`() {
         // given - 항상 충돌 (4회 모두 실패)
         willThrow(DataIntegrityViolationException("collision"))
             .given(groupRepository).insertGroupLog(any(), any(), any(), any())
 
         // then
-        assertThrows<IllegalStateException> {
+        assertThrows<InternalServerErrorException> {
             groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
         }
         verify(groupRepository, times(4)).insertGroupLog(any(), any(), any(), any())

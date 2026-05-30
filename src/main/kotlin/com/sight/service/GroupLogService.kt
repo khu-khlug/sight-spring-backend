@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.core.exception.ForbiddenException
+import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -77,10 +78,9 @@ class GroupLogService(
                 lastException = e
             }
         }
-        throw IllegalStateException(
-            "group_log ID 채번 ${MAX_GROUP_LOG_ID_RETRY}회 retry 후에도 충돌",
-            lastException,
-        )
+        throw InternalServerErrorException(
+            "group_log ID 채번을 ${MAX_GROUP_LOG_ID_RETRY}회 재시도한 후에도 충돌이 발생했습니다",
+        ).apply { lastException?.let { initCause(it) } }
     }
 
     private fun createNewGroupLogId(): Long {

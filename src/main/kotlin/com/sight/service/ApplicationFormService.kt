@@ -1,7 +1,9 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.core.info21.Info21AuthClient
 import com.sight.core.info21.Info21AuthRequest
 import com.sight.domain.application.ApplicationContent
@@ -14,6 +16,7 @@ import com.sight.repository.ApplicationFormAuthTokenRepository
 import com.sight.repository.ApplicationFormRepository
 import com.sight.repository.ApplicationQuestionRepository
 import com.sight.repository.InterviewAvailableTimeRepository
+import com.sight.repository.MemberRepository
 import com.sight.service.dto.ApplicationFormDraftDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -28,6 +31,7 @@ class ApplicationFormService(
     private val applicationContentRepository: ApplicationContentRepository,
     private val applicationFormAuthTokenRepository: ApplicationFormAuthTokenRepository,
     private val interviewAvailableTimeRepository: InterviewAvailableTimeRepository,
+    private val memberRepository: MemberRepository,
 ) {
     private val reusableStatuses = listOf(ApplicationFormStatus.DRAFT, ApplicationFormStatus.SUBMITTED)
     private val tokenCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
@@ -87,6 +91,25 @@ class ApplicationFormService(
             createdAt = applicationForm.createdAt,
             updatedAt = applicationForm.updatedAt,
         )
+    }
+
+    @Transactional
+    fun assignManager(
+        applicationFormId: String,
+        managerUserId: Long,
+    ) {
+        val manager =
+            memberRepository.findById(managerUserId)
+                .orElseThrow { UnprocessableEntityException("담당자로 배정할 운영진을 찾을 수 없습니다") }
+        if (!manager.manager) {
+            throw UnprocessableEntityException("담당자로 배정할 사용자가 운영진이 아닙니다")
+        }
+
+        val applicationForm =
+            applicationFormRepository.findById(applicationFormId)
+                .orElseThrow { NotFoundException("가입신청서를 찾을 수 없습니다") }
+
+        applicationFormRepository.save(applicationForm.copy(assignedUserId = managerUserId))
     }
 
     private fun createApplicationForm(

@@ -68,11 +68,9 @@ class ApplicationFormService(
             status = applicationForm.status,
             interviewAvailableTimes =
                 interviewAvailableTimes.map { availableTime ->
-                    val (date, time) = splitAvailableAt(availableTime.availableAt)
                     ApplicationFormDraftDto.InterviewAvailableTimeDto(
                         id = availableTime.id,
-                        date = date,
-                        time = time,
+                        availableAt = availableTime.availableAt,
                         createdAt = availableTime.createdAt,
                     )
                 },
@@ -140,13 +138,4 @@ class ApplicationFormService(
         }
     }
 
-    private fun splitAvailableAt(availableAt: String): Pair<String, String> {
-        val normalized = availableAt.replace("T", " ")
-        val parts = normalized.split(" ", limit = 2)
-        return if (parts.size == 2) {
-            parts[0] to parts[1]
-        } else {
-            availableAt to ""
-        }
-    }
 }

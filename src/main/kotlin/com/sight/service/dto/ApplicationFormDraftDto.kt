@@ -16,8 +16,7 @@ data class ApplicationFormDraftDto(
 ) {
     data class InterviewAvailableTimeDto(
         val id: String,
-        val date: String,
-        val time: String,
+        val availableAt: String,
         val createdAt: LocalDateTime,
     )
 

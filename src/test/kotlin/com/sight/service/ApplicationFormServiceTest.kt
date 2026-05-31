@@ -99,8 +99,7 @@ class ApplicationFormServiceTest {
 
         assertEquals(applicationForm.id, result.id)
         assertEquals("기존 답변", result.contents.single().content)
-        assertEquals("2026-06-01", result.interviewAvailableTimes.single().date)
-        assertEquals("10:00", result.interviewAvailableTimes.single().time)
+        assertEquals("2026-06-01 10:00", result.interviewAvailableTimes.single().availableAt)
         assertEquals(64, result.token.length)
         verify(applicationFormRepository, never()).save(any())
         verify(applicationContentRepository, never()).saveAll(any<List<ApplicationContent>>())

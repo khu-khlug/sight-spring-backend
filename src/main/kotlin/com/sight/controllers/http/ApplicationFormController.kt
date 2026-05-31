@@ -35,8 +35,7 @@ class ApplicationFormController(
                 draft.interviewAvailableTimes.map { availableTime ->
                     CreateApplicationFormDraftResponse.InterviewAvailableTimeResponse(
                         id = availableTime.id,
-                        date = availableTime.date,
-                        time = availableTime.time,
+                        availableAt = availableTime.availableAt,
                         createdAt = availableTime.createdAt,
                     )
                 },

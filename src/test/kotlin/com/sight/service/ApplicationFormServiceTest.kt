@@ -1,6 +1,8 @@
 package com.sight.service
 
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.core.info21.Info21AuthClient
 import com.sight.core.info21.StuauthData
 import com.sight.core.info21.StuauthMajor
@@ -10,11 +12,15 @@ import com.sight.domain.application.ApplicationForm
 import com.sight.domain.application.ApplicationFormStatus
 import com.sight.domain.application.ApplicationQuestion
 import com.sight.domain.application.InterviewAvailableTime
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.ApplicationContentRepository
 import com.sight.repository.ApplicationFormAuthTokenRepository
 import com.sight.repository.ApplicationFormRepository
 import com.sight.repository.ApplicationQuestionRepository
 import com.sight.repository.InterviewAvailableTimeRepository
+import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -27,7 +33,10 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import java.time.Instant
 import java.time.LocalDateTime
+import java.util.Optional
 
 class ApplicationFormServiceTest {
     private val info21AuthClient = mock<Info21AuthClient>()
@@ -36,6 +45,7 @@ class ApplicationFormServiceTest {
     private val applicationContentRepository = mock<ApplicationContentRepository>()
     private val applicationFormAuthTokenRepository = mock<ApplicationFormAuthTokenRepository>()
     private val interviewAvailableTimeRepository = mock<InterviewAvailableTimeRepository>()
+    private val memberRepository = mock<MemberRepository>()
     private lateinit var service: ApplicationFormService
 
     @BeforeEach
@@ -48,6 +58,7 @@ class ApplicationFormServiceTest {
                 applicationContentRepository = applicationContentRepository,
                 applicationFormAuthTokenRepository = applicationFormAuthTokenRepository,
                 interviewAvailableTimeRepository = interviewAvailableTimeRepository,
+                memberRepository = memberRepository,
             )
     }
 
@@ -167,6 +178,53 @@ class ApplicationFormServiceTest {
         assertTrue(contentsCaptor.firstValue.all { it.content == "" })
     }
 
+    @Test
+    fun `assignManager는 담당자 운영진을 가입신청서에 배정한다`() {
+        val managerUserId = 10L
+        val applicationForm =
+            ApplicationForm(
+                id = "form-1",
+                info21Id = "2021999999",
+                submittee = "김테스트",
+                status = ApplicationFormStatus.SUBMITTED,
+            )
+        whenever(memberRepository.findById(managerUserId)).thenReturn(Optional.of(createMember(managerUserId, manager = true)))
+        whenever(applicationFormRepository.findById(applicationForm.id)).thenReturn(Optional.of(applicationForm))
+
+        service.assignManager(applicationForm.id, managerUserId)
+
+        val formCaptor = argumentCaptor<ApplicationForm>()
+        verify(applicationFormRepository).save(formCaptor.capture())
+        assertEquals(applicationForm.id, formCaptor.firstValue.id)
+        assertEquals(managerUserId, formCaptor.firstValue.assignedUserId)
+    }
+
+    @Test
+    fun `assignManager는 담당자 유저가 운영진이 아니면 UnprocessableEntityException을 던진다`() {
+        val managerUserId = 10L
+        whenever(memberRepository.findById(managerUserId)).thenReturn(Optional.of(createMember(managerUserId, manager = false)))
+
+        assertThrows<UnprocessableEntityException> {
+            service.assignManager("form-1", managerUserId)
+        }
+
+        verify(applicationFormRepository, never()).findById(any())
+        verify(applicationFormRepository, never()).save(any())
+    }
+
+    @Test
+    fun `assignManager는 가입신청서가 없으면 NotFoundException을 던진다`() {
+        val managerUserId = 10L
+        whenever(memberRepository.findById(managerUserId)).thenReturn(Optional.of(createMember(managerUserId, manager = true)))
+        whenever(applicationFormRepository.findById("missing-form")).thenReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            service.assignManager("missing-form", managerUserId)
+        }
+
+        verify(applicationFormRepository, never()).save(any())
+    }
+
     private fun stuauthResponse(
         code: Int = 200,
         name: String = "김테스트",
@@ -190,4 +248,26 @@ class ApplicationFormServiceTest {
                 ),
         )
     }
+
+    private fun createMember(
+        userId: Long = 1L,
+        manager: Boolean = false,
+    ): Member =
+        Member(
+            id = userId,
+            name = "testuser",
+            admission = "20",
+            realname = "테스트 사용자",
+            college = "소프트웨어융합학과",
+            grade = 3L,
+            manager = manager,
+            studentStatus = StudentStatus.UNDERGRADUATE,
+            email = "test@example.com",
+            status = UserStatus.ACTIVE,
+            khuisauthAt = Instant.now(),
+            updatedAt = LocalDateTime.now(),
+            createdAt = Instant.now(),
+            lastLogin = Instant.now(),
+            lastEnter = LocalDateTime.now(),
+        )
 }

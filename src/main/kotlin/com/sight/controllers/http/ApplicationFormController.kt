@@ -5,7 +5,6 @@ import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
-import com.sight.core.exception.BadRequestException
 import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -67,13 +66,9 @@ class ApplicationFormController(
         @PathVariable applicationFormId: String,
         @Valid @RequestBody request: AssignApplicationFormManagerRequest,
     ) {
-        val managerUserId =
-            request.managerUserId.toLongOrNull()
-                ?: throw BadRequestException("managerUserId는 숫자 문자열이어야 합니다")
-
         applicationFormService.assignManager(
             applicationFormId = applicationFormId,
-            managerUserId = managerUserId,
+            managerUserId = request.managerUserId!!,
         )
     }
 }

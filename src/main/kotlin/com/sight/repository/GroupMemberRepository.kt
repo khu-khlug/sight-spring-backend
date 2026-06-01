@@ -1,6 +1,7 @@
 package com.sight.repository
 
 import com.sight.domain.group.GroupMember
+import com.sight.repository.dto.GroupMemberListDto
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 
@@ -8,6 +9,26 @@ import org.springframework.stereotype.Repository
 class GroupMemberRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
+    fun findMemberListByGroupId(groupId: Long): List<GroupMemberListDto> {
+        return jdbcTemplate.query(
+            """
+            SELECT m.id AS user_id, m.name AS name, m.realname AS realname
+            FROM khlug_group_member gm
+            JOIN khlug_members m ON gm.member = m.id
+            WHERE gm.`group` = ?
+            ORDER BY m.id ASC
+            """.trimIndent(),
+            { rs, _ ->
+                GroupMemberListDto(
+                    userId = rs.getLong("user_id"),
+                    name = rs.getString("name"),
+                    realname = rs.getString("realname"),
+                )
+            },
+            groupId,
+        )
+    }
+
     fun findByGroupId(groupId: Long): List<GroupMember> {
         return jdbcTemplate.query(
             "SELECT `group`, member FROM khlug_group_member WHERE `group` = ?",
@@ -76,6 +97,17 @@ class GroupMemberRepository(
     ) {
         jdbcTemplate.update(
             "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",
+            groupId,
+            memberId,
+        )
+    }
+
+    fun delete(
+        groupId: Long,
+        memberId: Long,
+    ) {
+        jdbcTemplate.update(
+            "DELETE FROM khlug_group_member WHERE `group` = ? AND member = ?",
             groupId,
             memberId,
         )

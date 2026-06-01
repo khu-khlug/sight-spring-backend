@@ -11,6 +11,8 @@ import com.sight.core.auth.UserRole
 import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -98,5 +100,19 @@ class ApplicationFormController(
             applicationFormId = applicationFormId,
             managerUserId = request.managerUserId!!,
         )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PatchMapping("/application-forms/{applicationFormId}/pass")
+    fun passApplicationForm(
+        @PathVariable applicationFormId: String,
+        requester: Requester,
+    ): ResponseEntity<Void> {
+        applicationFormService.passApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = requester.userId,
+        )
+        return ResponseEntity.noContent().build()
     }
 }

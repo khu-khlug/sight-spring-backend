@@ -1,9 +1,12 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.AssignApplicationFormManagerRequest
+import com.sight.controllers.http.dto.CreateApplicationCommentRequest
+import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
 import com.sight.core.auth.Auth
+import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
@@ -19,6 +22,31 @@ import org.springframework.web.bind.annotation.RestController
 class ApplicationFormController(
     private val applicationFormService: ApplicationFormService,
 ) {
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping("/application-forms/{applicationFormId}/comments")
+    fun createComment(
+        @PathVariable applicationFormId: String,
+        requester: Requester,
+        @Valid @RequestBody request: CreateApplicationCommentRequest,
+    ): CreateApplicationCommentResponse {
+        val comment =
+            applicationFormService.createComment(
+                applicationFormId = applicationFormId,
+                authorUserId = requester.userId,
+                content = request.content,
+            )
+
+        return CreateApplicationCommentResponse(
+            id = comment.id,
+            applicationFormId = comment.applicationFormId,
+            authorUserId = comment.authorUserId,
+            content = comment.content,
+            createdAt = comment.createdAt,
+            updatedAt = comment.updatedAt,
+        )
+    }
+
     @PostMapping("/application-forms")
     @ResponseStatus(HttpStatus.CREATED)
     fun createDraft(

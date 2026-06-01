@@ -7,6 +7,7 @@ import com.sight.core.info21.Info21AuthClient
 import com.sight.core.info21.StuauthData
 import com.sight.core.info21.StuauthMajor
 import com.sight.core.info21.StuauthResponse
+import com.sight.domain.application.ApplicationComment
 import com.sight.domain.application.ApplicationContent
 import com.sight.domain.application.ApplicationForm
 import com.sight.domain.application.ApplicationFormStatus
@@ -15,6 +16,7 @@ import com.sight.domain.application.InterviewAvailableTime
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.repository.ApplicationCommentRepository
 import com.sight.repository.ApplicationContentRepository
 import com.sight.repository.ApplicationFormAuthTokenRepository
 import com.sight.repository.ApplicationFormRepository
@@ -22,6 +24,7 @@ import com.sight.repository.ApplicationQuestionRepository
 import com.sight.repository.InterviewAvailableTimeRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -41,6 +44,7 @@ import java.util.Optional
 class ApplicationFormServiceTest {
     private val info21AuthClient = mock<Info21AuthClient>()
     private val applicationFormRepository = mock<ApplicationFormRepository>()
+    private val applicationCommentRepository = mock<ApplicationCommentRepository>()
     private val applicationQuestionRepository = mock<ApplicationQuestionRepository>()
     private val applicationContentRepository = mock<ApplicationContentRepository>()
     private val applicationFormAuthTokenRepository = mock<ApplicationFormAuthTokenRepository>()
@@ -54,12 +58,69 @@ class ApplicationFormServiceTest {
             ApplicationFormService(
                 info21AuthClient = info21AuthClient,
                 applicationFormRepository = applicationFormRepository,
+                applicationCommentRepository = applicationCommentRepository,
                 applicationQuestionRepository = applicationQuestionRepository,
                 applicationContentRepository = applicationContentRepository,
                 applicationFormAuthTokenRepository = applicationFormAuthTokenRepository,
                 interviewAvailableTimeRepository = interviewAvailableTimeRepository,
                 memberRepository = memberRepository,
             )
+    }
+
+    @Test
+    fun `createComment는 가입 신청서가 존재할 때 정상적으로 댓글을 저장하고 반환한다`() {
+        val applicationFormId = "form-ulid"
+        val authorUserId = 12345L
+        val content = "좋은 지원서네요."
+        val applicationForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.SUBMITTED,
+            )
+        val savedComment =
+            ApplicationComment(
+                id = "comment-ulid",
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+                content = content,
+            )
+
+        given(applicationFormRepository.findById(applicationFormId)).willReturn(Optional.of(applicationForm))
+        given(applicationCommentRepository.save(any<ApplicationComment>())).willReturn(savedComment)
+
+        val result =
+            service.createComment(
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+                content = content,
+            )
+
+        assertNotNull(result)
+        assertEquals("comment-ulid", result.id)
+        assertEquals(applicationFormId, result.applicationFormId)
+        assertEquals(authorUserId, result.authorUserId)
+        assertEquals(content, result.content)
+        verify(applicationFormRepository).findById(applicationFormId)
+        verify(applicationCommentRepository).save(any<ApplicationComment>())
+    }
+
+    @Test
+    fun `createComment는 존재하지 않는 가입 신청서인 경우 NotFoundException을 던진다`() {
+        val applicationFormId = "non-existent-form"
+
+        given(applicationFormRepository.findById(applicationFormId)).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            service.createComment(
+                applicationFormId = applicationFormId,
+                authorUserId = 12345L,
+                content = "댓글 내용",
+            )
+        }
+
+        verify(applicationFormRepository).findById(applicationFormId)
     }
 
     @Test

@@ -6,11 +6,13 @@ import com.sight.core.exception.UnauthorizedException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.core.info21.Info21AuthClient
 import com.sight.core.info21.Info21AuthRequest
+import com.sight.domain.application.ApplicationComment
 import com.sight.domain.application.ApplicationContent
 import com.sight.domain.application.ApplicationForm
 import com.sight.domain.application.ApplicationFormAuthToken
 import com.sight.domain.application.ApplicationFormStatus
 import com.sight.domain.application.ApplicationQuestion
+import com.sight.repository.ApplicationCommentRepository
 import com.sight.repository.ApplicationContentRepository
 import com.sight.repository.ApplicationFormAuthTokenRepository
 import com.sight.repository.ApplicationFormRepository
@@ -27,6 +29,7 @@ import java.time.LocalDateTime
 class ApplicationFormService(
     private val info21AuthClient: Info21AuthClient,
     private val applicationFormRepository: ApplicationFormRepository,
+    private val applicationCommentRepository: ApplicationCommentRepository,
     private val applicationQuestionRepository: ApplicationQuestionRepository,
     private val applicationContentRepository: ApplicationContentRepository,
     private val applicationFormAuthTokenRepository: ApplicationFormAuthTokenRepository,
@@ -36,6 +39,27 @@ class ApplicationFormService(
     private val reusableStatuses = listOf(ApplicationFormStatus.DRAFT, ApplicationFormStatus.SUBMITTED)
     private val tokenCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     private val secureRandom = SecureRandom()
+
+    @Transactional
+    fun createComment(
+        applicationFormId: String,
+        authorUserId: Long,
+        content: String,
+    ): ApplicationComment {
+        applicationFormRepository.findById(applicationFormId).orElseThrow {
+            NotFoundException("가입신청서를 찾을 수 없습니다: $applicationFormId")
+        }
+
+        val comment =
+            ApplicationComment(
+                id = UlidCreator.getUlid().toString(),
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+                content = content,
+            )
+
+        return applicationCommentRepository.save(comment)
+    }
 
     @Transactional
     fun createDraft(

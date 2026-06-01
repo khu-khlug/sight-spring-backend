@@ -17,6 +17,7 @@ data class InterviewAvailableTime(
     @Column(name = "application_form_id", nullable = false, length = 100)
     val applicationFormId: String,
 
+    // Format: yyyy-MM-dd HH:mm; timezone: KST
     @Column(name = "available_at", nullable = false, length = 50)
     val availableAt: String,
 

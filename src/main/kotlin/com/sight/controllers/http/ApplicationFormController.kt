@@ -129,4 +129,18 @@ class ApplicationFormController(
         )
         return ResponseEntity.noContent().build()
     }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PatchMapping("/application-forms/{applicationFormId}/suspend")
+    fun suspendApplicationForm(
+        @PathVariable applicationFormId: String,
+        requester: Requester,
+    ): ResponseEntity<Void> {
+        applicationFormService.suspendApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = requester.userId,
+        )
+        return ResponseEntity.noContent().build()
+    }
 }

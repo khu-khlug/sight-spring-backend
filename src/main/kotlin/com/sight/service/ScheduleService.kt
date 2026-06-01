@@ -1,7 +1,9 @@
 package com.sight.service
 
 import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
@@ -42,6 +44,26 @@ class ScheduleService(
     }
 
     @Transactional
+    fun createGroupActivitySchedule(
+        requester: Requester,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+    ): Schedule {
+        return saveNewSchedule(
+            requester = requester,
+            title = title,
+            category = ScheduleCategory.GROUP_ACTIVITY,
+            location = location,
+            scheduledAt = scheduledAt,
+            endAt = endAt,
+            expoint = 0,
+            generateCheckCode = false,
+        )
+    }
+
+    @Transactional
     fun createSchedule(
         requester: Requester,
         title: String,
@@ -59,6 +81,38 @@ class ScheduleService(
     }
 
     @Transactional
+    fun createBigSeminarSchedule(
+        requester: Requester,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+        expoint: Int,
+        generateCheckCode: Boolean,
+        isSummerSeason: Boolean,
+        isSpeakAfter: Boolean,
+    ): Pair<Schedule, BigSeminar> {
+        val schedule =
+            saveNewSchedule(requester, title, ScheduleCategory.SEMINAR, location, scheduledAt, endAt, expoint, generateCheckCode)
+        val bigSeminar = upsertBigSeminar(schedule.id, isSummerSeason, isSpeakAfter)
+        return schedule to bigSeminar
+    }
+
+    @Transactional
+    fun updateGroupActivitySchedule(
+        requester: Requester,
+        id: Long,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+    ): Schedule {
+        val existing = findActiveScheduleInTier(id) { it.isGroupActivity }
+        assertUserIsAuthor(requester, existing)
+        return applyScheduleUpdate(existing, title, location, scheduledAt, endAt, existing.expoint)
+    }
+
+    @Transactional
     fun updateSchedule(
         requester: Requester,
         id: Long,
@@ -70,6 +124,24 @@ class ScheduleService(
     ): Schedule {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
         return applyScheduleUpdate(existing, title, location, scheduledAt, endAt, expoint)
+    }
+
+    @Transactional
+    fun updateBigSeminarSchedule(
+        requester: Requester,
+        id: Long,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+        expoint: Int,
+        isSummerSeason: Boolean,
+        isSpeakAfter: Boolean,
+    ): Pair<Schedule, BigSeminar> {
+        val existing = findActiveScheduleInTier(id) { it.isSeminar }
+        val updated = applyScheduleUpdate(existing, title, location, scheduledAt, endAt, expoint)
+        val bigSeminar = upsertBigSeminar(updated.id, isSummerSeason, isSpeakAfter)
+        return updated to bigSeminar
     }
 
     @Transactional
@@ -106,12 +178,32 @@ class ScheduleService(
     }
 
     @Transactional
+    fun deleteGroupActivitySchedule(
+        requester: Requester,
+        id: Long,
+    ) {
+        val existing = findActiveScheduleInTier(id) { it.isGroupActivity }
+        assertUserIsAuthor(requester, existing)
+        softDeleteSchedule(existing)
+    }
+
+    @Transactional
     fun deleteSchedule(
         requester: Requester,
         id: Long,
     ) {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
         softDeleteSchedule(existing)
+    }
+
+    @Transactional
+    fun deleteBigSeminarSchedule(
+        requester: Requester,
+        id: Long,
+    ) {
+        val existing = findActiveScheduleInTier(id) { it.isSeminar }
+        softDeleteSchedule(existing)
+        bigSeminarRepository.deleteByScheduleId(existing.id)
     }
 
     // ===== 공통 helper =====
@@ -196,6 +288,15 @@ class ScheduleService(
             throw BadRequestException("이 엔드포인트로 처리할 수 없는 카테고리의 일정입니다.")
         }
         return existing
+    }
+
+    private fun assertUserIsAuthor(
+        requester: Requester,
+        existing: Schedule,
+    ) {
+        if (requester.role == UserRole.USER && existing.author != requester.userId) {
+            throw ForbiddenException("본인이 작성한 일정만 수정·삭제할 수 있습니다.")
+        }
     }
 
     private fun validateTimeRange(

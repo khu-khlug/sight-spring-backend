@@ -17,4 +17,12 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
         @Param("from") from: LocalDateTime,
         pageable: Pageable,
     ): List<Schedule>
+
+    @Query("SELECT s FROM Schedule s WHERE s.state = 'public' ORDER BY s.scheduledAt ASC")
+    fun findAllActive(pageable: Pageable): List<Schedule>
+
+    @Query("SELECT s FROM Schedule s WHERE s.id = :id AND s.state = 'public'")
+    fun findActiveById(
+        @Param("id") id: Long,
+    ): Schedule?
 }

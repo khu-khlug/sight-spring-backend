@@ -1,8 +1,8 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.AssignApplicationFormManagerRequest
 import com.sight.controllers.http.dto.CreateApplicationCommentRequest
 import com.sight.controllers.http.dto.CreateApplicationCommentResponse
-import com.sight.controllers.http.dto.AssignApplicationFormManagerRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
 import com.sight.core.auth.Auth
@@ -46,7 +46,7 @@ class ApplicationFormController(
             updatedAt = comment.updatedAt,
         )
     }
-    
+
     @PostMapping("/application-forms")
     @ResponseStatus(HttpStatus.CREATED)
     fun createDraft(

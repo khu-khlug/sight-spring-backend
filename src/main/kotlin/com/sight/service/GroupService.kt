@@ -53,11 +53,48 @@ class GroupService(
         limit: Int,
         bookmarked: Boolean?,
         joined: Boolean?,
+        categories: List<String>?,
+        state: String?,
+        interest: String?,
+        keyword: String?,
         orderBy: GroupOrderBy?,
         requesterId: Long,
     ): GroupListResult {
-        val groups = groupRepository.findGroups(offset, limit, joined, bookmarked, orderBy, requesterId)
-        val count = groupRepository.countGroups(joined, bookmarked, requesterId)
+        val validCategories =
+            categories?.map { value ->
+                GroupCategory.fromValue(value)
+                    ?: throw BadRequestException("유효하지 않은 카테고리입니다: $value")
+            }
+
+        val validState =
+            state?.let { value ->
+                GroupState.fromValue(value)
+                    ?: throw BadRequestException("유효하지 않은 상태입니다: $value")
+            }
+
+        val groups =
+            groupRepository.findGroups(
+                offset = offset,
+                limit = limit,
+                joined = joined,
+                bookmarked = bookmarked,
+                categories = validCategories,
+                state = validState,
+                interest = interest,
+                keyword = keyword,
+                orderBy = orderBy,
+                requesterId = requesterId,
+            )
+        val count =
+            groupRepository.countGroups(
+                joined = joined,
+                bookmarked = bookmarked,
+                categories = validCategories,
+                state = validState,
+                interest = interest,
+                keyword = keyword,
+                requesterId = requesterId,
+            )
 
         return GroupListResult(
             count = count,
@@ -141,11 +178,11 @@ class GroupService(
         GroupListItem(
             id = this.id,
             category =
-                GroupCategory.entries.firstOrNull { it.value == this.category }
+                GroupCategory.fromValue(this.category)
                     ?: throw InternalServerErrorException("알 수 없는 그룹 카테고리입니다: ${this.category}"),
             title = this.title,
             state =
-                GroupState.entries.firstOrNull { it.value == this.state }
+                GroupState.fromValue(this.state)
                     ?: throw InternalServerErrorException("알 수 없는 그룹 상태입니다: ${this.state}"),
             countMember = this.countMember,
             allowJoin = this.allowJoin,

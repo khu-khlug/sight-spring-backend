@@ -456,7 +456,7 @@ class ApplicationFormServiceTest {
 
         // when
         val result =
-            applicationFormService.rejectApplicationForm(
+            service.rejectApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )
@@ -481,7 +481,7 @@ class ApplicationFormServiceTest {
 
         // when & then
         assertThrows<NotFoundException> {
-            applicationFormService.rejectApplicationForm(
+            service.rejectApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )
@@ -509,7 +509,7 @@ class ApplicationFormServiceTest {
 
         // when & then
         assertThrows<UnprocessableEntityException> {
-            applicationFormService.rejectApplicationForm(
+            service.rejectApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )
@@ -549,7 +549,7 @@ class ApplicationFormServiceTest {
 
         // when
         val result =
-            applicationFormService.suspendApplicationForm(
+            service.suspendApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )
@@ -574,7 +574,7 @@ class ApplicationFormServiceTest {
 
         // when & then
         assertThrows<NotFoundException> {
-            applicationFormService.suspendApplicationForm(
+            service.suspendApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )
@@ -602,7 +602,7 @@ class ApplicationFormServiceTest {
 
         // when & then
         assertThrows<UnprocessableEntityException> {
-            applicationFormService.suspendApplicationForm(
+            service.suspendApplicationForm(
                 applicationFormId = applicationFormId,
                 authorUserId = authorUserId,
             )

@@ -32,4 +32,15 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
     fun deleteActiveById(
         @Param("id") id: Long,
     )
+
+    @Query(
+        "SELECT COUNT(s) FROM Schedule s " +
+            "WHERE s.location = :location AND s.state = 'public' " +
+            "AND s.scheduledAt < :endAt AND s.endAt > :scheduledAt",
+    )
+    fun countOverlappingAtLocation(
+        @Param("location") location: String,
+        @Param("scheduledAt") scheduledAt: LocalDateTime,
+        @Param("endAt") endAt: LocalDateTime,
+    ): Long
 }

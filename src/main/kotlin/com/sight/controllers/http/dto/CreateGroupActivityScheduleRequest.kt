@@ -12,4 +12,6 @@ data class CreateGroupActivityScheduleRequest(
     val scheduledAt: LocalDateTime,
     @field:NotNull
     val endAt: LocalDateTime,
+    @field:NotNull
+    val groupId: Long,
 )

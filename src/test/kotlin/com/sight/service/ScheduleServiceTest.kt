@@ -3,13 +3,24 @@ package com.sight.service
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.Group
+import com.sight.domain.group.GroupAccessGrade
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupState
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
+import com.sight.repository.MemberRepository
 import com.sight.repository.ScheduleRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,8 +29,10 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.LocalDateTime
+import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -28,6 +41,9 @@ import kotlin.test.assertTrue
 class ScheduleServiceTest {
     private val scheduleRepository: ScheduleRepository = mock()
     private val bigSeminarRepository: BigSeminarRepository = mock()
+    private val groupMemberRepository: GroupMemberRepository = mock()
+    private val groupRepository: GroupRepository = mock()
+    private val memberRepository: MemberRepository = mock()
     private lateinit var scheduleService: ScheduleService
 
     @BeforeEach
@@ -36,6 +52,9 @@ class ScheduleServiceTest {
             ScheduleService(
                 scheduleRepository = scheduleRepository,
                 bigSeminarRepository = bigSeminarRepository,
+                groupMemberRepository = groupMemberRepository,
+                groupRepository = groupRepository,
+                memberRepository = memberRepository,
             )
     }
 
@@ -126,6 +145,85 @@ class ScheduleServiceTest {
         assertThrows<NotFoundException> {
             scheduleService.getScheduleById(999L)
         }
+    }
+
+    @Test
+    fun `getScheduleWithDetails는 작성자명과 그룹명을 함께 반환한다`() {
+        val schedule =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.GROUP_ACTIVITY,
+                title = "스터디",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                groupId = 20L,
+            )
+        val member =
+            Member(
+                id = 10L,
+                name = "khlug_user",
+                admission = "21",
+                realname = "홍길동",
+                college = "소프트웨어융합대학",
+                grade = 3L,
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
+            )
+        val group =
+            Group(
+                id = 20L,
+                category = GroupCategory.STUDY,
+                title = "코틀린 스터디",
+                author = 10L,
+                master = 10L,
+                state = GroupState.PROGRESS,
+                grade = GroupAccessGrade.MEMBER,
+            )
+        given(scheduleRepository.findActiveById(1L)).willReturn(schedule)
+        given(memberRepository.findById(10L)).willReturn(Optional.of(member))
+        given(groupRepository.findById(20L)).willReturn(Optional.of(group))
+
+        val (resultSchedule, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
+
+        assertEquals(1L, resultSchedule.id)
+        assertEquals("khlug_user", authorName)
+        assertEquals("코틀린 스터디", groupTitle)
+    }
+
+    @Test
+    fun `getScheduleWithDetails는 groupId가 null이면 groupTitle이 null이다`() {
+        val schedule =
+            Schedule(
+                id = 1L,
+                category = ScheduleCategory.CLUB,
+                title = "동아리 모임",
+                author = 10L,
+                state = ScheduleState.PUBLIC,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                groupId = null,
+            )
+        val member =
+            Member(
+                id = 10L,
+                name = "khlug_user",
+                admission = "21",
+                realname = "홍길동",
+                college = "소프트웨어융합대학",
+                grade = 3L,
+                studentStatus = StudentStatus.UNDERGRADUATE,
+                status = UserStatus.ACTIVE,
+            )
+        given(scheduleRepository.findActiveById(1L)).willReturn(schedule)
+        given(memberRepository.findById(10L)).willReturn(Optional.of(member))
+
+        val (_, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
+
+        assertEquals("khlug_user", authorName)
+        assertNull(groupTitle)
+        verify(groupRepository, never()).findById(any())
     }
 
     @Test
@@ -386,8 +484,83 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `createGroupActivitySchedule은 GROUP_ACTIVITY로 expoint 0 checkCode 없이 생성한다`() {
+    fun `createSchedule은 동방 장소에 시간이 겹치는 일정이 있으면 ConflictException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        given(scheduleRepository.countOverlappingAtLocation(any(), any(), any())).willReturn(1L)
+
+        assertThrows<ConflictException> {
+            scheduleService.createSchedule(
+                requester = requester,
+                title = "test",
+                category = ScheduleCategory.CLUB,
+                location = "405",
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                expoint = 0,
+                generateCheckCode = false,
+            )
+        }
+        verify(scheduleRepository, never()).save(any())
+    }
+
+    @Test
+    fun `createSchedule은 동방 장소라도 시간이 겹치지 않으면 정상 등록한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        given(scheduleRepository.countOverlappingAtLocation(any(), any(), any())).willReturn(0L)
+        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
+
+        val result =
+            scheduleService.createSchedule(
+                requester = requester,
+                title = "test",
+                category = ScheduleCategory.CLUB,
+                location = "406",
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                expoint = 0,
+                generateCheckCode = false,
+            )
+
+        assertEquals("406", result.location)
+        verify(scheduleRepository).save(any<Schedule>())
+    }
+
+    @Test
+    fun `createSchedule은 동방 이외의 장소는 시간이 겹쳐도 등록을 허용한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
+
+        val result =
+            scheduleService.createSchedule(
+                requester = requester,
+                title = "test",
+                category = ScheduleCategory.CLUB,
+                location = "기타 장소",
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                expoint = 0,
+                generateCheckCode = false,
+            )
+
+        assertEquals("기타 장소", result.location)
+        verify(scheduleRepository, never()).countOverlappingAtLocation(any(), any(), any())
+    }
+
+    @Test
+    fun `createGroupActivitySchedule은 그룹 멤버이면 GROUP_ACTIVITY로 expoint 0 checkCode 없이 생성한다`() {
         val requester = Requester(userId = 1L, role = UserRole.USER)
+        val group =
+            Group(
+                id = 10L,
+                category = GroupCategory.STUDY,
+                title = "스터디",
+                author = 1L,
+                master = 1L,
+                state = GroupState.PROGRESS,
+                grade = GroupAccessGrade.MEMBER,
+            )
+        given(groupRepository.findById(10L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(10L, 1L)).willReturn(true)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
 
         val result =
@@ -397,12 +570,44 @@ class ScheduleServiceTest {
                 location = null,
                 scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
                 endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                groupId = 10L,
             )
 
         assertEquals(ScheduleCategory.GROUP_ACTIVITY, result.category)
         assertEquals(0, result.expoint)
         assertEquals(1L, result.author)
+        assertEquals(10L, result.groupId)
         assertNull(result.checkCode)
+    }
+
+    @Test
+    fun `createGroupActivitySchedule은 해당 그룹 멤버가 아니면 ForbiddenException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.USER)
+        val group =
+            Group(
+                id = 10L,
+                category = GroupCategory.STUDY,
+                title = "스터디",
+                author = 1L,
+                master = 1L,
+                state = GroupState.PROGRESS,
+                grade = GroupAccessGrade.MEMBER,
+            )
+        given(groupRepository.findById(10L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(10L, 1L)).willReturn(false)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.createGroupActivitySchedule(
+                requester = requester,
+                title = "스터디",
+                location = null,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+                groupId = 10L,
+            )
+        }
+
+        verify(scheduleRepository, never()).save(any())
     }
 
     @Test
@@ -456,6 +661,44 @@ class ScheduleServiceTest {
         val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY, author = 10L)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
         val requester = Requester(userId = 99L, role = UserRole.USER)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.updateGroupActivitySchedule(
+                requester = requester,
+                id = 1L,
+                title = "x",
+                location = null,
+                scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+            )
+        }
+    }
+
+    @Test
+    fun `updateGroupActivitySchedule은 MANAGER가 본인 작성 그룹활동을 수정한다`() {
+        val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY, author = 10L)
+        given(scheduleRepository.findActiveById(1L)).willReturn(existing)
+        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
+        val requester = Requester(userId = 10L, role = UserRole.MANAGER)
+
+        val result =
+            scheduleService.updateGroupActivitySchedule(
+                requester = requester,
+                id = 1L,
+                title = "new",
+                location = null,
+                scheduledAt = LocalDateTime.of(2026, 5, 20, 14, 0),
+                endAt = LocalDateTime.of(2026, 5, 20, 16, 0),
+            )
+
+        assertEquals("new", result.title)
+    }
+
+    @Test
+    fun `updateGroupActivitySchedule은 MANAGER가 타인 작성 일정을 수정하면 ForbiddenException 던진다`() {
+        val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY, author = 10L)
+        given(scheduleRepository.findActiveById(1L)).willReturn(existing)
+        val requester = Requester(userId = 99L, role = UserRole.MANAGER)
 
         assertThrows<ForbiddenException> {
             scheduleService.updateGroupActivitySchedule(
@@ -558,6 +801,20 @@ class ScheduleServiceTest {
         assertThrows<ForbiddenException> {
             scheduleService.deleteGroupActivitySchedule(requester, 1L)
         }
+    }
+
+    @Test
+    fun `deleteGroupActivitySchedule은 MANAGER가 타인 작성 그룹활동을 삭제할 수 있다`() {
+        val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY, author = 10L)
+        given(scheduleRepository.findActiveById(1L)).willReturn(existing)
+        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
+        val requester = Requester(userId = 99L, role = UserRole.MANAGER)
+
+        scheduleService.deleteGroupActivitySchedule(requester, 1L)
+
+        val captor = argumentCaptor<Schedule>()
+        verify(scheduleRepository).save(captor.capture())
+        assertEquals(ScheduleState.TRASH, captor.firstValue.state)
     }
 
     @Test

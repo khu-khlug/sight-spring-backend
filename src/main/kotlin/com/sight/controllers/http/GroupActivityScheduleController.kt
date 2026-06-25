@@ -36,6 +36,7 @@ class GroupActivityScheduleController(
                 location = request.location,
                 scheduledAt = request.scheduledAt,
                 endAt = request.endAt,
+                groupId = request.groupId,
             )
         return CreateScheduleResponse.from(schedule)
     }

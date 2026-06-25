@@ -1,29 +1,62 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
+import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupMember
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
+import com.sight.repository.GroupBookmarkRepository
+import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.util.Optional
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class GroupServiceTest {
     private val groupRepository = mock<GroupRepository>()
+    private val groupBookmarkRepository = mock<GroupBookmarkRepository>()
+    private val groupMemberRepository = mock<GroupMemberRepository>()
+    private val pointService = mock<PointService>()
+    private val notificationService = mock<NotificationService>()
     private lateinit var groupService: GroupService
+
+    private val baseGroup =
+        Group(
+            id = 1L,
+            category = GroupCategory.STUDY,
+            title = "테스트 그룹",
+            author = 10L,
+            master = 10L,
+            state = GroupState.PROGRESS,
+            portfolio = false,
+        )
 
     @BeforeEach
     fun setUp() {
-        groupService = GroupService(groupRepository)
+        groupService =
+            GroupService(
+                groupRepository,
+                groupBookmarkRepository,
+                groupMemberRepository,
+                pointService,
+                notificationService,
+            )
         given(
             groupRepository.findGroups(
                 any(),
@@ -211,8 +244,6 @@ class GroupServiceTest {
         )
     }
 
-    // --- 카테고리 필터 테스트 ---
-
     @Test
     fun `category=study로 조회하면 스터디 카테고리를 Repository에 전달한다`() {
         // when
@@ -296,8 +327,6 @@ class GroupServiceTest {
 
         assertTrue(exception.message.contains("invalid_category"))
     }
-
-    // --- 상태 필터 테스트 ---
 
     @Test
     fun `state=progress로 조회하면 진행 중 상태를 Repository에 전달한다`() {
@@ -383,8 +412,6 @@ class GroupServiceTest {
         assertTrue(exception.message.contains("invalid_state"))
     }
 
-    // --- interest / keyword 필터 테스트 ---
-
     @Test
     fun `interest 값을 그대로 Repository에 전달한다`() {
         // when
@@ -446,8 +473,6 @@ class GroupServiceTest {
             eq(1L),
         )
     }
-
-    // --- 복합 필터 테스트 ---
 
     @Test
     fun `여러 필터를 동시에 사용할 수 있다`() {
@@ -521,5 +546,179 @@ class GroupServiceTest {
 
         // then
         assertEquals(42L, result.count)
+    }
+
+    @Test
+    fun `addBookmark는 그룹이 존재하고 즐겨찾기하지 않은 경우 즐겨찾기를 추가한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(false)
+
+        // when
+        groupService.addBookmark(groupId = 1L, requesterId = 10L)
+
+        // then
+        verify(groupBookmarkRepository).save(argThat { member == 10L && group == 1L })
+    }
+
+    @Test
+    fun `addBookmark는 이미 즐겨찾기한 그룹에 요청하면 422를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(true)
+
+        // when & then
+        assertFailsWith<UnprocessableEntityException> {
+            groupService.addBookmark(groupId = 1L, requesterId = 10L)
+        }
+        verify(groupBookmarkRepository, never()).save(any())
+    }
+
+    @Test
+    fun `addBookmark는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.addBookmark(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `cancelBookmark는 즐겨찾기된 그룹에 요청하면 즐겨찾기를 취소한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(true)
+
+        // when
+        groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+
+        // then
+        verify(groupBookmarkRepository).deleteByMemberAndGroup(10L, 1L)
+    }
+
+    @Test
+    fun `cancelBookmark는 즐겨찾기하지 않은 그룹에 요청하면 422를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupBookmarkRepository.existsByMemberAndGroup(10L, 1L)).willReturn(false)
+
+        // when & then
+        assertFailsWith<UnprocessableEntityException> {
+            groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+        }
+        verify(groupBookmarkRepository, never()).deleteByMemberAndGroup(any(), any())
+    }
+
+    @Test
+    fun `cancelBookmark는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.cancelBookmark(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `publishPortfolio는 그룹장이 미발행 그룹에 요청하면 포트폴리오 발행 여부를 true로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
+        // given
+        val members = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+        given(groupMemberRepository.findByGroupId(1L)).willReturn(members)
+
+        // when
+        val result = groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
+
+        // then
+        assertTrue(result)
+        verify(groupRepository).save(baseGroup.copy(portfolio = true))
+        verify(pointService).givePoint(20L, 10, "포트폴리오 발행")
+        verify(pointService).givePoint(30L, 10, "포트폴리오 발행")
+    }
+
+    @Test
+    fun `publishPortfolio는 이미 발행된 그룹에 요청하면 400을 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup.copy(portfolio = true)))
+
+        // when & then
+        assertFailsWith<BadRequestException> {
+            groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `publishPortfolio는 그룹장이 아닌 멤버가 요청하면 403을 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+
+        // when & then
+        assertFailsWith<ForbiddenException> {
+            groupService.publishPortfolio(groupId = 1L, requesterId = 99L)
+        }
+    }
+
+    @Test
+    fun `publishPortfolio는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `cancelPortfolio는 그룹장이 발행 중인 그룹에 요청하면 포트폴리오 발행 여부를 false로 변경하고 멤버에게 포인트와 알림을 전송한다`() {
+        // given
+        val publishedGroup = baseGroup.copy(portfolio = true)
+        val members = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))
+        given(groupRepository.findById(1L)).willReturn(Optional.of(publishedGroup))
+        given(groupMemberRepository.findByGroupId(1L)).willReturn(members)
+
+        // when
+        groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
+
+        // then
+        verify(groupRepository).save(publishedGroup.copy(portfolio = false))
+        verify(pointService).givePoint(20L, -10, "포트폴리오 취소")
+        verify(pointService).givePoint(30L, -10, "포트폴리오 취소")
+    }
+
+    @Test
+    fun `cancelPortfolio는 발행되지 않은 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
+        }
+    }
+
+    @Test
+    fun `cancelPortfolio는 그룹장이 아닌 멤버가 요청하면 403을 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup.copy(portfolio = true)))
+
+        // when & then
+        assertFailsWith<ForbiddenException> {
+            groupService.cancelPortfolio(groupId = 1L, requesterId = 99L)
+        }
+    }
+
+    @Test
+    fun `cancelPortfolio는 존재하지 않는 그룹에 요청하면 404를 반환한다`() {
+        // given
+        given(groupRepository.findById(1L)).willReturn(Optional.empty())
+
+        // when & then
+        assertFailsWith<NotFoundException> {
+            groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
+        }
     }
 }

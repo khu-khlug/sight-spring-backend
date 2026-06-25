@@ -21,7 +21,7 @@ data class ScheduleDto(
     val id: String,
     val title: String,
     val startTime: String,
-    val category: ScheduleCategory?,
+    val category: ScheduleCategory,
 ) {
     companion object {
         fun from(schedule: Schedule): ScheduleDto {
@@ -29,7 +29,7 @@ data class ScheduleDto(
                 id = schedule.id.toString(),
                 title = schedule.title,
                 startTime = schedule.scheduledAt.toString(),
-                category = ScheduleCategory.fromCode(schedule.categoryCode),
+                category = schedule.category,
             )
         }
     }

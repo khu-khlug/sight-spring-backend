@@ -34,6 +34,9 @@ GET /schedules/{scheduleId}
 | `expoint`   |  숫자  | 출석 시 부여될 ExPoint                                        |
 | `checkCode` | 문자열 | 출첵 코드 (운영진 응답에만 포함, 일반 회원 응답에선 필드 누락) |
 | `author`    |  숫자  | 작성자 회원 ID                                                |
+| `authorName` | 문자열 | 작성자 이름 (탈퇴 등으로 조회 불가능한 경우 `"알 수 없음"`)   |
+| `groupId`   |  숫자  | 그룹 ID (그룹 활동 일정인 경우에만 포함, 그 외 nullable)       |
+| `groupTitle` | 문자열 | 그룹 이름 (그룹 활동 일정인 경우에만 포함, 그 외 nullable)     |
 | `createdAt` | 문자열 | 생성 일시 (ISO 8601)                                          |
 | `updatedAt` | 문자열 | 마지막 수정 일시 (ISO 8601)                                   |
 

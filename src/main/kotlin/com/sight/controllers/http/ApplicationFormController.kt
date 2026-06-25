@@ -115,4 +115,18 @@ class ApplicationFormController(
         )
         return ResponseEntity.noContent().build()
     }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PatchMapping("/application-forms/{applicationFormId}/reject")
+    fun rejectApplicationForm(
+        @PathVariable applicationFormId: String,
+        requester: Requester,
+    ): ResponseEntity<Void> {
+        applicationFormService.rejectApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = requester.userId,
+        )
+        return ResponseEntity.noContent().build()
+    }
 }

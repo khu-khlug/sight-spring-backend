@@ -22,6 +22,7 @@ POST /schedules/group-activity
 | `location`    | 문자열 | 장소 (nullable)            |
 | `scheduledAt` | 문자열 | 시작 일시 (ISO 8601)       |
 | `endAt`       | 문자열 | 종료 일시 (ISO 8601)       |
+| `groupId`     |  숫자  | 그룹 ID                    |
 
 ### 응답 코드 및 응답 바디
 
@@ -49,4 +50,8 @@ POST /schedules/group-activity
 3. `endAt < scheduledAt`이면 400을 반환한다
 4. 일반 회원(`USER`)이 생성 → 201
 5. 운영진(`MANAGER`)이 생성 → 201
-6. 인증되지 않은 요청 → 401
+6. 해당 그룹의 멤버가 아니면 403을 반환한다
+7. 존재하지 않는 그룹 ID면 404를 반환한다
+8. 진행 중(`PROGRESS`)이 아닌 그룹이면 400을 반환한다
+9. 인증되지 않은 요청 → 401
+10. `location`이 동방(`405`/`406`/`410`)이고 해당 장소에 시간이 겹치는 공개 일정이 이미 있으면 → 409

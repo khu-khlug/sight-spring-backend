@@ -3,7 +3,8 @@ package com.sight.service
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.ConflictException
 import com.sight.core.exception.UnauthorizedException
-import com.sight.core.khuis.KhuisClient
+import com.sight.core.info21.Info21AuthClient
+import com.sight.core.info21.Info21AuthRequest
 import com.sight.domain.application.UserRegistrationRequest
 import com.sight.domain.application.UserRegistrationRequestStatus
 import com.sight.domain.member.UserStatus
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 class UserRegistrationRequestService(
     private val memberRepository: MemberRepository,
     private val userRegistrationRequestRepository: UserRegistrationRequestRepository,
-    private val khuisClient: KhuisClient,
+    private val info21AuthClient: Info21AuthClient,
 ) {
     @Transactional
     fun createRegistrationRequest(
@@ -43,8 +44,14 @@ class UserRegistrationRequestService(
         }
 
         // 3. info21Id와 info21Password로 info21 인증 요청하여 성공하는지 확인합니다. 실패 시 401.
-        val isAuthenticated = khuisClient.authenticate(info21Id, info21Password)
-        if (!isAuthenticated) {
+        val authResponse =
+            info21AuthClient.authenticate(
+                Info21AuthRequest(
+                    info21Id = info21Id,
+                    info21Password = info21Password,
+                ),
+            )
+        if (authResponse.code != 200) {
             throw UnauthorizedException("info21 인증에 실패하였습니다")
         }
 

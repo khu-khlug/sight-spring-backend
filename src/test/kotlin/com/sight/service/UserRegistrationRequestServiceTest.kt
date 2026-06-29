@@ -2,7 +2,11 @@ package com.sight.service
 
 import com.sight.core.exception.ConflictException
 import com.sight.core.exception.UnauthorizedException
-import com.sight.core.khuis.KhuisClient
+import com.sight.core.info21.Info21AuthClient
+import com.sight.core.info21.Info21AuthRequest
+import com.sight.core.info21.StuauthData
+import com.sight.core.info21.StuauthMajor
+import com.sight.core.info21.StuauthResponse
 import com.sight.domain.application.UserRegistrationRequest
 import com.sight.domain.application.UserRegistrationRequestStatus
 import com.sight.domain.member.Member
@@ -25,7 +29,7 @@ import kotlin.test.assertNotNull
 class UserRegistrationRequestServiceTest {
     private val memberRepository = mock<MemberRepository>()
     private val userRegistrationRequestRepository = mock<UserRegistrationRequestRepository>()
-    private val khuisClient = mock<KhuisClient>()
+    private val info21AuthClient = mock<Info21AuthClient>()
     private lateinit var userRegistrationRequestService: UserRegistrationRequestService
 
     @BeforeEach
@@ -34,7 +38,7 @@ class UserRegistrationRequestServiceTest {
             UserRegistrationRequestService(
                 memberRepository,
                 userRegistrationRequestRepository,
-                khuisClient,
+                info21AuthClient,
             )
     }
 
@@ -72,7 +76,7 @@ class UserRegistrationRequestServiceTest {
         given(memberRepository.findByName(info21Id)).willReturn(member)
         given(userRegistrationRequestRepository.existsByRequestedUserIdAndStatus(requestedUserId, UserRegistrationRequestStatus.PENDING))
             .willReturn(false)
-        given(khuisClient.authenticate(info21Id, info21Password)).willReturn(true)
+        given(info21AuthClient.authenticate(Info21AuthRequest(info21Id, info21Password))).willReturn(stuauthResponse())
         given(userRegistrationRequestRepository.save(any<UserRegistrationRequest>())).willReturn(savedRequest)
 
         // when
@@ -91,7 +95,7 @@ class UserRegistrationRequestServiceTest {
 
         verify(memberRepository).findByName(info21Id)
         verify(userRegistrationRequestRepository).existsByRequestedUserIdAndStatus(requestedUserId, UserRegistrationRequestStatus.PENDING)
-        verify(khuisClient).authenticate(info21Id, info21Password)
+        verify(info21AuthClient).authenticate(Info21AuthRequest(info21Id, info21Password))
         verify(userRegistrationRequestRepository).save(any<UserRegistrationRequest>())
     }
 
@@ -158,7 +162,7 @@ class UserRegistrationRequestServiceTest {
         given(memberRepository.findByName(info21Id)).willReturn(member)
         given(userRegistrationRequestRepository.existsByRequestedUserIdAndStatus(requestedUserId, UserRegistrationRequestStatus.PENDING))
             .willReturn(false)
-        given(khuisClient.authenticate(info21Id, info21Password)).willReturn(false)
+        given(info21AuthClient.authenticate(Info21AuthRequest(info21Id, info21Password))).willReturn(stuauthResponse(code = 401))
 
         // when & then
         assertThrows<UnauthorizedException> {
@@ -171,7 +175,31 @@ class UserRegistrationRequestServiceTest {
 
         verify(memberRepository).findByName(info21Id)
         verify(userRegistrationRequestRepository).existsByRequestedUserIdAndStatus(requestedUserId, UserRegistrationRequestStatus.PENDING)
-        verify(khuisClient).authenticate(info21Id, info21Password)
+        verify(info21AuthClient).authenticate(Info21AuthRequest(info21Id, info21Password))
         verify(userRegistrationRequestRepository, never()).save(any())
+    }
+
+    private fun stuauthResponse(
+        code: Int = 200,
+        name: String = "LOCAL_USER",
+    ): StuauthResponse {
+        return StuauthResponse(
+            code = code,
+            message = "OK",
+            data =
+                StuauthData(
+                    studentNumber = 2021999999,
+                    name = name,
+                    grade = 1,
+                    major =
+                        listOf(
+                            StuauthMajor(
+                                college = "소프트웨어융합대학",
+                                department = "컴퓨터공학부",
+                            ),
+                        ),
+                    phone = "010-1234-1234",
+                ),
+        )
     }
 }

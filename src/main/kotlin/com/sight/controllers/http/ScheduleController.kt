@@ -65,7 +65,7 @@ class ScheduleController(
     ): CreateScheduleResponse {
         val schedule =
             scheduleService.createSchedule(
-                requester = requester,
+                requesterUserId = requester.userId,
                 title = request.title,
                 category = request.category,
                 location = request.location,
@@ -86,7 +86,6 @@ class ScheduleController(
     ): GetScheduleResponse {
         val schedule =
             scheduleService.updateSchedule(
-                requester = requester,
                 id = scheduleId,
                 title = request.title,
                 location = request.location,
@@ -106,7 +105,6 @@ class ScheduleController(
     ): GetScheduleResponse {
         val (schedule, bigSeminar) =
             scheduleService.updateScheduleCategory(
-                requester = requester,
                 id = scheduleId,
                 category = request.category,
                 isSummerSeason = request.isSummerSeason,
@@ -119,9 +117,8 @@ class ScheduleController(
     @DeleteMapping("/schedules/{scheduleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteSchedule(
-        requester: Requester,
         @PathVariable scheduleId: Long,
     ) {
-        scheduleService.deleteSchedule(requester, scheduleId)
+        scheduleService.deleteSchedule(scheduleId)
     }
 }

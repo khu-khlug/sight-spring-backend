@@ -1,6 +1,5 @@
 package com.sight.service
 
-import com.sight.core.auth.Requester
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.schedule.Schedule
@@ -43,7 +42,7 @@ class ScheduleService(
 
     @Transactional
     fun createSchedule(
-        requester: Requester,
+        requesterUserId: Long,
         title: String,
         category: ScheduleCategory,
         location: String?,
@@ -55,12 +54,11 @@ class ScheduleService(
         if (!category.isManagerCategory) {
             throw BadRequestException("그룹 활동·세미나 일정은 전용 엔드포인트를 사용해 주세요.")
         }
-        return saveNewSchedule(requester, title, category, location, scheduledAt, endAt, expoint, generateCheckCode)
+        return saveNewSchedule(requesterUserId, title, category, location, scheduledAt, endAt, expoint, generateCheckCode)
     }
 
     @Transactional
     fun updateSchedule(
-        requester: Requester,
         id: Long,
         title: String,
         location: String?,
@@ -74,7 +72,6 @@ class ScheduleService(
 
     @Transactional
     fun updateScheduleCategory(
-        requester: Requester,
         id: Long,
         category: ScheduleCategory,
         isSummerSeason: Boolean?,
@@ -106,10 +103,7 @@ class ScheduleService(
     }
 
     @Transactional
-    fun deleteSchedule(
-        requester: Requester,
-        id: Long,
-    ) {
+    fun deleteSchedule(id: Long) {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
         softDeleteSchedule(existing)
     }
@@ -117,7 +111,7 @@ class ScheduleService(
     // ===== 공통 helper =====
 
     private fun saveNewSchedule(
-        requester: Requester,
+        requesterUserId: Long,
         title: String,
         category: ScheduleCategory,
         location: String?,
@@ -132,7 +126,7 @@ class ScheduleService(
                 id = pickAvailableScheduleId(),
                 category = category,
                 title = title,
-                author = requester.userId,
+                author = requesterUserId,
                 state = ScheduleState.PUBLIC,
                 scheduledAt = scheduledAt,
                 endAt = endAt,

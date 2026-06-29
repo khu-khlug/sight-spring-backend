@@ -1,7 +1,5 @@
 package com.sight.service
 
-import com.sight.core.auth.Requester
-import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.schedule.Schedule
@@ -129,12 +127,11 @@ class ScheduleServiceTest {
 
     @Test
     fun `createSchedule은 generateCheckCode가 false면 checkCode를 null로 저장한다`() {
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
 
         val result =
             scheduleService.createSchedule(
-                requester = requester,
+                requesterUserId = 1L,
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = "khlug_406",
@@ -153,12 +150,11 @@ class ScheduleServiceTest {
 
     @Test
     fun `createSchedule은 generateCheckCode가 true면 4자리 숫자 checkCode를 생성한다`() {
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
 
         val result =
             scheduleService.createSchedule(
-                requester = requester,
+                requesterUserId = 1L,
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = null,
@@ -175,12 +171,10 @@ class ScheduleServiceTest {
 
     @Test
     fun `createSchedule은 운영진 카테고리가 아니면 BadRequestException 던진다`() {
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
-
         listOf(ScheduleCategory.GROUP_ACTIVITY, ScheduleCategory.SEMINAR).forEach { category ->
             assertThrows<BadRequestException> {
                 scheduleService.createSchedule(
-                    requester = requester,
+                    requesterUserId = 1L,
                     title = "test",
                     category = category,
                     location = null,
@@ -195,11 +189,9 @@ class ScheduleServiceTest {
 
     @Test
     fun `createSchedule은 endAt이 scheduledAt 이후가 아니면 BadRequestException 던진다`() {
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
-
         assertThrows<BadRequestException> {
             scheduleService.createSchedule(
-                requester = requester,
+                requesterUserId = 1L,
                 title = "test",
                 category = ScheduleCategory.CLUB,
                 location = null,
@@ -216,11 +208,9 @@ class ScheduleServiceTest {
         val existing = scheduleOf(category = ScheduleCategory.CLUB, checkCode = "1234")
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
-        val requester = Requester(userId = 99L, role = UserRole.MANAGER)
 
         val result =
             scheduleService.updateSchedule(
-                requester = requester,
                 id = 1L,
                 title = "new",
                 location = "khlug_406",
@@ -239,11 +229,9 @@ class ScheduleServiceTest {
     fun `updateSchedule은 대상이 운영진 카테고리가 아니면 BadRequestException 던진다`() {
         val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<BadRequestException> {
             scheduleService.updateSchedule(
-                requester = requester,
                 id = 1L,
                 title = "x",
                 location = null,
@@ -257,11 +245,9 @@ class ScheduleServiceTest {
     @Test
     fun `updateSchedule은 없는 일정에 NotFoundException 던진다`() {
         given(scheduleRepository.findActiveById(999L)).willReturn(null)
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<NotFoundException> {
             scheduleService.updateSchedule(
-                requester = requester,
                 id = 999L,
                 title = "x",
                 location = null,
@@ -279,11 +265,9 @@ class ScheduleServiceTest {
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
         given(bigSeminarRepository.findByScheduleId(1L)).willReturn(null)
         given(bigSeminarRepository.save(any<BigSeminar>())).willAnswer { it.arguments[0] as BigSeminar }
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         val (schedule, bigSeminar) =
             scheduleService.updateScheduleCategory(
-                requester = requester,
                 id = 1L,
                 category = ScheduleCategory.SEMINAR,
                 isSummerSeason = true,
@@ -300,11 +284,9 @@ class ScheduleServiceTest {
         val existing = scheduleOf(category = ScheduleCategory.CLUB)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<BadRequestException> {
             scheduleService.updateScheduleCategory(
-                requester = requester,
                 id = 1L,
                 category = ScheduleCategory.SEMINAR,
                 isSummerSeason = null,
@@ -318,11 +300,9 @@ class ScheduleServiceTest {
         val existing = scheduleOf(category = ScheduleCategory.SEMINAR)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         val (schedule, bigSeminar) =
             scheduleService.updateScheduleCategory(
-                requester = requester,
                 id = 1L,
                 category = ScheduleCategory.CLUB,
                 isSummerSeason = null,
@@ -336,11 +316,8 @@ class ScheduleServiceTest {
 
     @Test
     fun `updateScheduleCategory는 GROUP_ACTIVITY로 변경 시 BadRequestException 던진다`() {
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
-
         assertThrows<BadRequestException> {
             scheduleService.updateScheduleCategory(
-                requester = requester,
                 id = 1L,
                 category = ScheduleCategory.GROUP_ACTIVITY,
                 isSummerSeason = null,
@@ -354,9 +331,8 @@ class ScheduleServiceTest {
         val existing = scheduleOf(category = ScheduleCategory.CLUB)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
-        val requester = Requester(userId = 99L, role = UserRole.MANAGER)
 
-        scheduleService.deleteSchedule(requester, 1L)
+        scheduleService.deleteSchedule(1L)
 
         val captor = argumentCaptor<Schedule>()
         verify(scheduleRepository).save(captor.capture())
@@ -367,20 +343,18 @@ class ScheduleServiceTest {
     fun `deleteSchedule은 대상이 운영진 카테고리가 아니면 BadRequestException 던진다`() {
         val existing = scheduleOf(category = ScheduleCategory.GROUP_ACTIVITY)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<BadRequestException> {
-            scheduleService.deleteSchedule(requester, 1L)
+            scheduleService.deleteSchedule(1L)
         }
     }
 
     @Test
     fun `deleteSchedule은 없는 일정에 NotFoundException 던진다`() {
         given(scheduleRepository.findActiveById(999L)).willReturn(null)
-        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
 
         assertThrows<NotFoundException> {
-            scheduleService.deleteSchedule(requester, 999L)
+            scheduleService.deleteSchedule(999L)
         }
     }
 

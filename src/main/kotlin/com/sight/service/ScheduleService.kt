@@ -105,7 +105,7 @@ class ScheduleService(
     @Transactional
     fun deleteSchedule(id: Long) {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
-        softDeleteSchedule(existing)
+        scheduleRepository.deleteActiveById(existing.id)
     }
 
     // ===== 공통 helper =====
@@ -156,10 +156,6 @@ class ScheduleService(
                 updatedAt = LocalDateTime.now(),
             ),
         )
-    }
-
-    private fun softDeleteSchedule(existing: Schedule) {
-        scheduleRepository.save(existing.copy(state = ScheduleState.TRASH, updatedAt = LocalDateTime.now()))
     }
 
     private fun upsertBigSeminar(

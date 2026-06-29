@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -327,16 +326,13 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `deleteSchedule은 운영진 일정 state를 TRASH로 전환한다`() {
+    fun `deleteSchedule은 운영진 일정을 삭제한다`() {
         val existing = scheduleOf(category = ScheduleCategory.CLUB)
         given(scheduleRepository.findActiveById(1L)).willReturn(existing)
-        given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
 
         scheduleService.deleteSchedule(1L)
 
-        val captor = argumentCaptor<Schedule>()
-        verify(scheduleRepository).save(captor.capture())
-        assertEquals(ScheduleState.TRASH, captor.firstValue.state)
+        verify(scheduleRepository).deleteActiveById(1L)
     }
 
     @Test

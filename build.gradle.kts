@@ -1,8 +1,10 @@
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
+    `jvm-test-suite`
     kotlin("jvm") version "1.9.25"
     kotlin("plugin.spring") version "1.9.25"
     kotlin("plugin.jpa") version "1.9.25"
@@ -64,6 +66,27 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+testing {
+    suites {
+        register<JvmTestSuite>("konsistTest") {
+            useJUnitJupiter()
+
+            dependencies {
+                implementation(project())
+                implementation("com.lemonappdev:konsist:0.17.3")
+            }
+
+            targets {
+                all {
+                    testTask.configure {
+                        shouldRunAfter(tasks.test)
+                    }
+                }
+            }
+        }
+    }
 }
 
 ktlint {

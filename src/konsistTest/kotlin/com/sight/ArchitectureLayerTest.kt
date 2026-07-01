@@ -17,19 +17,10 @@ class ArchitectureLayerTest {
                 val core = Layer("core", "com.sight.core..")
                 val repository = Layer("repository", "com.sight.repository..")
 
-                controllers.dependsOn(service)
-                controllers.dependsOn(config)
-                controllers.dependsOn(core)
-                controllers.dependsOn(repository)
+                service.doesNotDependOn(controllers)
 
-                service.dependsOn(domain)
-                service.dependsOn(config)
-                service.dependsOn(core)
-                service.dependsOn(repository)
-
-                domain.dependsOn(config)
-                domain.dependsOn(core)
-                domain.dependsOn(repository)
+                domain.doesNotDependOn(controllers)
+                domain.doesNotDependOn(service)
 
                 config.doesNotDependOn(controllers)
                 config.doesNotDependOn(service)
@@ -41,7 +32,6 @@ class ArchitectureLayerTest {
 
                 repository.doesNotDependOn(controllers)
                 repository.doesNotDependOn(service)
-                repository.doesNotDependOn(domain)
             }
         }
     }

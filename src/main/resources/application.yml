@@ -65,6 +65,8 @@ discord:
     group: ${DISCORD_GROUP_CATEGORY:}
 
 khlug:
+  door-lock:
+    webhook-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
   phone:
     webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
 
@@ -119,6 +121,8 @@ discord:
     group: ${DISCORD_GROUP_CATEGORY:}
 
 khlug:
+  door-lock:
+    webhook-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
   phone:
     webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
 

@@ -3,6 +3,7 @@ package com.sight.repository
 import com.sight.domain.schedule.Schedule
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -25,4 +26,10 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
     fun findActiveById(
         @Param("id") id: Long,
     ): Schedule?
+
+    @Modifying
+    @Query("UPDATE Schedule s SET s.state = 'trash', s.updatedAt = CURRENT_TIMESTAMP WHERE s.id = :id AND s.state = 'public'")
+    fun deleteActiveById(
+        @Param("id") id: Long,
+    )
 }

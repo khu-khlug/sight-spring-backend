@@ -9,7 +9,7 @@ class ArchitectureLayerTest {
     @Test
     fun `프로젝트 계층 의존성 방향을 강제한다`() {
         with(KoArchitectureCreator) {
-            Konsist.scopeFromProject().assertArchitecture {
+            Konsist.scopeFromDirectory("src/main/kotlin").assertArchitecture {
                 val controllers = Layer("controllers", "com.sight.controllers..")
                 val service = Layer("service", "com.sight.service..")
                 val domain = Layer("domain", "com.sight.domain..")

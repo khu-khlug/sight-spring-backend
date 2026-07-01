@@ -52,8 +52,8 @@ class ScheduleController(
         requester: Requester,
         @PathVariable scheduleId: Long,
     ): GetScheduleResponse {
-        val schedule = scheduleService.getScheduleById(scheduleId)
-        return GetScheduleResponse.from(schedule, requester.role)
+        val (schedule, authorName, groupTitle) = scheduleService.getScheduleWithDetails(scheduleId)
+        return GetScheduleResponse.from(schedule, requester.role, authorName = authorName, groupTitle = groupTitle)
     }
 
     @Auth([UserRole.MANAGER])

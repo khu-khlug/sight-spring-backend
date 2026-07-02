@@ -1,6 +1,6 @@
 package com.sight.core.exception
 
-import com.sight.controllers.http.dto.ErrorResponse
+import com.sight.core.response.ErrorResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException

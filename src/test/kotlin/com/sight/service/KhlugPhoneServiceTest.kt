@@ -1,7 +1,5 @@
 package com.sight.service
 
-import com.sight.controllers.http.dto.ForwardNotificationRequest
-import com.sight.controllers.http.dto.ReportPhoneStatusRequest
 import com.sight.domain.device.BatteryStatus
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -32,16 +30,14 @@ class KhlugPhoneServiceTest {
     @Test
     fun `reportPhoneStatus는 배터리 20% 이하이고 충전 중이 아닐 때 웹훅을 호출한다`() {
         // given
-        val request =
-            ReportPhoneStatusRequest(
-                batteryPercent = 20,
-                batteryStatus = BatteryStatus.NOT_CHARGING,
-            )
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willReturn(ResponseEntity.ok("success"))
 
         // when
-        service.reportPhoneStatus(request)
+        service.reportPhoneStatus(
+            batteryPercent = 20,
+            batteryStatus = BatteryStatus.NOT_CHARGING,
+        )
 
         // then
         verify(restTemplate).postForEntity(
@@ -54,14 +50,11 @@ class KhlugPhoneServiceTest {
     @Test
     fun `reportPhoneStatus는 배터리 20% 초과이면 웹훅을 호출하지 않는다`() {
         // given
-        val request =
-            ReportPhoneStatusRequest(
-                batteryPercent = 21,
-                batteryStatus = BatteryStatus.NOT_CHARGING,
-            )
-
         // when
-        service.reportPhoneStatus(request)
+        service.reportPhoneStatus(
+            batteryPercent = 21,
+            batteryStatus = BatteryStatus.NOT_CHARGING,
+        )
 
         // then
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
@@ -70,14 +63,11 @@ class KhlugPhoneServiceTest {
     @Test
     fun `reportPhoneStatus는 충전 중이면 웹훅을 호출하지 않는다`() {
         // given
-        val request =
-            ReportPhoneStatusRequest(
-                batteryPercent = 10,
-                batteryStatus = BatteryStatus.CHARGING,
-            )
-
         // when
-        service.reportPhoneStatus(request)
+        service.reportPhoneStatus(
+            batteryPercent = 10,
+            batteryStatus = BatteryStatus.CHARGING,
+        )
 
         // then
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
@@ -86,16 +76,14 @@ class KhlugPhoneServiceTest {
     @Test
     fun `reportPhoneStatus는 웹훅 실패시 예외를 던지지 않는다`() {
         // given
-        val request =
-            ReportPhoneStatusRequest(
-                batteryPercent = 20,
-                batteryStatus = BatteryStatus.NOT_CHARGING,
-            )
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willThrow(RuntimeException("Webhook failed"))
 
         // when & then (예외가 발생하지 않으면 성공)
-        service.reportPhoneStatus(request)
+        service.reportPhoneStatus(
+            batteryPercent = 20,
+            batteryStatus = BatteryStatus.NOT_CHARGING,
+        )
     }
 
     @Test
@@ -106,14 +94,12 @@ class KhlugPhoneServiceTest {
                 webhookUrl = "",
                 restTemplate = restTemplate,
             )
-        val request =
-            ReportPhoneStatusRequest(
-                batteryPercent = 15,
-                batteryStatus = BatteryStatus.NOT_CHARGING,
-            )
 
         // when
-        emptyWebhookService.reportPhoneStatus(request)
+        emptyWebhookService.reportPhoneStatus(
+            batteryPercent = 15,
+            batteryStatus = BatteryStatus.NOT_CHARGING,
+        )
 
         // then
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
@@ -122,18 +108,16 @@ class KhlugPhoneServiceTest {
     @Test
     fun `forwardNotification은 웹훅을 호출한다`() {
         // given
-        val request =
-            ForwardNotificationRequest(
-                appName = "카카오톡",
-                title = "홍길동",
-                content = "안녕하세요",
-                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
-            )
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willReturn(ResponseEntity.ok("success"))
 
         // when
-        service.forwardNotification(request)
+        service.forwardNotification(
+            appName = "카카오톡",
+            title = "홍길동",
+            content = "안녕하세요",
+            receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+        )
 
         // then
         verify(restTemplate).postForEntity(
@@ -151,16 +135,14 @@ class KhlugPhoneServiceTest {
                 webhookUrl = "",
                 restTemplate = restTemplate,
             )
-        val request =
-            ForwardNotificationRequest(
-                appName = "카카오톡",
-                title = "홍길동",
-                content = "안녕하세요",
-                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
-            )
 
         // when
-        emptyWebhookService.forwardNotification(request)
+        emptyWebhookService.forwardNotification(
+            appName = "카카오톡",
+            title = "홍길동",
+            content = "안녕하세요",
+            receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+        )
 
         // then
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
@@ -169,17 +151,15 @@ class KhlugPhoneServiceTest {
     @Test
     fun `forwardNotification은 웹훅 실패시 예외를 던지지 않는다`() {
         // given
-        val request =
-            ForwardNotificationRequest(
-                appName = "카카오톡",
-                title = "홍길동",
-                content = "안녕하세요",
-                receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
-            )
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willThrow(RuntimeException("Webhook failed"))
 
         // when & then (예외가 발생하지 않으면 성공)
-        service.forwardNotification(request)
+        service.forwardNotification(
+            appName = "카카오톡",
+            title = "홍길동",
+            content = "안녕하세요",
+            receivedAt = Instant.parse("2024-01-01T12:00:00Z"),
+        )
     }
 }

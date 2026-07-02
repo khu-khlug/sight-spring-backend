@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface MemberRepository : JpaRepository<Member, Long>, MemberRepositoryCustom {
     fun findByManagerTrue(): List<Member>
+
+    fun findByName(name: String): Member?
 }

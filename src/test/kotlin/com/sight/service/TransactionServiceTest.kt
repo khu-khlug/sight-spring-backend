@@ -1,6 +1,5 @@
 package com.sight.service
 
-import com.sight.controllers.http.dto.CreateTransactionRequest
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.finance.Transaction
@@ -103,25 +102,26 @@ class TransactionServiceTest {
     fun `createTransaction은 이전 거래가 없을 때 cumulative를 total과 같게 설정한다`() {
         // given
         val authorId = 1L
-        val request =
-            CreateTransactionRequest(
+        val usedAt = LocalDate.of(2024, 1, 15)
+
+        given(transactionRepository.findLatestOnOrBefore(usedAt)).willReturn(null)
+        given(transactionRepository.save(any<Transaction>())).willAnswer {
+            it.arguments[0] as Transaction
+        }
+        given(transactionRepository.findAfterDate(usedAt)).willReturn(emptyList())
+
+        // when
+        val result =
+            transactionService.createTransaction(
                 type = TransactionType.INCOME,
                 item = "테스트 항목",
                 price = 10000L,
                 quantity = 2L,
                 place = "테스트 장소",
                 note = "테스트 노트",
-                usedAt = LocalDate.of(2024, 1, 15),
+                usedAt = usedAt,
+                authorId = authorId,
             )
-
-        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(null)
-        given(transactionRepository.save(any<Transaction>())).willAnswer {
-            it.arguments[0] as Transaction
-        }
-        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
-
-        // when
-        val result = transactionService.createTransaction(request, authorId)
 
         // then
         assertEquals(20000L, result.total) // 10000 * 2
@@ -132,16 +132,7 @@ class TransactionServiceTest {
     fun `createTransaction은 이전 거래가 있을 때 cumulative를 누적한다`() {
         // given
         val authorId = 1L
-        val request =
-            CreateTransactionRequest(
-                type = TransactionType.INCOME,
-                item = "테스트 항목",
-                price = 5000L,
-                quantity = 1L,
-                place = null,
-                note = null,
-                usedAt = LocalDate.of(2024, 1, 20),
-            )
+        val usedAt = LocalDate.of(2024, 1, 20)
 
         val previousTransaction =
             Transaction(
@@ -160,14 +151,24 @@ class TransactionServiceTest {
                 updatedAt = LocalDateTime.now(),
             )
 
-        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(previousTransaction)
+        given(transactionRepository.findLatestOnOrBefore(usedAt)).willReturn(previousTransaction)
         given(transactionRepository.save(any<Transaction>())).willAnswer {
             it.arguments[0] as Transaction
         }
-        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
+        given(transactionRepository.findAfterDate(usedAt)).willReturn(emptyList())
 
         // when
-        val result = transactionService.createTransaction(request, authorId)
+        val result =
+            transactionService.createTransaction(
+                type = TransactionType.INCOME,
+                item = "테스트 항목",
+                price = 5000L,
+                quantity = 1L,
+                place = null,
+                note = null,
+                usedAt = usedAt,
+                authorId = authorId,
+            )
 
         // then
         assertEquals(5000L, result.total) // 5000 * 1
@@ -179,16 +180,7 @@ class TransactionServiceTest {
         // given
         val authorId = 1L
         val currentPrice = 5000L
-        val request =
-            CreateTransactionRequest(
-                type = TransactionType.EXPENSE,
-                item = "테스트 항목",
-                price = currentPrice,
-                quantity = 1L,
-                place = null,
-                note = null,
-                usedAt = LocalDate.of(2024, 1, 20),
-            )
+        val usedAt = LocalDate.of(2024, 1, 20)
 
         val previousTransaction =
             Transaction(
@@ -207,14 +199,24 @@ class TransactionServiceTest {
                 updatedAt = LocalDateTime.now(),
             )
 
-        given(transactionRepository.findLatestOnOrBefore(request.usedAt)).willReturn(previousTransaction)
+        given(transactionRepository.findLatestOnOrBefore(usedAt)).willReturn(previousTransaction)
         given(transactionRepository.save(any<Transaction>())).willAnswer {
             it.arguments[0] as Transaction
         }
-        given(transactionRepository.findAfterDate(request.usedAt)).willReturn(emptyList())
+        given(transactionRepository.findAfterDate(usedAt)).willReturn(emptyList())
 
         // when
-        val result = transactionService.createTransaction(request, authorId)
+        val result =
+            transactionService.createTransaction(
+                type = TransactionType.EXPENSE,
+                item = "테스트 항목",
+                price = currentPrice,
+                quantity = 1L,
+                place = null,
+                note = null,
+                usedAt = usedAt,
+                authorId = authorId,
+            )
 
         // then
         assertEquals(currentPrice, result.total) // 5000 * 1
@@ -225,20 +227,20 @@ class TransactionServiceTest {
     fun `createTransaction은 미래 날짜 입력 시 예외를 던진다`() {
         // given
         val authorId = 1L
-        val request =
-            CreateTransactionRequest(
+        val usedAt = LocalDate.now().plusDays(1)
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            transactionService.createTransaction(
                 type = TransactionType.EXPENSE,
                 item = "테스트",
                 price = 1000L,
                 quantity = 1L,
                 place = null,
                 note = null,
-                usedAt = LocalDate.now().plusDays(1),
+                usedAt = usedAt,
+                authorId = authorId,
             )
-
-        // when & then
-        assertThrows<UnprocessableEntityException> {
-            transactionService.createTransaction(request, authorId)
         }
     }
 }

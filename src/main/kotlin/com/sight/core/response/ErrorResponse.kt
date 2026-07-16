@@ -1,4 +1,4 @@
-package com.sight.controllers.http.dto
+package com.sight.core.response
 
 data class ErrorResponse(
     val statusCode: Int,

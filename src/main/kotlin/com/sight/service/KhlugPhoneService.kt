@@ -1,7 +1,5 @@
 package com.sight.service
 
-import com.sight.controllers.http.dto.ForwardNotificationRequest
-import com.sight.controllers.http.dto.ReportPhoneStatusRequest
 import com.sight.domain.device.BatteryStatus
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
@@ -22,22 +20,30 @@ class KhlugPhoneService(
 ) {
     private val logger = LoggerFactory.getLogger(KhlugPhoneService::class.java)
 
-    fun reportPhoneStatus(request: ReportPhoneStatusRequest) {
-        if (request.batteryPercent > 20 || request.batteryStatus == BatteryStatus.CHARGING) {
+    fun reportPhoneStatus(
+        batteryPercent: Int,
+        batteryStatus: BatteryStatus,
+    ) {
+        if (batteryPercent > 20 || batteryStatus == BatteryStatus.CHARGING) {
             return
         }
 
         try {
-            val payload = createDiscordWebhookPayload(request)
+            val payload = createDiscordWebhookPayload(batteryPercent, batteryStatus)
             sendWebhook(payload)
         } catch (e: Exception) {
             logger.error("쿠러그 폰 상태 알림 전송 실패", e)
         }
     }
 
-    fun forwardNotification(request: ForwardNotificationRequest) {
+    fun forwardNotification(
+        appName: String,
+        title: String,
+        content: String,
+        receivedAt: Instant,
+    ) {
         try {
-            val payload = createNotificationWebhookPayload(request)
+            val payload = createNotificationWebhookPayload(appName, title, content, receivedAt)
             sendWebhook(payload)
         } catch (e: Exception) {
             logger.error("푸시 알림 포워딩 실패", e)
@@ -59,45 +65,53 @@ class KhlugPhoneService(
         restTemplate.postForEntity(webhookUrl, httpEntity, String::class.java)
     }
 
-    private fun createNotificationWebhookPayload(request: ForwardNotificationRequest): Map<String, Any> {
+    private fun createNotificationWebhookPayload(
+        appName: String,
+        title: String,
+        content: String,
+        receivedAt: Instant,
+    ): Map<String, Any> {
         val description =
             listOf(
-                "**${request.title}**",
-                request.content,
+                "**$title**",
+                content,
             ).joinToString("\n")
 
         val embed =
             mapOf(
-                "title" to "📱 ${request.appName} 알림",
+                "title" to "📱 $appName 알림",
                 "description" to description,
                 "color" to 0x3498DB,
-                "timestamp" to request.receivedAt.toString(),
+                "timestamp" to receivedAt.toString(),
             )
 
         return mapOf("embeds" to listOf(embed))
     }
 
-    private fun createDiscordWebhookPayload(request: ReportPhoneStatusRequest): Map<String, Any> {
+    private fun createDiscordWebhookPayload(
+        batteryPercent: Int,
+        batteryStatus: BatteryStatus,
+    ): Map<String, Any> {
         val color =
             when {
                 // Red
-                request.batteryPercent <= 20 -> 0xE74C3C
+                batteryPercent <= 20 -> 0xE74C3C
 
                 // Orange
-                request.batteryPercent <= 50 -> 0xF39C12
+                batteryPercent <= 50 -> 0xF39C12
 
                 // Green
                 else -> 0x2ECC71
             }
 
         val statusEmoji =
-            when (request.batteryStatus) {
+            when (batteryStatus) {
                 BatteryStatus.CHARGING -> "🔌"
                 BatteryStatus.NOT_CHARGING -> "🔋"
             }
 
         val statusText =
-            when (request.batteryStatus) {
+            when (batteryStatus) {
                 BatteryStatus.CHARGING -> "충전 중"
                 BatteryStatus.NOT_CHARGING -> "충전 안 함"
             }
@@ -105,7 +119,7 @@ class KhlugPhoneService(
         val batterySection =
             listOf(
                 "**🔋 배터리**",
-                "$statusEmoji **${request.batteryPercent}%** - $statusText",
+                "$statusEmoji **$batteryPercent%** - $statusText",
             ).joinToString("\n")
 
         val embed =

@@ -86,7 +86,13 @@ class TransactionController(
     ): CreateTransactionResponse {
         val transaction =
             transactionService.createTransaction(
-                request = request,
+                type = request.type,
+                item = request.item,
+                price = request.price,
+                quantity = request.quantity,
+                place = request.place,
+                note = request.note,
+                usedAt = request.usedAt,
                 authorId = requester.userId,
             )
 

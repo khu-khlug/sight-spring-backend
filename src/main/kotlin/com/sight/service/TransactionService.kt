@@ -1,7 +1,6 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.controllers.http.dto.CreateTransactionRequest
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.finance.Transaction
@@ -96,20 +95,26 @@ class TransactionService(
 
     @Transactional
     fun createTransaction(
-        request: CreateTransactionRequest,
+        type: TransactionType,
+        item: String,
+        price: Long,
+        quantity: Long,
+        place: String?,
+        note: String?,
+        usedAt: LocalDate,
         authorId: Long,
     ): Transaction {
         val today = LocalDate.now()
-        if (request.usedAt.isAfter(today)) {
+        if (usedAt.isAfter(today)) {
             throw UnprocessableEntityException("미래 날짜는 입력할 수 없습니다")
         }
 
-        val total = request.price * request.quantity
+        val total = price * quantity
 
         // 추가하려는 날짜이거나 이보다 이전의 장부 내역 조회
-        val prevCumulative = transactionRepository.findLatestOnOrBefore(request.usedAt)?.cumulative ?: 0L
+        val prevCumulative = transactionRepository.findLatestOnOrBefore(usedAt)?.cumulative ?: 0L
         val cumulative =
-            when (request.type) {
+            when (type) {
                 TransactionType.INCOME -> prevCumulative + total
                 TransactionType.EXPENSE -> prevCumulative - total
             }
@@ -118,22 +123,22 @@ class TransactionService(
             Transaction(
                 id = UlidCreator.getUlid().toString(),
                 author = authorId,
-                type = request.type,
-                item = request.item,
-                price = request.price,
-                quantity = request.quantity,
+                type = type,
+                item = item,
+                price = price,
+                quantity = quantity,
                 total = total,
                 cumulative = cumulative,
-                place = request.place,
-                note = request.note,
-                usedAt = request.usedAt,
+                place = place,
+                note = note,
+                usedAt = usedAt,
             )
 
         val saved = transactionRepository.save(transaction)
 
         // 추가하려는 날짜 위치보다 미래 날짜에 있는 모든 항목들
         // 동일 `usedAt` 값 기준으로 항상 지금 생성되는 장부 내역의 `createdAt`이 가장 클 것이므로 미래 날짜만 조회하면 됨.
-        val successors = transactionRepository.findAfterDate(request.usedAt)
+        val successors = transactionRepository.findAfterDate(usedAt)
         if (successors.isNotEmpty()) {
             var runningCumulative = cumulative
             val updated =

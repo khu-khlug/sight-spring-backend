@@ -68,7 +68,7 @@ docker build -f Dockerfile.Build -t sight-spring-backend .
 ### 의존성 방향
 - 일반적인 로직 처리 흐름: `controllers` → `service` → `domain`
 - 역방향 의존성은 금지
-- `config`, `core`, `repository`는 다른 계층에서 접근 가능하지만 역방향은 불가
+- `config`, `core`는 다른 계층에서 접근 가능하지만 역방향은 불가
 
 ```mermaid
 graph TD
@@ -86,6 +86,8 @@ graph TD
     Domain --> Config
     Domain --> Core
     Domain --> Repository
+
+    Repository --> Domain
     
     style Controllers fill:#e1f5fe
     style Service fill:#f3e5f5

@@ -1,15 +1,22 @@
 package com.sight.domain.schedule
 
-enum class ScheduleCategory(val code: Long, val label: String) {
-    ROOM_405(32529, "405호"),
-    ROOM_406(32530, "406호"),
-    ROOM_410(32531, "410호"),
-    CLUB(7742, "동아리"),
-    ACADEMIC(7743, "학사"),
-    EXTERNAL(7744, "외부"),
+enum class ScheduleCategory(val label: String) {
+    CLUB("동아리"),
+    ACADEMIC("학사"),
+    EXTERNAL("외부"),
+    MANAGEMENT("운영"),
+    GROUP_ACTIVITY("그룹활동"),
+    SEMINAR("세미나"),
+    AFTERPARTY("뒷풀이"),
+    OTHER("기타"),
     ;
 
-    companion object {
-        fun fromCode(code: Long): ScheduleCategory? = entries.find { it.code == code }
-    }
+    /** 일반 회원이 생성할 수 있는 그룹 활동 카테고리. */
+    val isGroupActivity: Boolean get() = this == GROUP_ACTIVITY
+
+    /** 빅세미나(big_seminar) 처리가 동반되는 세미나 카테고리. */
+    val isSeminar: Boolean get() = this == SEMINAR
+
+    /** 운영진 전용 카테고리(그룹 활동·세미나를 제외한 전부). */
+    val isManagerCategory: Boolean get() = !isGroupActivity && !isSeminar
 }

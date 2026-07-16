@@ -25,8 +25,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import java.util.Optional
 import java.time.Instant
+import java.util.Optional
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -195,7 +195,7 @@ class UserRegistrationRequestServiceTest {
         whenever(userRegistrationRequestRepository.findById(requestId))
             .thenReturn(Optional.of(userRegistrationRequest))
         val captor = argumentCaptor<UserRegistrationRequest>()
-        whenever(userRegistrationRequestRepository.save(any()))
+        whenever(userRegistrationRequestRepository.save(any<UserRegistrationRequest>()))
             .thenAnswer { it.arguments[0] as UserRegistrationRequest }
 
         userRegistrationRequestService.approve(requestId)

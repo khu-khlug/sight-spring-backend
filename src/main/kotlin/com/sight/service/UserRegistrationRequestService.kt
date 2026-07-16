@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.ConflictException
+import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.core.info21.Info21AuthClient
 import com.sight.core.info21.Info21AuthRequest
@@ -12,6 +13,7 @@ import com.sight.repository.MemberRepository
 import com.sight.repository.UserRegistrationRequestRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 class UserRegistrationRequestService(
@@ -19,6 +21,21 @@ class UserRegistrationRequestService(
     private val userRegistrationRequestRepository: UserRegistrationRequestRepository,
     private val info21AuthClient: Info21AuthClient,
 ) {
+    @Transactional
+    fun approve(requestId: String): UserRegistrationRequest {
+        val userRegistrationRequest =
+            userRegistrationRequestRepository.findById(requestId).orElseThrow {
+                NotFoundException("회원 등록 요청을 찾을 수 없습니다")
+            }
+
+        return userRegistrationRequestRepository.save(
+            userRegistrationRequest.copy(
+                status = UserRegistrationRequestStatus.APPROVED,
+                updatedAt = LocalDateTime.now(),
+            ),
+        )
+    }
+
     @Transactional
     fun createRegistrationRequest(
         info21Id: String,

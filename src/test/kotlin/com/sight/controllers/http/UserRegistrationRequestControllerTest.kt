@@ -2,6 +2,7 @@ package com.sight.controllers.http
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sight.controllers.http.dto.CreateUserRegistrationRequest
+import com.sight.controllers.http.dto.UpdateUserRegistrationRequestStatusRequest
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.domain.application.UserRegistrationRequest
@@ -22,6 +23,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.LocalDateTime
@@ -40,7 +42,7 @@ class UserRegistrationRequestControllerTest {
     @MockBean
     private lateinit var userRegistrationRequestService: UserRegistrationRequestService
 
-    private val testRequester = Requester(userId = 12345L, role = UserRole.USER)
+    private val testRequester = Requester(userId = 12345L, role = UserRole.MANAGER)
 
     @BeforeEach
     fun setUp() {
@@ -48,7 +50,7 @@ class UserRegistrationRequestControllerTest {
             UsernamePasswordAuthenticationToken(
                 testRequester,
                 null,
-                listOf(SimpleGrantedAuthority("ROLE_USER")),
+                listOf(SimpleGrantedAuthority("ROLE_MANAGER")),
             )
         SecurityContextHolder.getContext().authentication = auth
     }
@@ -127,6 +129,47 @@ class UserRegistrationRequestControllerTest {
             post("/user-registration-requests")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(requestDto)),
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `updateStatus approves user registration request and returns content`() {
+        val requestId = "registration-request-id"
+        given(userRegistrationRequestService.approve(requestId))
+            .willReturn(
+                UserRegistrationRequest(
+                    id = requestId,
+                    requestedUserId = 1L,
+                    status = UserRegistrationRequestStatus.APPROVED,
+                ),
+            )
+
+        mockMvc.perform(
+            put("/manager/user-registration-requests/$requestId")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        UpdateUserRegistrationRequestStatusRequest(status = "approved"),
+                    ),
+                ),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.content").value("승인되었습니다"))
+
+        verify(userRegistrationRequestService).approve(requestId)
+    }
+
+    @Test
+    fun `updateStatus returns bad request when status is unsupported`() {
+        mockMvc.perform(
+            put("/manager/user-registration-requests/registration-request-id")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        UpdateUserRegistrationRequestStatusRequest(status = "pending"),
+                    ),
+                ),
         )
             .andExpect(status().isBadRequest)
     }

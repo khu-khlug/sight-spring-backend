@@ -8,7 +8,6 @@ import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
-import com.sight.domain.application.UserRegistrationRequestStatus
 import com.sight.service.UserRegistrationRequestService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -29,12 +28,7 @@ class UserRegistrationRequestController(
         @PathVariable requestId: String,
         @Valid @RequestBody request: UpdateUserRegistrationRequestStatusRequest,
     ): UpdateUserRegistrationRequestStatusResponse {
-        val status =
-            UserRegistrationRequestStatus.entries.find {
-                it.name.equals(request.status, ignoreCase = true)
-            } ?: throw BadRequestException("지원하지 않는 회원 등록 요청 상태입니다")
-
-        if (status != UserRegistrationRequestStatus.APPROVED) {
+        if (!request.status.equals("APPROVED", ignoreCase = true)) {
             throw BadRequestException("지원하지 않는 회원 등록 요청 상태입니다")
         }
 

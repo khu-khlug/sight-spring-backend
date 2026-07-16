@@ -8,7 +8,6 @@ import com.sight.controllers.http.dto.GetAnswersResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.groupmatching.GroupMatchingType
 import com.sight.service.GroupMatchingAnswerService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
@@ -75,7 +74,7 @@ class GroupMatchingAnswerController(
     @GetMapping("/group-matchings/{groupMatchingId}/answers")
     fun getAnswers(
         @PathVariable groupMatchingId: String,
-        @RequestParam(required = false) groupType: GroupMatchingType?,
+        @RequestParam(required = false) groupType: String?,
         @RequestParam(required = false) optionId: String?,
         @RequestParam(required = false, defaultValue = "0")
         @Min(0, message = "offset은 0 이상이어야 합니다")
@@ -84,7 +83,7 @@ class GroupMatchingAnswerController(
         @Min(1, message = "limit은 양의 정수여야 합니다")
         limit: Int,
     ): GetAnswersResponse {
-        val result = groupMatchingAnswerService.listAnswers(groupMatchingId, groupType, optionId, offset, limit)
+        val result = groupMatchingAnswerService.listAnswersByQuery(groupMatchingId, groupType, optionId, offset, limit)
 
         return GetAnswersResponse(
             answers =

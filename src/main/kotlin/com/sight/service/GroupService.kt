@@ -48,6 +48,39 @@ class GroupService(
     private val notificationService: NotificationService,
 ) {
     @Transactional(readOnly = true)
+    fun listGroupsByQuery(
+        offset: Int,
+        limit: Int,
+        bookmarked: Boolean?,
+        joined: Boolean?,
+        categories: List<String>?,
+        state: String?,
+        interest: String?,
+        keyword: String?,
+        orderBy: String?,
+        requesterId: Long,
+    ): GroupListResult {
+        val validOrderBy =
+            orderBy?.let { value ->
+                GroupOrderBy.fromValue(value)
+                    ?: throw BadRequestException("유효하지 않은 정렬 기준입니다: $value")
+            }
+
+        return listGroups(
+            offset = offset,
+            limit = limit,
+            bookmarked = bookmarked,
+            joined = joined,
+            categories = categories,
+            state = state,
+            interest = interest,
+            keyword = keyword,
+            orderBy = validOrderBy,
+            requesterId = requesterId,
+        )
+    }
+
+    @Transactional(readOnly = true)
     fun listGroups(
         offset: Int,
         limit: Int,

@@ -38,6 +38,8 @@
 
 ## 의존성 규칙
 
-- Controller 구현체는 Service와 인증·인가 코드에만 직접 의존한다.
+- Controller 구현체는 Service와 인증·인가 코드에 직접 의존할 수 있다.
+- HTTP Controller 구현체는 Spring Web의 타입과 어노테이션, Bean Validation 타입, HTTP 응답 타입, Controller DTO에 직접 의존할 수 있다.
+- Discord 이벤트 Controller 구현체는 Discord 이벤트 프레임워크 타입에 직접 의존할 수 있다.
 - Controller 구현체는 Repository와 Domain 타입에 직접 의존하지 않는다.
 - Controller DTO는 영속성 Entity를 필드 타입, 부모 타입, 구현 인터페이스로 사용하지 않는다.

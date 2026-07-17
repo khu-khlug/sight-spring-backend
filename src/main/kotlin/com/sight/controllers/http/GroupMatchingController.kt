@@ -13,7 +13,6 @@ import com.sight.controllers.http.dto.UpdateGroupMatchingClosedAtRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.groupmatching.GroupMatchingType
 import com.sight.service.GroupMatchingService
 import com.sight.service.dto.UpdateGroupMatchingAnswerDto
 import jakarta.validation.Valid
@@ -36,9 +35,9 @@ class GroupMatchingController(
     @GetMapping("/group-matchings/{groupMatchingId}/groups")
     fun getGroups(
         @PathVariable groupMatchingId: String,
-        @RequestParam(required = false) groupType: GroupMatchingType?,
+        @RequestParam(required = false) groupType: String?,
     ): List<GetGroupMatchingGroupsResponse> {
-        return groupMatchingService.getGroups(groupMatchingId, groupType).map { groupDto ->
+        return groupMatchingService.getGroupsByQuery(groupMatchingId, groupType).map { groupDto ->
             GetGroupMatchingGroupsResponse(
                 id = groupDto.id,
                 title = groupDto.title,

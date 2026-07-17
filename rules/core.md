@@ -1,5 +1,7 @@
 # Core 레이어 규칙
 
+<!-- CI mixed-change validation test -->
+
 ## 역할
 
 - Core는 횡단 관심사를 구현한다.

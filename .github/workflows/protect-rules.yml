@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: [main]
 
-# PR에 남긴 자동 코멘트는 고정 식별자로 관리한다.
 jobs:
   prevent-mixed-rules-changes:
     runs-on: ubuntu-latest

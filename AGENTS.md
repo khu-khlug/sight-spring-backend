@@ -4,6 +4,7 @@
 
 - `config`의 파일을 수정할 때는 `rules/config.md`를 읽는다.
 - `controllers`의 파일을 수정할 때는 `rules/controllers.md`를 읽는다.
+- HTTP API의 method 또는 path를 결정하거나 수정할 때는 `rules/rest-api.md`를 읽는다.
 - `core`의 파일을 수정할 때는 `rules/core.md`를 읽는다.
 - `domain`의 파일을 수정할 때는 `rules/domain.md`를 읽는다.
 - `repository`의 파일을 수정할 때는 `rules/repository.md`를 읽는다.

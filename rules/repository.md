@@ -17,12 +17,7 @@
 
 ## 금지 규칙
 
-- Repository는 Controller와 Service를 참조하지 않는다.
-- Repository는 Controller DTO를 반환값이나 인자로 사용하지 않는다.
-- Repository는 HTTP 상태 코드와 HTTP 응답 형식을 결정하지 않는다.
-- Repository는 요청자의 인증 정보나 권한을 판단하지 않는다.
-- Repository는 외부 API와 메시지 시스템을 호출하지 않는다.
-- Repository는 업무 데이터의 상태 변경 규칙을 결정하지 않는다.
+- Repository는 비즈니스 규칙을 결정하지 않는다.
 - Repository는 유스케이스 전체의 트랜잭션 시작과 종료를 결정하지 않는다.
 
 ## 의존성 규칙

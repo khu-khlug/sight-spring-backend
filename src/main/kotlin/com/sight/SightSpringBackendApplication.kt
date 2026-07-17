@@ -3,7 +3,6 @@ package com.sight
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-/** CI mixed-change validation test */
 @SpringBootApplication
 class SightSpringBackendApplication
 

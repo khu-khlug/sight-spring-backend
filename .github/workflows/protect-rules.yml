@@ -1,0 +1,31 @@
+name: Protect Rules Directory
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  prevent-mixed-rules-changes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prevent mixed changes to rules directory
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED_FILES="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")"
+
+          if ! printf '%s\n' "${CHANGED_FILES}" | grep -q '^rules/'; then
+            exit 0
+          fi
+
+          if printf '%s\n' "${CHANGED_FILES}" | grep -qv '^rules/'; then
+            echo "::error::rules/ 디렉토리 변경은 다른 디렉토리의 변경과 함께 PR에 포함할 수 없습니다."
+            exit 1
+          fi

@@ -7,16 +7,17 @@ import com.sight.controllers.http.dto.CreateGroupResponse
 import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
+import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.group.GroupOrderBy
 import com.sight.service.GroupDiscordChannelService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -38,15 +39,23 @@ class GroupController(
         @RequestParam(defaultValue = "10") @Min(1) @Max(100) limit: Int,
         @RequestParam(required = false) bookmarked: Boolean?,
         @RequestParam(required = false) joined: Boolean?,
-        @RequestParam(required = false) orderBy: GroupOrderBy?,
+        @RequestParam(required = false) category: List<String>?,
+        @RequestParam(required = false) state: String?,
+        @RequestParam(required = false) interest: String?,
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(required = false) orderBy: String?,
         requester: Requester,
     ): ListGroupsResponse {
         val result =
-            groupService.listGroups(
+            groupService.listGroupsByQuery(
                 offset = offset,
                 limit = limit,
                 bookmarked = bookmarked,
                 joined = joined,
+                categories = category,
+                state = state,
+                interest = interest,
+                keyword = keyword,
                 orderBy = orderBy,
                 requesterId = requester.userId,
             )
@@ -121,6 +130,46 @@ class GroupController(
                 answerId = request.groupMatchingParams!!.answerId,
             )
         }
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.addBookmark(groupId, requester.userId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/groups/{groupId}/bookmark")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelBookmark(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.cancelBookmark(groupId, requester.userId)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @PostMapping("/groups/{groupId}/portfolio")
+    fun publishPortfolio(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ): PublishPortfolioResponse {
+        val published = groupService.publishPortfolio(groupId, requester.userId)
+        return PublishPortfolioResponse(published = published)
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @DeleteMapping("/groups/{groupId}/portfolio")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelPortfolio(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ) {
+        groupService.cancelPortfolio(groupId, requester.userId)
     }
 
     @Auth([UserRole.MANAGER])

@@ -108,6 +108,22 @@ class GroupMatchingAnswerService(
     }
 
     @Transactional(readOnly = true)
+    fun listAnswersByQuery(
+        groupMatchingId: String,
+        groupType: String? = null,
+        optionId: String? = null,
+        offset: Int,
+        limit: Int,
+    ): ListAnswersResult =
+        listAnswers(
+            groupMatchingId = groupMatchingId,
+            groupType = groupType?.toGroupMatchingType(),
+            optionId = optionId,
+            offset = offset,
+            limit = limit,
+        )
+
+    @Transactional(readOnly = true)
     fun listAnswers(
         groupMatchingId: String,
         groupType: GroupMatchingType? = null,
@@ -206,3 +222,7 @@ class GroupMatchingAnswerService(
         }
     }
 }
+
+private fun String.toGroupMatchingType(): GroupMatchingType =
+    runCatching { GroupMatchingType.valueOf(this.uppercase()) }
+        .getOrElse { throw BadRequestException("유효하지 않은 그룹 매칭 유형입니다: $this") }

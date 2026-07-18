@@ -22,7 +22,7 @@ data class ListScheduleAttendancesResponse(
                         isChecked = item.isChecked,
                         createdAt = item.createdAt,
                     )
-            }
+                }
             return ListScheduleAttendancesResponse(
                 count = result.count,
                 attendances = attendances,

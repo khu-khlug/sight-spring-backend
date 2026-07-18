@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
@@ -499,37 +498,37 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 유효한 코드로 출석 처리하고 ExPoint를 적립한다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val schedule = attendanceSchedule(expoint = 15, checkCode = "1234")
         given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, schedule.id)).willReturn(false)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, schedule.id)).willReturn(false)
         given(scheduleMemberApplyRepository.save(any<ScheduleMemberApply>()))
             .willAnswer { it.arguments[0] as ScheduleMemberApply }
 
         val result =
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = schedule.id,
                 code = "1234",
             )
 
         assertEquals(schedule.id, result.scheduleId)
-        assertEquals(requester.userId, result.userId)
+        assertEquals(requesterUserId, result.userId)
         assertEquals(15, result.expointGranted)
         verify(scheduleMemberApplyRepository).save(any<ScheduleMemberApply>())
-        verify(pointService).givePoint(requester.userId, 15, "${schedule.title} 출석")
+        verify(pointService).givePoint(requesterUserId, 15, "${schedule.title} 출석")
     }
 
     @Test
     fun `checkScheduleAttendance는 같은 일정에 두 번 출석체크하면 ConflictException을 던진다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val schedule = attendanceSchedule()
         given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, schedule.id)).willReturn(true)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, schedule.id)).willReturn(true)
 
         assertThrows<ConflictException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = schedule.id,
                 code = "1234",
             )
@@ -541,14 +540,14 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 코드가 일치하지 않으면 UnauthorizedException을 던진다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val schedule = attendanceSchedule(checkCode = "1234")
         given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, schedule.id)).willReturn(false)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, schedule.id)).willReturn(false)
 
         assertThrows<UnauthorizedException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = schedule.id,
                 code = "9999",
             )
@@ -560,7 +559,7 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 출석체크 시간 밖이면 BadRequestException을 던진다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val now = LocalDateTime.now()
         val beforeSchedule =
             attendanceSchedule(
@@ -573,18 +572,18 @@ class ScheduleServiceTest {
                 endAt = now.minusHours(1),
             )
         given(scheduleRepository.findActiveById(beforeSchedule.id)).willReturn(beforeSchedule, afterSchedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, beforeSchedule.id)).willReturn(false)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, beforeSchedule.id)).willReturn(false)
 
         assertThrows<BadRequestException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = beforeSchedule.id,
                 code = "1234",
             )
         }
         assertThrows<BadRequestException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = beforeSchedule.id,
                 code = "1234",
             )
@@ -596,14 +595,14 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 checkCode가 null이면 BadRequestException을 던진다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val schedule = attendanceSchedule(checkCode = null)
         given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, schedule.id)).willReturn(false)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, schedule.id)).willReturn(false)
 
         assertThrows<BadRequestException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = schedule.id,
                 code = "1234",
             )
@@ -615,22 +614,22 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 expoint가 0이어도 출석 처리하고 포인트는 적립하지 않는다`() {
-        val requester = Requester(userId = 10L, role = UserRole.MANAGER)
+        val requesterUserId = 10L
         val schedule = attendanceSchedule(expoint = 0, checkCode = "1234")
         given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
-        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, schedule.id)).willReturn(false)
+        given(scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, schedule.id)).willReturn(false)
         given(scheduleMemberApplyRepository.save(any<ScheduleMemberApply>()))
             .willAnswer { it.arguments[0] as ScheduleMemberApply }
 
         val result =
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = schedule.id,
                 code = "1234",
             )
 
         assertEquals(schedule.id, result.scheduleId)
-        assertEquals(requester.userId, result.userId)
+        assertEquals(requesterUserId, result.userId)
         assertEquals(0, result.expointGranted)
         verify(scheduleMemberApplyRepository).save(any<ScheduleMemberApply>())
         verify(pointService, never()).givePoint(any(), any(), any())
@@ -638,13 +637,13 @@ class ScheduleServiceTest {
 
     @Test
     fun `checkScheduleAttendance는 존재하지 않는 일정이면 NotFoundException을 던진다`() {
-        val requester = Requester(userId = 10L, role = UserRole.USER)
+        val requesterUserId = 10L
         val scheduleId = 999L
         given(scheduleRepository.findActiveById(scheduleId)).willReturn(null)
 
         assertThrows<NotFoundException> {
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requesterUserId,
                 scheduleId = scheduleId,
                 code = "1234",
             )

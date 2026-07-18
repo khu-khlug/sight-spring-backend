@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
@@ -70,7 +69,7 @@ class ScheduleService(
 
     @Transactional
     fun checkScheduleAttendance(
-        requester: Requester,
+        requesterUserId: Long,
         scheduleId: Long,
         code: String,
     ): CheckScheduleAttendanceResult {
@@ -78,7 +77,7 @@ class ScheduleService(
             scheduleRepository.findActiveById(scheduleId)
                 ?: throw NotFoundException("존재하지 않는 일정입니다.")
 
-        if (scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requester.userId, scheduleId)) {
+        if (scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, scheduleId)) {
             throw ConflictException("이미 출석체크한 일정입니다.")
         }
 
@@ -96,7 +95,7 @@ class ScheduleService(
         val attendance =
             scheduleMemberApplyRepository.save(
                 ScheduleMemberApply(
-                    memberId = requester.userId,
+                    memberId = requesterUserId,
                     scheduleId = scheduleId,
                     attendedAt = now,
                 ),
@@ -104,7 +103,7 @@ class ScheduleService(
 
         if (schedule.expoint > 0) {
             pointService.givePoint(
-                targetUserId = requester.userId,
+                targetUserId = requesterUserId,
                 point = schedule.expoint,
                 message = "${schedule.title} 출석",
             )

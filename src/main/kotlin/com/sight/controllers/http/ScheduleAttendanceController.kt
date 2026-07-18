@@ -39,7 +39,7 @@ class ScheduleAttendanceController(
     ): CreateScheduleAttendanceResponse {
         val result =
             scheduleService.checkScheduleAttendance(
-                requester = requester,
+                requesterUserId = requester.userId,
                 scheduleId = scheduleId,
                 code = request.code,
             )

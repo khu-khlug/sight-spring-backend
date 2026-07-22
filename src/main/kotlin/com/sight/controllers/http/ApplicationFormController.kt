@@ -6,6 +6,7 @@ import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
 import com.sight.controllers.http.dto.SaveApplicationFormDraftRequest
+import com.sight.controllers.http.dto.SubmitApplicationFormRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -104,6 +105,15 @@ class ApplicationFormController(
             },
             request.contents.associate { it.questionId to it.content },
         )
+    }
+
+    @PostMapping("/application-forms/{applicationFormId}/submit")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun submit(
+        @PathVariable applicationFormId: String,
+        @Valid @RequestBody request: SubmitApplicationFormRequest,
+    ) {
+        applicationFormService.submit(applicationFormId, request.token)
     }
 
     @Auth([UserRole.MANAGER])

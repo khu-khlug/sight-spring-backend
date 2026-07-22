@@ -10,7 +10,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "application_content")
-data class ApplicationContent(
+class ApplicationContent(
     @Id
     @Column(name = "id", nullable = false, length = 100)
     val id: String,
@@ -21,8 +21,7 @@ data class ApplicationContent(
     @Column(name = "question_id", nullable = false, length = 100)
     val questionId: String,
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
-    val content: String,
+    content: String,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -31,4 +30,12 @@ data class ApplicationContent(
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now(),
-)
+) {
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    var content: String = content
+        private set
+
+    fun updateContent(content: String) {
+        this.content = content
+    }
+}

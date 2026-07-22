@@ -5,6 +5,7 @@ import com.sight.controllers.http.dto.CreateApplicationCommentRequest
 import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
+import com.sight.controllers.http.dto.SaveApplicationFormDraftRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -86,6 +87,22 @@ class ApplicationFormController(
                 },
             createdAt = draft.createdAt,
             updatedAt = draft.updatedAt,
+        )
+    }
+
+    @PutMapping("/application-forms/{applicationFormId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun saveDraft(
+        @PathVariable applicationFormId: String,
+        @Valid @RequestBody request: SaveApplicationFormDraftRequest,
+    ) {
+        applicationFormService.saveDraft(
+            applicationFormId,
+            request.token,
+            request.interviewAvailableTimes.map {
+                it.date to it.time
+            },
+            request.contents.associate { it.questionId to it.content },
         )
     }
 

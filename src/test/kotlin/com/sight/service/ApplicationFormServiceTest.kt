@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.core.exception.UnprocessableEntityException
@@ -10,6 +11,7 @@ import com.sight.core.info21.StuauthResponse
 import com.sight.domain.application.ApplicationComment
 import com.sight.domain.application.ApplicationContent
 import com.sight.domain.application.ApplicationForm
+import com.sight.domain.application.ApplicationFormAuthToken
 import com.sight.domain.application.ApplicationFormStatus
 import com.sight.domain.application.ApplicationQuestion
 import com.sight.domain.application.InterviewAvailableTime
@@ -609,5 +611,45 @@ class ApplicationFormServiceTest {
         }
 
         verify(applicationFormRepository).findById(applicationFormId)
+    }
+
+    @Test
+    fun `saveDraft는 인증된 신청서의 답변과 면접 가능 시간을 저장한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val content = ApplicationContent("content-1", formId, "question-1", "기존 답변")
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(content))
+
+        service.saveDraft(formId, "valid-token", listOf("2026-06-01" to "10:00"), mapOf("question-1" to "수정 답변"))
+
+        assertEquals("수정 답변", content.content)
+        verify(applicationContentRepository).saveAll(listOf(content))
+        verify(interviewAvailableTimeRepository).deleteAllByApplicationFormId(formId)
+        verify(interviewAvailableTimeRepository).saveAll(any<List<InterviewAvailableTime>>())
+    }
+
+    @Test
+    fun `saveDraft는 유효하지 않은 토큰이면 UnauthorizedException을 던진다`() {
+        val formId = "form-1"
+        val expired = ApplicationFormAuthToken("token-1", formId, "token", LocalDateTime.now().minusSeconds(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(expired)
+
+        assertThrows<UnauthorizedException> { service.saveDraft(formId, "token", emptyList(), emptyMap()) }
+        verify(applicationFormRepository, never()).findById(any())
+    }
+
+    @Test
+    fun `saveDraft는 문항 목록이 일치하지 않으면 BadRequestException을 던진다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val token = ApplicationFormAuthToken("token-1", formId, "token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(emptyList())
+
+        assertThrows<BadRequestException> { service.saveDraft(formId, "token", emptyList(), mapOf("question-1" to "답변")) }
     }
 }

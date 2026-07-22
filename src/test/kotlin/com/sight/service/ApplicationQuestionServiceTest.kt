@@ -1,10 +1,12 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.application.ApplicationQuestion
 import com.sight.repository.ApplicationQuestionRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -57,6 +59,50 @@ class ApplicationQuestionServiceTest {
 
         assertThrows<NotFoundException> {
             service.listQuestionsByIds(listOf("question-1", "missing-question"))
+        }
+    }
+
+    @Test
+    fun `updateQuestions는 노출 여부와 순서가 유효하면 문항을 수정한다`() {
+        val question = question(id = "question-1", title = "기존 문항")
+        given(applicationQuestionRepository.findAllById(setOf("question-1"))).willReturn(listOf(question))
+
+        service.updateQuestions(
+            listOf(
+                UpdateApplicationQuestionCommand(
+                    id = "question-1",
+                    title = "수정 문항",
+                    description = "수정 설명",
+                    minLength = 10,
+                    order = 1,
+                    isExposed = true,
+                ),
+            ),
+        )
+
+        assertEquals("수정 문항", question.title)
+        assertEquals("수정 설명", question.description)
+        assertEquals(10, question.minLength)
+        assertEquals(1, question.order)
+        assertTrue(question.isExposed)
+        verify(applicationQuestionRepository).saveAll(listOf(question))
+    }
+
+    @Test
+    fun `updateQuestions는 노출 문항 순서가 연속되지 않으면 BadRequestException을 던진다`() {
+        assertThrows<BadRequestException> {
+            service.updateQuestions(
+                listOf(
+                    UpdateApplicationQuestionCommand(
+                        id = "question-1",
+                        title = "문항",
+                        description = "설명",
+                        minLength = 0,
+                        order = 2,
+                        isExposed = true,
+                    ),
+                ),
+            )
         }
     }
 

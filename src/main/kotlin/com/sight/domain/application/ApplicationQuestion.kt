@@ -10,25 +10,20 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "application_question")
-data class ApplicationQuestion(
+class ApplicationQuestion(
     @Id
     @Column(name = "id", nullable = false, length = 100)
     val id: String,
 
-    @Column(name = "title", nullable = false, length = 255)
-    val title: String,
+    title: String,
 
-    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
-    val description: String,
+    description: String,
 
-    @Column(name = "min_length", nullable = false)
-    val minLength: Int,
+    minLength: Int,
 
-    @Column(name = "`order`", nullable = true)
-    val order: Int? = null,
+    order: Int? = null,
 
-    @Column(name = "is_exposed", nullable = false, columnDefinition = "TINYINT")
-    val isExposed: Boolean,
+    isExposed: Boolean,
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
@@ -37,4 +32,54 @@ data class ApplicationQuestion(
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now(),
-)
+) {
+    @Column(name = "title", nullable = false, length = 255)
+    var title: String = title
+        private set
+
+    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
+    var description: String = description
+        private set
+
+    @Column(name = "min_length", nullable = false)
+    var minLength: Int = minLength
+        private set
+
+    @Column(name = "`order`", nullable = true)
+    var order: Int? = order
+        private set
+
+    @Column(name = "is_exposed", nullable = false, columnDefinition = "TINYINT")
+    var isExposed: Boolean = isExposed
+        private set
+
+    init {
+        requireValidState(minLength, order, isExposed)
+    }
+
+    fun update(
+        title: String,
+        description: String,
+        minLength: Int,
+        order: Int?,
+        isExposed: Boolean,
+    ) {
+        requireValidState(minLength, order, isExposed)
+
+        this.title = title
+        this.description = description
+        this.minLength = minLength
+        this.order = order
+        this.isExposed = isExposed
+    }
+
+    private fun requireValidState(
+        minLength: Int,
+        order: Int?,
+        isExposed: Boolean,
+    ) {
+        require(minLength >= 0) { "최소 글자 수는 0 이상이어야 합니다" }
+        require(order == null || order > 0) { "문항 순서는 1 이상이어야 합니다" }
+        require(isExposed == (order != null)) { "노출 여부와 문항 순서는 함께 설정되어야 합니다" }
+    }
+}

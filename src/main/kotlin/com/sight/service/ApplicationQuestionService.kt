@@ -42,6 +42,9 @@ class ApplicationQuestionService(
         return distinctIds.map { questionId -> questionsById.getValue(questionId) }
     }
 
+    @Transactional(readOnly = true)
+    fun listAllQuestions(): List<ApplicationQuestion> = applicationQuestionRepository.findAll()
+
     @Transactional
     fun updateQuestions(commands: List<UpdateApplicationQuestionCommand>) {
         validateQuestionOrders(commands)

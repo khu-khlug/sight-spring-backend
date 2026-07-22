@@ -63,6 +63,16 @@ class ApplicationQuestionServiceTest {
     }
 
     @Test
+    fun `listAllQuestions는 저장된 모든 문항을 반환한다`() {
+        val questions = listOf(question(id = "question-1", title = "첫 문항"))
+        given(applicationQuestionRepository.findAll()).willReturn(questions)
+
+        val result = service.listAllQuestions()
+
+        assertEquals(questions, result)
+    }
+
+    @Test
     fun `updateQuestions는 노출 여부와 순서가 유효하면 문항을 수정한다`() {
         val question = question(id = "question-1", title = "기존 문항")
         given(applicationQuestionRepository.findAllById(setOf("question-1"))).willReturn(listOf(question))

@@ -3,6 +3,7 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.CreateApplicationQuestionRequest
 import com.sight.controllers.http.dto.CreateApplicationQuestionResponse
 import com.sight.controllers.http.dto.ListApplicationQuestionsResponse
+import com.sight.controllers.http.dto.ListManagerApplicationQuestionsResponse
 import com.sight.controllers.http.dto.UpdateApplicationQuestionsRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
@@ -25,6 +26,26 @@ import org.springframework.web.bind.annotation.RestController
 class ApplicationQuestionController(
     private val applicationQuestionService: ApplicationQuestionService,
 ) {
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/manager/application-questions")
+    fun listAllQuestions(): ListManagerApplicationQuestionsResponse {
+        val questions = applicationQuestionService.listAllQuestions()
+
+        return ListManagerApplicationQuestionsResponse(
+            questions =
+                questions.map { question ->
+                    ListManagerApplicationQuestionsResponse.QuestionResponse(
+                        id = question.id,
+                        title = question.title,
+                        description = question.description,
+                        minLength = question.minLength,
+                        order = question.order,
+                        isExposed = question.isExposed,
+                    )
+                },
+        )
+    }
+
     @GetMapping("/application-questions")
     fun listQuestions(
         @RequestParam

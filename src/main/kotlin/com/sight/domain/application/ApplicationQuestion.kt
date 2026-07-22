@@ -11,28 +11,19 @@ import java.time.LocalDateTime
 @Entity
 @Table(name = "application_question")
 class ApplicationQuestion(
+    id: String,
+    title: String,
+    description: String,
+    minLength: Int,
+    order: Int? = null,
+    isExposed: Boolean,
+    createdAt: LocalDateTime = LocalDateTime.now(),
+    updatedAt: LocalDateTime = LocalDateTime.now(),
+) {
     @Id
     @Column(name = "id", nullable = false, length = 100)
-    val id: String,
+    val id: String = id
 
-    title: String,
-
-    description: String,
-
-    minLength: Int,
-
-    order: Int? = null,
-
-    isExposed: Boolean,
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-) {
     @Column(name = "title", nullable = false, length = 255)
     var title: String = title
         private set
@@ -53,8 +44,16 @@ class ApplicationQuestion(
     var isExposed: Boolean = isExposed
         private set
 
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = createdAt
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    val updatedAt: LocalDateTime = updatedAt
+
     init {
-        requireValidState(minLength, order, isExposed)
+        requireValidState(minLength, order)
     }
 
     fun update(
@@ -64,7 +63,7 @@ class ApplicationQuestion(
         order: Int?,
         isExposed: Boolean,
     ) {
-        requireValidState(minLength, order, isExposed)
+        requireValidState(minLength, order)
 
         this.title = title
         this.description = description
@@ -76,10 +75,8 @@ class ApplicationQuestion(
     private fun requireValidState(
         minLength: Int,
         order: Int?,
-        isExposed: Boolean,
     ) {
         require(minLength >= 0) { "최소 글자 수는 0 이상이어야 합니다" }
         require(order == null || order > 0) { "문항 순서는 1 이상이어야 합니다" }
-        require(isExposed == (order != null)) { "노출 여부와 문항 순서는 함께 설정되어야 합니다" }
     }
 }

@@ -77,7 +77,20 @@ class ApplicationFormService(
     }
 
     @Transactional(readOnly = true)
-    fun listForms(page: Int) = applicationFormRepository.findAll(PageRequest.of(page.coerceAtLeast(1) - 1, 20))
+    fun listForms(
+        page: Int,
+        interviewTimes: List<String>,
+        date: LocalDateTime?,
+    ) = when {
+        interviewTimes.isNotEmpty() ->
+            applicationFormRepository.findAllByInterviewTimes(
+                date,
+                interviewTimes,
+                PageRequest.of(page.coerceAtLeast(1) - 1, 20),
+            )
+        date != null -> applicationFormRepository.findAllByCreatedAtGreaterThanEqual(date, PageRequest.of(page.coerceAtLeast(1) - 1, 20))
+        else -> applicationFormRepository.findAll(PageRequest.of(page.coerceAtLeast(1) - 1, 20))
+    }
 
     @Transactional
     fun createDraft(

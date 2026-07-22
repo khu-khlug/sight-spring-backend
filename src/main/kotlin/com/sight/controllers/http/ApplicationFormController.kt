@@ -14,6 +14,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
+import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDateTime
 
 @RestController
 class ApplicationFormController(
@@ -34,8 +36,12 @@ class ApplicationFormController(
     @GetMapping("/manager/application-forms")
     fun listForms(
         @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(required = false) interviewTime: List<String>?,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        date: LocalDateTime?,
     ): ListApplicationFormsResponse {
-        val forms = applicationFormService.listForms(page)
+        val forms = applicationFormService.listForms(page, interviewTime ?: emptyList(), date)
         return ListApplicationFormsResponse(
             forms.content.map {
                 ListApplicationFormsResponse.Application(it.id, it.submittee, it.status, it.assignedUserId, it.createdAt, it.updatedAt)

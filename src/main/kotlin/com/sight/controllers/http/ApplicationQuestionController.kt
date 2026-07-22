@@ -3,15 +3,18 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.CreateApplicationQuestionRequest
 import com.sight.controllers.http.dto.CreateApplicationQuestionResponse
 import com.sight.controllers.http.dto.ListApplicationQuestionsResponse
+import com.sight.controllers.http.dto.UpdateApplicationQuestionsRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
 import com.sight.service.ApplicationQuestionService
+import com.sight.service.UpdateApplicationQuestionCommand
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Size
 import org.springframework.http.HttpStatus
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -66,6 +69,26 @@ class ApplicationQuestionController(
             isExposed = question.isExposed,
             createdAt = question.createdAt,
             updatedAt = question.updatedAt,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PutMapping("/manager/application-questions")
+    fun updateQuestions(
+        @Valid @RequestBody request: UpdateApplicationQuestionsRequest,
+    ) {
+        applicationQuestionService.updateQuestions(
+            request.questions.map { question ->
+                UpdateApplicationQuestionCommand(
+                    id = question.id,
+                    title = question.title,
+                    description = question.description,
+                    minLength = question.minLength,
+                    order = question.order,
+                    isExposed = question.isExposed,
+                )
+            },
         )
     }
 }

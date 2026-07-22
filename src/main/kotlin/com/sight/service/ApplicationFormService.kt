@@ -21,6 +21,7 @@ import com.sight.repository.ApplicationFormRepository
 import com.sight.repository.ApplicationQuestionRepository
 import com.sight.repository.InterviewAvailableTimeRepository
 import com.sight.repository.MemberRepository
+import com.sight.service.dto.ApplicationFormDetailDto
 import com.sight.service.dto.ApplicationFormDraftDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -61,6 +62,17 @@ class ApplicationFormService(
             )
 
         return applicationCommentRepository.save(comment)
+    }
+
+    @Transactional(readOnly = true)
+    fun getDetail(applicationFormId: String): ApplicationFormDetailDto {
+        val form = applicationFormRepository.findById(applicationFormId).orElseThrow { NotFoundException("가입신청서를 찾을 수 없습니다") }
+        return ApplicationFormDetailDto(
+            form,
+            applicationContentRepository.findAllByApplicationFormId(applicationFormId),
+            interviewAvailableTimeRepository.findAllByApplicationFormId(applicationFormId),
+            applicationCommentRepository.findAllByApplicationFormId(applicationFormId),
+        )
     }
 
     @Transactional

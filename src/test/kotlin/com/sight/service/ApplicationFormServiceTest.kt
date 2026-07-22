@@ -126,6 +126,34 @@ class ApplicationFormServiceTest {
     }
 
     @Test
+    fun `getDetail은 신청서와 답변과 면접 가능 시간과 댓글을 함께 반환한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.SUBMITTED)
+        val content = ApplicationContent("content-1", formId, "question-1", "지원 내용")
+        val time = InterviewAvailableTime("time-1", formId, "2026-06-01 10:00")
+        val comment = ApplicationComment("comment-1", formId, 1L, "검토 완료")
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(content))
+        given(interviewAvailableTimeRepository.findAllByApplicationFormId(formId)).willReturn(listOf(time))
+        given(applicationCommentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(comment))
+
+        val result = service.getDetail(formId)
+
+        assertEquals(form, result.form)
+        assertEquals(listOf(content), result.contents)
+        assertEquals(listOf(time), result.times)
+        assertEquals(listOf(comment), result.comments)
+    }
+
+    @Test
+    fun `getDetail은 존재하지 않는 가입 신청서면 NotFoundException을 던진다`() {
+        given(applicationFormRepository.findById("missing-form")).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> { service.getDetail("missing-form") }
+        verify(applicationContentRepository, never()).findAllByApplicationFormId(any())
+    }
+
+    @Test
     fun `createDraft는 Info21 인증 실패 시 UnauthorizedException을 던진다`() {
         given(info21AuthClient.authenticate(any()))
             .willReturn(stuauthResponse(code = 401))

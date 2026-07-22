@@ -20,6 +20,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -106,5 +107,40 @@ class ApplicationQuestionControllerTest {
                 .content(objectMapper.writeValueAsString(request)),
         )
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `가입 신청서 문항 목록 조회 API는 요청한 문항을 반환한다`() {
+        given(applicationQuestionService.listQuestionsByIds(listOf("question-2", "question-1")))
+            .willReturn(
+                listOf(
+                    ApplicationQuestion(
+                        id = "question-2",
+                        title = "둘째 문항",
+                        description = "둘째 설명",
+                        minLength = 20,
+                        order = 2,
+                        isExposed = true,
+                    ),
+                    ApplicationQuestion(
+                        id = "question-1",
+                        title = "첫 문항",
+                        description = "첫 설명",
+                        minLength = 10,
+                        order = 1,
+                        isExposed = true,
+                    ),
+                ),
+            )
+
+        mockMvc.perform(
+            get("/application-questions")
+                .queryParam("applicationQuestionIds", "question-2", "question-1"),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.questions[0].id").value("question-2"))
+            .andExpect(jsonPath("$.questions[1].id").value("question-1"))
+
+        verify(applicationQuestionService).listQuestionsByIds(listOf("question-2", "question-1"))
     }
 }

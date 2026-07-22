@@ -11,6 +11,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.service.UserRegistrationRequestService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -22,6 +23,15 @@ import org.springframework.web.bind.annotation.RestController
 class UserRegistrationRequestController(
     private val userRegistrationRequestService: UserRegistrationRequestService,
 ) {
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @DeleteMapping("/manager/user-registration-requests/{requestId}")
+    fun delete(
+        @PathVariable requestId: String,
+    ) {
+        userRegistrationRequestService.delete(requestId)
+    }
+
     @Auth([UserRole.MANAGER])
     @PutMapping("/manager/user-registration-requests/{requestId}")
     fun updateStatus(

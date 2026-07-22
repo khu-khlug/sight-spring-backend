@@ -11,28 +11,19 @@ import java.time.LocalDateTime
 @Entity
 @Table(name = "application_question")
 class ApplicationQuestion(
+    id: String,
+    title: String,
+    description: String,
+    minLength: Int,
+    order: Int? = null,
+    isExposed: Boolean,
+    createdAt: LocalDateTime = LocalDateTime.now(),
+    updatedAt: LocalDateTime = LocalDateTime.now(),
+) {
     @Id
     @Column(name = "id", nullable = false, length = 100)
-    val id: String,
+    val id: String = id
 
-    title: String,
-
-    description: String,
-
-    minLength: Int,
-
-    order: Int? = null,
-
-    isExposed: Boolean,
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-) {
     @Column(name = "title", nullable = false, length = 255)
     var title: String = title
         private set
@@ -52,6 +43,14 @@ class ApplicationQuestion(
     @Column(name = "is_exposed", nullable = false, columnDefinition = "TINYINT")
     var isExposed: Boolean = isExposed
         private set
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false)
+    val createdAt: LocalDateTime = createdAt
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    val updatedAt: LocalDateTime = updatedAt
 
     init {
         requireValidState(minLength, order)

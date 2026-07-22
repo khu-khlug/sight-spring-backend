@@ -361,7 +361,7 @@ class ApplicationFormServiceTest {
         given(applicationCommentRepository.save(any<ApplicationComment>()))
             .willReturn(savedComment)
         given(applicationFormRepository.save(any<ApplicationForm>()))
-            .willReturn(applicationForm.copy(status = ApplicationFormStatus.PASSED))
+            .willReturn(applicationForm)
 
         // when
         val result =
@@ -454,7 +454,7 @@ class ApplicationFormServiceTest {
         given(applicationCommentRepository.save(any<ApplicationComment>()))
             .willReturn(savedComment)
         given(applicationFormRepository.save(any<ApplicationForm>()))
-            .willReturn(applicationForm.copy(status = ApplicationFormStatus.REJECTED))
+            .willReturn(applicationForm)
 
         // when
         val result =
@@ -547,7 +547,7 @@ class ApplicationFormServiceTest {
         given(applicationCommentRepository.save(any<ApplicationComment>()))
             .willReturn(savedComment)
         given(applicationFormRepository.save(any<ApplicationForm>()))
-            .willReturn(applicationForm.copy(status = ApplicationFormStatus.SUSPENDED))
+            .willReturn(applicationForm)
 
         // when
         val result =

@@ -135,7 +135,8 @@ class ApplicationFormService(
             applicationFormRepository.findById(applicationFormId)
                 .orElseThrow { NotFoundException("가입신청서를 찾을 수 없습니다") }
 
-        applicationFormRepository.save(applicationForm.copy(assignedUserId = managerUserId))
+        applicationForm.assignManager(managerUserId)
+        applicationFormRepository.save(applicationForm)
     }
 
     @Transactional
@@ -180,10 +181,12 @@ class ApplicationFormService(
             applicationFormRepository.findById(applicationFormId).orElseThrow {
                 NotFoundException("가입신청서를 찾을 수 없습니다")
             }
-        if (form.status != ApplicationFormStatus.DRAFT) {
-            throw UnprocessableEntityException("임시저장 상태의 가입신청서만 제출할 수 있습니다")
+        try {
+            form.submit()
+        } catch (exception: IllegalArgumentException) {
+            throw UnprocessableEntityException(exception.message ?: "가입신청서를 제출할 수 없습니다")
         }
-        applicationFormRepository.save(form.copy(status = ApplicationFormStatus.SUBMITTED))
+        applicationFormRepository.save(form)
     }
 
     private fun validateAuthToken(
@@ -260,9 +263,7 @@ class ApplicationFormService(
             }
 
         // 2. 조회한 가입신청서의 status가 제출됨 상태인지 확인합니다. 이미 합격/불합격/중단 상태라면 422.
-        if (applicationForm.status != ApplicationFormStatus.SUBMITTED) {
-            throw UnprocessableEntityException("제출된 상태의 가입신청서만 합격 처리할 수 있습니다: ${applicationForm.status}")
-        }
+        changeApplicationFormStatus(applicationForm) { applicationForm.pass() }
 
         // 3. ApplicationComment 객체를 생성합니다.(id = ulid, applicationFormId = path parameter, authorUserId = 요청한 운영진 유저 ID, content = “가입신청서가 합격 처리되었습니다.”)
         val comment =
@@ -281,8 +282,7 @@ class ApplicationFormService(
         createKhlugMember(applicationForm)
 
         // 7. 저장합니다.
-        val updatedForm = applicationForm.copy(status = ApplicationFormStatus.PASSED)
-        return applicationFormRepository.save(updatedForm)
+        return applicationFormRepository.save(applicationForm)
     }
 
     private fun createKhlugMember(applicationForm: ApplicationForm) {
@@ -302,9 +302,7 @@ class ApplicationFormService(
             }
 
         // 2. 조회한 가입신청서의 status가 제출됨 상태인지 확인합니다. 이미 합격/불합격/중단 상태라면 422.
-        if (applicationForm.status != ApplicationFormStatus.SUBMITTED) {
-            throw UnprocessableEntityException("제출된 상태의 가입신청서만 불합격 처리할 수 있습니다: ${applicationForm.status}")
-        }
+        changeApplicationFormStatus(applicationForm) { applicationForm.reject() }
 
         // 3. ApplicationComment 객체를 생성합니다.(id = ulid, applicationFormId = path parameter, authorUserId = 요청한 운영진 유저 ID, content = “가입신청서가 불합격 처리되었습니다.”)
         val comment =
@@ -319,10 +317,8 @@ class ApplicationFormService(
         applicationCommentRepository.save(comment)
 
         // 5. 해당 가입신청서의 status를 불합격으로 변경합니다.
-        val updatedForm = applicationForm.copy(status = ApplicationFormStatus.REJECTED)
-
         // 6. 저장합니다.
-        return applicationFormRepository.save(updatedForm)
+        return applicationFormRepository.save(applicationForm)
     }
 
     @Transactional
@@ -337,9 +333,7 @@ class ApplicationFormService(
             }
 
         // 2. 조회한 가입신청서의 status가 제출됨 상태인지 확인합니다. 이미 합격/불합격/중단 상태라면 422.
-        if (applicationForm.status != ApplicationFormStatus.SUBMITTED) {
-            throw UnprocessableEntityException("제출된 상태의 가입신청서만 중단 처리할 수 있습니다: ${applicationForm.status}")
-        }
+        changeApplicationFormStatus(applicationForm) { applicationForm.suspend() }
 
         // 3. ApplicationComment 객체를 생성합니다.(id = ulid, applicationFormId = path parameter, authorUserId = 요청한 운영진 유저 ID, content = “가입신청서가 중단 처리되었습니다.”)
         val comment =
@@ -354,9 +348,18 @@ class ApplicationFormService(
         applicationCommentRepository.save(comment)
 
         // 5. 해당 가입신청서의 status를 중단으로 변경합니다.
-        val updatedForm = applicationForm.copy(status = ApplicationFormStatus.SUSPENDED)
-
         // 6. 저장합니다.
-        return applicationFormRepository.save(updatedForm)
+        return applicationFormRepository.save(applicationForm)
+    }
+
+    private fun changeApplicationFormStatus(
+        applicationForm: ApplicationForm,
+        changeStatus: () -> Unit,
+    ) {
+        try {
+            changeStatus()
+        } catch (exception: IllegalArgumentException) {
+            throw UnprocessableEntityException("제출된 상태의 가입신청서만 상태를 변경할 수 있습니다: ${applicationForm.status}")
+        }
     }
 }

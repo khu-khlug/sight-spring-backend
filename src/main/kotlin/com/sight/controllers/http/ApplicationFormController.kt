@@ -6,6 +6,7 @@ import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
 import com.sight.controllers.http.dto.GetApplicationFormDetailResponse
+import com.sight.controllers.http.dto.ListApplicationFormsResponse
 import com.sight.controllers.http.dto.SaveApplicationFormDraftRequest
 import com.sight.controllers.http.dto.SubmitApplicationFormRequest
 import com.sight.core.auth.Auth
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
@@ -28,6 +30,21 @@ import org.springframework.web.bind.annotation.RestController
 class ApplicationFormController(
     private val applicationFormService: ApplicationFormService,
 ) {
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/manager/application-forms")
+    fun listForms(
+        @RequestParam(defaultValue = "1") page: Int,
+    ): ListApplicationFormsResponse {
+        val forms = applicationFormService.listForms(page)
+        return ListApplicationFormsResponse(
+            forms.content.map {
+                ListApplicationFormsResponse.Application(it.id, it.submittee, it.status, it.assignedUserId, it.createdAt, it.updatedAt)
+            },
+            forms.totalElements,
+            forms.totalPages,
+        )
+    }
+
     @Auth([UserRole.MANAGER])
     @GetMapping("/manager/application-forms/{applicationFormId}")
     fun getDetail(

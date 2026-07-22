@@ -23,6 +23,7 @@ import com.sight.repository.InterviewAvailableTimeRepository
 import com.sight.repository.MemberRepository
 import com.sight.service.dto.ApplicationFormDetailDto
 import com.sight.service.dto.ApplicationFormDraftDto
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.security.SecureRandom
@@ -74,6 +75,9 @@ class ApplicationFormService(
             applicationCommentRepository.findAllByApplicationFormId(applicationFormId),
         )
     }
+
+    @Transactional(readOnly = true)
+    fun listForms(page: Int) = applicationFormRepository.findAll(PageRequest.of(page.coerceAtLeast(1) - 1, 20))
 
     @Transactional
     fun createDraft(

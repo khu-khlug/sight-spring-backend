@@ -652,4 +652,41 @@ class ApplicationFormServiceTest {
 
         assertThrows<BadRequestException> { service.saveDraft(formId, "token", emptyList(), mapOf("question-1" to "답변")) }
     }
+
+    @Test
+    fun `submit은 인증된 임시저장 신청서를 제출 상태로 저장한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        val formCaptor = argumentCaptor<ApplicationForm>()
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+
+        service.submit(formId, "valid-token")
+
+        verify(applicationFormRepository).save(formCaptor.capture())
+        assertEquals(ApplicationFormStatus.SUBMITTED, formCaptor.firstValue.status)
+    }
+
+    @Test
+    fun `submit은 유효하지 않은 토큰이면 UnauthorizedException을 던진다`() {
+        val formId = "form-1"
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+
+        assertThrows<UnauthorizedException> { service.submit(formId, "wrong-token") }
+        verify(applicationFormRepository, never()).findById(any())
+    }
+
+    @Test
+    fun `submit은 임시저장 상태가 아니면 UnprocessableEntityException을 던진다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.SUBMITTED)
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+
+        assertThrows<UnprocessableEntityException> { service.submit(formId, "valid-token") }
+        verify(applicationFormRepository, never()).save(any())
+    }
 }

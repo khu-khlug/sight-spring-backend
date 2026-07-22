@@ -5,8 +5,7 @@ import java.time.LocalDateTime
 
 data class ListApplicationFormsResponse(
     val applications: List<Application>,
-    val totalCount: Long,
-    val totalPages: Int,
+    val count: Long,
 ) {
     data class Application(
         val id: String,

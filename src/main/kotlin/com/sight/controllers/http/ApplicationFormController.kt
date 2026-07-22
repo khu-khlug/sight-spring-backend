@@ -47,7 +47,6 @@ class ApplicationFormController(
                 ListApplicationFormsResponse.Application(it.id, it.submittee, it.status, it.assignedUserId, it.createdAt, it.updatedAt)
             },
             forms.totalElements,
-            forms.totalPages,
         )
     }
 

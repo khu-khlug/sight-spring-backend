@@ -145,25 +145,41 @@ class ApplicationFormService(
         times: List<Pair<String, String>>,
         contents: Map<String, String>,
     ) {
-        val authToken =
-            applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(applicationFormId)
-                ?: throw UnauthorizedException("가입신청서 인증 토큰이 없습니다")
-        if (authToken.token != token || !authToken.expiredAt.isAfter(LocalDateTime.now())) {
-            throw UnauthorizedException(
-                "가입신청서 인증 토큰이 유효하지 않습니다",
-            )
-        }
-        val form = applicationFormRepository.findById(applicationFormId).orElseThrow { NotFoundException("가입신청서를 찾을 수 없습니다") }
+        validateAuthToken(applicationFormId, token)
+
+        val form =
+            applicationFormRepository.findById(applicationFormId).orElseThrow {
+                NotFoundException("가입신청서를 찾을 수 없습니다")
+            }
+
         val storedContents = applicationContentRepository.findAllByApplicationFormId(form.id)
-        if (storedContents.map { it.questionId }.toSet() != contents.keys) throw BadRequestException("가입신청서 문항이 일치하지 않습니다")
+        if (storedContents.map { it.questionId }.toSet() != contents.keys) {
+            throw BadRequestException("가입신청서 문항이 일치하지 않습니다")
+        }
+
         storedContents.forEach { it.updateContent(contents.getValue(it.questionId)) }
         applicationContentRepository.saveAll(storedContents)
+
         interviewAvailableTimeRepository.deleteAllByApplicationFormId(applicationFormId)
+
         interviewAvailableTimeRepository.saveAll(
             times.map { (date, time) ->
                 InterviewAvailableTime(UlidCreator.getUlid().toString(), applicationFormId, "$date $time")
             },
         )
+    }
+
+    private fun validateAuthToken(
+        applicationFormId: String,
+        token: String,
+    ) {
+        val authToken =
+            applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(applicationFormId)
+                ?: throw UnauthorizedException("가입신청서 인증 토큰이 없습니다")
+
+        if (authToken.token != token || !authToken.expiredAt.isAfter(LocalDateTime.now())) {
+            throw UnauthorizedException("가입신청서 인증 토큰이 유효하지 않습니다")
+        }
     }
 
     private fun createApplicationForm(

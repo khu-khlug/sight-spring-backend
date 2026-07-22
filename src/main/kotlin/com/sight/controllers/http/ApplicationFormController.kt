@@ -5,6 +5,7 @@ import com.sight.controllers.http.dto.CreateApplicationCommentRequest
 import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
+import com.sight.controllers.http.dto.GetApplicationFormDetailResponse
 import com.sight.controllers.http.dto.SaveApplicationFormDraftRequest
 import com.sight.controllers.http.dto.SubmitApplicationFormRequest
 import com.sight.core.auth.Auth
@@ -14,6 +15,7 @@ import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -26,6 +28,34 @@ import org.springframework.web.bind.annotation.RestController
 class ApplicationFormController(
     private val applicationFormService: ApplicationFormService,
 ) {
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/manager/application-forms/{applicationFormId}")
+    fun getDetail(
+        @PathVariable applicationFormId: String,
+    ): GetApplicationFormDetailResponse {
+        val detail = applicationFormService.getDetail(applicationFormId)
+        return GetApplicationFormDetailResponse(
+            detail.form.id,
+            detail.form.submittee,
+            detail.form.status,
+            detail.form.assignedUserId,
+            detail.contents.map {
+                GetApplicationFormDetailResponse.Content(it.questionId, it.content)
+            },
+            detail.times.map {
+                GetApplicationFormDetailResponse.Time(it.availableAt)
+            },
+            detail.comments.map {
+                GetApplicationFormDetailResponse.Comment(
+                    it.id,
+                    it.authorUserId,
+                    it.content,
+                    it.createdAt,
+                )
+            },
+        )
+    }
+
     @Auth([UserRole.USER, UserRole.MANAGER])
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/application-forms/{applicationFormId}/comments")

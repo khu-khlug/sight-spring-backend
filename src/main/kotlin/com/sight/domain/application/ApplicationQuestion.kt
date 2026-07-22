@@ -54,7 +54,7 @@ class ApplicationQuestion(
         private set
 
     init {
-        requireValidState(minLength, order, isExposed)
+        requireValidState(minLength, order)
     }
 
     fun update(
@@ -64,7 +64,7 @@ class ApplicationQuestion(
         order: Int?,
         isExposed: Boolean,
     ) {
-        requireValidState(minLength, order, isExposed)
+        requireValidState(minLength, order)
 
         this.title = title
         this.description = description
@@ -76,10 +76,8 @@ class ApplicationQuestion(
     private fun requireValidState(
         minLength: Int,
         order: Int?,
-        isExposed: Boolean,
     ) {
         require(minLength >= 0) { "최소 글자 수는 0 이상이어야 합니다" }
         require(order == null || order > 0) { "문항 순서는 1 이상이어야 합니다" }
-        require(isExposed == (order != null)) { "노출 여부와 문항 순서는 함께 설정되어야 합니다" }
     }
 }

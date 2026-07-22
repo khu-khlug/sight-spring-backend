@@ -216,6 +216,39 @@ class UserRegistrationRequestServiceTest {
         verify(userRegistrationRequestRepository).findById(requestId)
     }
 
+    @Test
+    fun `delete는 회원 등록 요청을 삭제한다`() {
+        // given
+        val requestId = "registration-request-id"
+        val request =
+            UserRegistrationRequest(
+                id = requestId,
+                requestedUserId = 1L,
+                status = UserRegistrationRequestStatus.PENDING,
+            )
+        whenever(userRegistrationRequestRepository.findById(requestId)).thenReturn(Optional.of(request))
+
+        // when
+        userRegistrationRequestService.delete(requestId)
+
+        // then
+        verify(userRegistrationRequestRepository).delete(request)
+    }
+
+    @Test
+    fun `delete는 회원 등록 요청이 없으면 NotFoundException을 발생시킨다`() {
+        // given
+        val requestId = "missing-request-id"
+        whenever(userRegistrationRequestRepository.findById(requestId)).thenReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            userRegistrationRequestService.delete(requestId)
+        }
+
+        verify(userRegistrationRequestRepository, never()).delete(any())
+    }
+
     private fun stuauthResponse(
         code: Int = 200,
         name: String = "LOCAL_USER",

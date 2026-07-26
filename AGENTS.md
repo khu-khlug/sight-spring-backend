@@ -9,8 +9,13 @@
 - `domain`의 파일을 수정할 때는 `rules/domain.md`를 읽는다.
 - `repository`의 파일을 수정할 때는 `rules/repository.md`를 읽는다.
 - `service`의 파일을 수정할 때는 `rules/service.md`를 읽는다.
+- `src/test/kotlin/com/sight` 아래의 테스트를 새로 만들거나 수정할 때는 `rules/testing.md`를 읽는다.
 
 두 개 이상 레이어의 파일을 수정할 때는 관련된 모든 규칙 파일을 읽는다. 두 규칙이 서로 다르면, 더 넓은 동작을 금지하는 규칙을 따른다.
+
+## 오류 메시지
+
+- 사용자에게 노출될 수 있는 모든 오류 메시지는 한국어로 작성한다.
 
 ## 커밋 지침
 

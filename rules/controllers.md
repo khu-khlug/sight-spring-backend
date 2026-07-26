@@ -24,6 +24,14 @@
 - Service의 반환값은 Controller가 응답 DTO로 변환한다.
 - HTTP 상태 코드는 Controller가 명시한다.
 
+## DTO 명명 규칙
+
+- 목록 조회 API의 항목 응답 DTO는 `List{리소스}Response`, 목록 전체 응답 DTO는 `List{리소스}sResponse`로 작성한다.
+- 단건 조회 API의 응답 DTO는 `Get{리소스}Response`로 작성한다.
+- 생성 API의 요청·응답 DTO는 `Create{리소스}Request`, `Create{리소스}Response` 또는 `Add{리소스}Request`, `Add{리소스}Response`로 작성한다.
+- 수정 API의 요청·응답 DTO는 `Update{리소스}Request`, `Update{리소스}Response`로 작성한다.
+- 삭제 API의 요청·응답 DTO가 필요하면 `Delete{리소스}Request`, `Delete{리소스}Response`로 작성한다.
+
 ## Discord 이벤트 Controller 규칙
 
 - Discord 이벤트 Controller 클래스는 `controllers.discord` 패키지에 둔다.

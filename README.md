@@ -7,6 +7,14 @@
 - Java 17
 - Docker
 
+## 기술 스택
+
+- Kotlin 1.9.25
+- Spring Boot 3.3.5
+- Gradle (Kotlin DSL)
+- JUnit 5, Spring Boot Test, Testcontainers
+- ktlint
+
 ## 설치 방법
 
 ```bash
@@ -40,7 +48,14 @@ docker build -f Dockerfile.Build -t sight-spring-backend .
 ## 테스트 실행 방법
 
 ```bash
+# 전체 테스트 실행
 ./gradlew test
+
+# 특정 테스트 클래스 실행
+./gradlew test --tests "com.sight.controllers.http.PingControllerTest"
+
+# 이름 패턴으로 테스트 실행
+./gradlew test --tests "*ping*"
 ```
 
 ## Lint 실행 방법
@@ -51,7 +66,16 @@ docker build -f Dockerfile.Build -t sight-spring-backend .
 
 # Lint 자동 수정
 ./gradlew ktlintFormat
+
+# 테스트와 lint를 포함한 전체 검사
+./gradlew check
 ```
+
+## 애플리케이션 설정
+
+- 기본 프로파일은 `local`이며, 운영 프로파일은 `prod`입니다.
+- 로컬 프로파일에서는 `com.sight` 패키지의 DEBUG 로그를 출력합니다.
+- Actuator는 `health`, `info`, `metrics` 엔드포인트를 노출합니다.
 
 ## 프로젝트 구조
 

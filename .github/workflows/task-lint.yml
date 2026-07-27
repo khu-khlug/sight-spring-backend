@@ -1,0 +1,29 @@
+name: Task lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  task-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Cache task lint binaries
+        id: task-lint-cache
+        uses: actions/cache@v5
+        with:
+          path: tools/task-lint/bin
+          key: task-lint-binaries-${{ runner.os }}-v1-${{ hashFiles('tools/task-lint/**/*.go', 'tools/task-lint/go.mod', 'tools/task-lint/go.sum', 'tools/task-lint/Dockerfile') }}
+
+      - name: Build task lint
+        if: steps.task-lint-cache.outputs.cache-hit != 'true'
+        run: docker buildx build --file tools/task-lint/Dockerfile --output type=local,dest=tools/task-lint/bin .
+
+      - name: Run task lint
+        run: tools/task-lint/bin/task-lint-linux-amd64

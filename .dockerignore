@@ -1,3 +1,4 @@
 build/
 .gradle/
 .git/
+tools/task-lint/bin/

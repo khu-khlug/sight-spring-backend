@@ -19,8 +19,7 @@ Backend Task 문서는 구현 방법을 지시하는 문서가 아니다. 작업
 
 - 완료되지 않은 Task 문서는 `tasks/open/`에 둔다.
 - 완료된 Task 문서는 `tasks/completed/`로 옮긴다.
-- `tasks/STANDARD.md`는 작성 원칙을 정의한다.
-- `tasks/TEMPLATE.md`는 필수 섹션과 순서를 정의한다.
+- `tasks/STANDARD.md`의 `필수 섹션` 절은 Task 문서의 필수 섹션과 순서를 정의한다.
 
 ## 작성 원칙
 
@@ -293,8 +292,8 @@ lint는 설계의 타당성을 판단하지 않는다. 예를 들어 database �
 
 현재 lint는 `tasks/open/`과 `tasks/completed/`의 Markdown 문서에 대해 다음 내용만 검사한다.
 
-- `tasks/TEMPLATE.md`에 정의된 모든 `##` 섹션이 정확히 한 번 존재한다.
-- 필수 섹션끼리의 상대적 순서가 Template과 같다.
+- `tasks/STANDARD.md`의 `필수 섹션` 절에 정의된 모든 섹션이 정확히 한 번 존재한다.
+- 필수 섹션끼리의 상대적 순서가 Standard와 같다.
 - 각 필수 섹션에 공백을 제외한 내용이 한 글자 이상 존재한다.
 
 추가 `##` 섹션은 허용한다.

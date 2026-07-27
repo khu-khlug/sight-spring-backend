@@ -25,13 +25,13 @@ type requiredSection struct {
 }
 
 func Run(repositoryRoot string) ([]Error, error) {
-	templatePath := filepath.Join(repositoryRoot, "tasks", "TEMPLATE.md")
-	required, templateErrors, err := loadRequiredSections(repositoryRoot, templatePath)
+	standardPath := filepath.Join(repositoryRoot, "tasks", "STANDARD.md")
+	required, standardErrors, err := loadRequiredSections(repositoryRoot, standardPath)
 	if err != nil {
 		return nil, err
 	}
-	if len(templateErrors) > 0 {
-		return templateErrors, nil
+	if len(standardErrors) > 0 {
+		return standardErrors, nil
 	}
 
 	var paths []string
@@ -56,23 +56,40 @@ func Run(repositoryRoot string) ([]Error, error) {
 
 func loadRequiredSections(
 	repositoryRoot string,
-	templatePath string,
+	standardPath string,
 ) ([]requiredSection, []Error, error) {
-	sections, err := parseSections(templatePath)
+	sections, definitionLines, err := parseRequiredSectionDefinitions(standardPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read task template: %w", err)
+		return nil, nil, fmt.Errorf("read task standard: %w", err)
 	}
 
-	relativePath, err := filepath.Rel(repositoryRoot, templatePath)
+	relativePath, err := filepath.Rel(repositoryRoot, standardPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if len(sections) == 0 {
+	if len(definitionLines) == 0 {
 		return nil, []Error{{
 			Path:    relativePath,
 			Line:    1,
-			Message: "필수 섹션을 정의하는 '##' heading이 없습니다",
+			Message: "'## 필수 섹션' heading이 없습니다",
+		}}, nil
+	}
+	if len(definitionLines) > 1 {
+		return nil, []Error{{
+			Path: relativePath,
+			Line: definitionLines[1],
+			Message: fmt.Sprintf(
+				"'## 필수 섹션' heading이 중복되었습니다 (첫 번째 위치: %d줄)",
+				definitionLines[0],
+			),
+		}}, nil
+	}
+	if len(sections) == 0 {
+		return nil, []Error{{
+			Path:    relativePath,
+			Line:    definitionLines[0],
+			Message: "'필수 섹션' 절에 번호가 붙은 '###' heading이 없습니다",
 		}}, nil
 	}
 

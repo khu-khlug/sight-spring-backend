@@ -8,7 +8,7 @@ import (
 )
 
 func TestRunAcceptsValidDocumentsWithLFAndCRLF(t *testing.T) {
-	root := createRepository(t, defaultTemplate)
+	root := createRepository(t, defaultStandard)
 	writeTask(t, root, "open/lf.md", validDocument("\n"))
 	writeTask(t, root, "completed/crlf.md", validDocument("\r\n"))
 
@@ -22,7 +22,7 @@ func TestRunAcceptsValidDocumentsWithLFAndCRLF(t *testing.T) {
 }
 
 func TestRunReportsMissingDuplicateOutOfOrderAndEmptySections(t *testing.T) {
-	root := createRepository(t, defaultTemplate)
+	root := createRepository(t, defaultStandard)
 	writeTask(t, root, "open/invalid.md", strings.Join([]string{
 		"# Invalid",
 		"",
@@ -57,7 +57,7 @@ func TestRunReportsMissingDuplicateOutOfOrderAndEmptySections(t *testing.T) {
 }
 
 func TestRunChecksRequiredSectionOrderAndAllowsAdditionalSections(t *testing.T) {
-	root := createRepository(t, defaultTemplate)
+	root := createRepository(t, defaultStandard)
 	writeTask(t, root, "open/order.md", strings.Join([]string{
 		"# Order",
 		"",
@@ -89,7 +89,7 @@ func TestRunChecksRequiredSectionOrderAndAllowsAdditionalSections(t *testing.T) 
 }
 
 func TestRunIgnoresHeadingsInsideFencedCodeBlocks(t *testing.T) {
-	root := createRepository(t, defaultTemplate)
+	root := createRepository(t, defaultStandard)
 	document := validDocument("\n") + strings.Join([]string{
 		"",
 		"## Additional",
@@ -109,8 +109,15 @@ func TestRunIgnoresHeadingsInsideFencedCodeBlocks(t *testing.T) {
 	}
 }
 
-func TestRunRejectsDuplicateSectionsInTemplate(t *testing.T) {
-	root := createRepository(t, "## Overview\n\n## Overview\n")
+func TestRunRejectsDuplicateSectionsInStandard(t *testing.T) {
+	root := createRepository(t, `# Standard
+
+## 필수 섹션
+
+### 1. Overview
+
+### 2. Overview
+`)
 
 	errors, err := Run(root)
 	if err != nil {
@@ -118,17 +125,57 @@ func TestRunRejectsDuplicateSectionsInTemplate(t *testing.T) {
 	}
 	if len(errors) != 1 ||
 		!strings.Contains(errors[0].Message, "필수 섹션 'Overview'이 중복되었습니다") {
-		t.Fatalf("expected template duplicate error, got: %v", errors)
+		t.Fatalf("expected standard duplicate error, got: %v", errors)
 	}
 }
 
-const defaultTemplate = `# Template
+func TestRunRejectsDuplicateRequiredSectionBlocksInStandard(t *testing.T) {
+	root := createRepository(t, `# Standard
 
-## Overview
+## 필수 섹션
 
-## Behavior
+### 1. Overview
 
-## Database
+## Other
+
+## 필수 섹션
+
+### 2. Behavior
+`)
+
+	errors, err := Run(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(errors) != 1 ||
+		!strings.Contains(errors[0].Message, "'## 필수 섹션' heading이 중복되었습니다") {
+		t.Fatalf("expected duplicate definition block error, got: %v", errors)
+	}
+}
+
+const defaultStandard = `# Standard
+
+## Introduction
+
+### Not a required section
+
+## 필수 섹션
+
+### 1. Overview
+
+description
+
+### 2. Behavior
+
+description
+
+### 3. Database
+
+description
+
+## Other
+
+### Not a required section
 `
 
 func validDocument(newline string) string {
@@ -151,7 +198,7 @@ func validDocument(newline string) string {
 	return strings.Join(lines, newline)
 }
 
-func createRepository(t *testing.T, template string) string {
+func createRepository(t *testing.T, standard string) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, directory := range []string{
@@ -163,8 +210,8 @@ func createRepository(t *testing.T, template string) string {
 		}
 	}
 	if err := os.WriteFile(
-		filepath.Join(root, "tasks", "TEMPLATE.md"),
-		[]byte(template),
+		filepath.Join(root, "tasks", "STANDARD.md"),
+		[]byte(standard),
 		0o644,
 	); err != nil {
 		t.Fatal(err)

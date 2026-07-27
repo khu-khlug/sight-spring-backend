@@ -20,7 +20,7 @@
 ## Task 문서 작업 지침
 
 - `tasks/` 아래의 Task 문서를 새로 만들거나 수정하기 전에 `tasks/STANDARD.md`를 처음부터 끝까지 읽고 따른다.
-- 새 Task 문서는 `tasks/TEMPLATE.md`를 복사해 `tasks/open/` 아래에 만든다.
+- 새 Task 문서는 `tasks/STANDARD.md`의 필수 섹션을 따라 `tasks/open/` 아래에 만든다.
 - Task 문서를 새로 만들거나 수정한 뒤에는 저장소 root에서 현재 OS와 architecture에 맞는 `tools/task-lint/bin/task-lint-*` binary를 실행한다.
 - 현재 환경에 맞는 binary가 없거나 source hash가 일치하지 않으면 저장소 root에서 다음 명령을 실행하고 lint를 다시 실행한다.
 

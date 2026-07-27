@@ -64,7 +64,7 @@ func parseSections(path string) ([]section, error) {
 		}
 
 		if activeFence == nil {
-			if name, ok := levelTwoHeading(line); ok {
+			if name, ok := heading(line, 2); ok {
 				finishCurrent()
 				current = &section{Name: name, Line: lineNumber}
 				continue
@@ -84,21 +84,98 @@ func parseSections(path string) ([]section, error) {
 	return sections, nil
 }
 
-func levelTwoHeading(line string) (string, bool) {
+func parseRequiredSectionDefinitions(path string) ([]section, []int, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+
+	var sections []section
+	var definitionLines []int
+	var activeFence *fence
+	inDefinitions := false
+
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	lineNumber := 0
+
+	for scanner.Scan() {
+		lineNumber++
+		line := scanner.Text()
+
+		if marker, ok := fenceMarker(line); ok {
+			if activeFence == nil {
+				activeFence = &marker
+			} else if marker.char == activeFence.char &&
+				marker.count >= activeFence.count &&
+				isClosingFence(line, marker) {
+				activeFence = nil
+			}
+			continue
+		}
+		if activeFence != nil {
+			continue
+		}
+
+		if name, ok := heading(line, 2); ok {
+			inDefinitions = name == "필수 섹션"
+			if inDefinitions {
+				definitionLines = append(definitionLines, lineNumber)
+			}
+			continue
+		}
+		if !inDefinitions {
+			continue
+		}
+		if name, ok := heading(line, 3); ok {
+			if sectionName, ok := numberedSectionName(name); ok {
+				sections = append(sections, section{Name: sectionName, Line: lineNumber})
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, nil, fmt.Errorf("read markdown: %w", err)
+	}
+	return sections, definitionLines, nil
+}
+
+func heading(line string, level int) (string, bool) {
 	trimmed := trimUpToThreeLeadingSpaces(line)
-	if !strings.HasPrefix(trimmed, "##") || strings.HasPrefix(trimmed, "###") {
+	marker := strings.Repeat("#", level)
+	if !strings.HasPrefix(trimmed, marker) ||
+		strings.HasPrefix(trimmed, marker+"#") {
 		return "", false
 	}
-	if len(trimmed) == 2 || (trimmed[2] != ' ' && trimmed[2] != '\t') {
+	if len(trimmed) == level ||
+		(trimmed[level] != ' ' && trimmed[level] != '\t') {
 		return "", false
 	}
 
-	name := strings.TrimSpace(trimmed[2:])
+	name := strings.TrimSpace(trimmed[level:])
 	name = strings.TrimSpace(strings.TrimRight(name, "#"))
 	if name == "" {
 		return "", false
 	}
 	return name, true
+}
+
+func numberedSectionName(name string) (string, bool) {
+	dot := strings.IndexByte(name, '.')
+	if dot < 1 || dot+1 >= len(name) {
+		return "", false
+	}
+	for _, char := range name[:dot] {
+		if char < '0' || char > '9' {
+			return "", false
+		}
+	}
+	if name[dot+1] != ' ' && name[dot+1] != '\t' {
+		return "", false
+	}
+	sectionName := strings.TrimSpace(name[dot+1:])
+	return sectionName, sectionName != ""
 }
 
 func fenceMarker(line string) (fence, bool) {

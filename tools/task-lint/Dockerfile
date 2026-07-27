@@ -2,7 +2,7 @@ FROM golang:1.23.4-alpine3.20 AS builder
 
 WORKDIR /workspace
 
-COPY tasks/TEMPLATE.md tasks/TEMPLATE.md
+COPY tasks/STANDARD.md tasks/STANDARD.md
 COPY tools/task-lint tools/task-lint
 
 WORKDIR /workspace/tools/task-lint

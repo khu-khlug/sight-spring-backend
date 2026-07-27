@@ -1,0 +1,21 @@
+name: Task lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  task-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build task lint
+        run: docker buildx build --file tools/task-lint/Dockerfile --output type=local,dest=tools/task-lint/bin .
+
+      - name: Run task lint
+        run: tools/task-lint/bin/task-lint-linux-amd64

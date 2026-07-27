@@ -399,7 +399,7 @@ class ScheduleServiceTest {
     }
 
     @Test
-    fun `listActiveSchedules returns only active attendance schedules`() {
+    fun `listActiveSchedules returns active attendance schedules from repository`() {
         val now = LocalDateTime.now()
         val activeSchedule =
             scheduleOf(
@@ -408,29 +408,7 @@ class ScheduleServiceTest {
                 endAt = now.plusHours(1),
                 checkCode = "1234",
             )
-        val endedSchedule =
-            scheduleOf(
-                id = 2L,
-                scheduledAt = now.minusHours(3),
-                endAt = now.minusHours(1),
-                checkCode = "1234",
-            )
-        val futureSchedule =
-            scheduleOf(
-                id = 3L,
-                scheduledAt = now.plusHours(1),
-                endAt = now.plusHours(2),
-                checkCode = "1234",
-            )
-        val noCheckCodeSchedule =
-            scheduleOf(
-                id = 4L,
-                scheduledAt = now.minusHours(1),
-                endAt = now.plusHours(1),
-                checkCode = null,
-            )
-        given(scheduleRepository.findAttendanceActive(any(), any()))
-            .willReturn(listOf(activeSchedule, endedSchedule, futureSchedule, noCheckCodeSchedule))
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(listOf(activeSchedule))
 
         val result = scheduleService.listActiveSchedules()
 

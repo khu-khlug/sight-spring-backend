@@ -71,6 +71,23 @@ docker build -f Dockerfile.Build -t sight-spring-backend .
 ./gradlew check
 ```
 
+## Task 기반 작업 진행
+
+이 저장소의 작업은 구현 전에 `tasks/open/`에 Task 문서를 작성하고 검토하는 것을 원칙으로 합니다. Task 문서에는 내부 구현 방법보다 HTTP API, database, 외부 시스템과의 계약, 사용자에게 관찰되는 비즈니스 동작, 보안 및 운영 영향을 작성합니다.
+
+- 작성 원칙: [`tasks/STANDARD.md`](tasks/STANDARD.md)
+- 작성 Template: [`tasks/TEMPLATE.md`](tasks/TEMPLATE.md)
+- 진행 중인 Task: `tasks/open/`
+- 완료된 Task: `tasks/completed/`
+
+Task 문서를 생성하거나 수정한 뒤에는 현재 OS와 architecture에 맞는 `tools/task-lint/bin/task-lint-*` binary로 필수 섹션과 내용을 검증해야 합니다. binary가 없거나 source와 일치하지 않으면 다음 명령으로 다시 build합니다.
+
+```bash
+docker buildx build --file tools/task-lint/Dockerfile --output type=local,dest=tools/task-lint/bin .
+```
+
+자세한 build 및 실행 방법은 [`tools/task-lint/README.md`](tools/task-lint/README.md)를 참고합니다.
+
 ## 애플리케이션 설정
 
 - 기본 프로파일은 `local`이며, 운영 프로파일은 `prod`입니다.

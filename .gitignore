@@ -18,6 +18,7 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+tools/task-lint/bin/
 
 # IntelliJ IDEA
 .idea/

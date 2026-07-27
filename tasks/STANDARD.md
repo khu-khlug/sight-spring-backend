@@ -240,7 +240,7 @@ API마다 다음 내용을 작성한다.
 - lint는 필수 내용의 존재와 문서 형식을 deterministic하게 검사한다.
 - 사람은 계약, 비즈니스 의미와 결정을 검토한다.
 
-현재 lint는 `tasks/open/`과 `tasks/completed/`의 Markdown 문서에 대해 다음 내용을 검사한다.
+현재 lint는 `tasks/{status}/` 아래의 모든 Markdown 문서에 대해 다음 내용을 검사한다.
 
 - 이 문서의 `필수 섹션` 절에 정의된 모든 섹션이 정확히 한 번 존재한다.
 - 필수 섹션끼리의 상대적 순서가 같다.

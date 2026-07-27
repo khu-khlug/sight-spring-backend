@@ -42,7 +42,7 @@ lint source가 binary build 이후 변경되면 실행을 중단하고 binary를
 
 `tasks/STANDARD.md`의 `필수 섹션` 절 아래에 번호가 붙은 `###` heading을 필수 섹션과 순서의 기준으로 사용한다. Task 문서에서는 각 필수 섹션을 같은 이름의 `##` heading으로 작성한다.
 
-`tasks/open/`과 `tasks/completed/` 아래의 모든 Markdown 문서는 다음 조건을 만족해야 한다.
+`tasks/{status}/` 아래의 모든 Markdown 문서는 다음 조건을 만족해야 한다.
 
 - 모든 필수 섹션이 정확히 한 번 존재한다.
 - 필수 섹션끼리의 상대적 순서가 Standard와 같다.

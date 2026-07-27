@@ -11,6 +11,7 @@ func TestRunAcceptsValidDocumentsWithLFAndCRLF(t *testing.T) {
 	root := createRepository(t, defaultStandard)
 	writeTask(t, root, "open/lf.md", validDocument("\n"))
 	writeTask(t, root, "completed/crlf.md", validDocument("\r\n"))
+	writeTask(t, root, "cancelled/nested/cancelled.md", validDocument("\n"))
 
 	errors, err := Run(root)
 	if err != nil {

@@ -35,9 +35,19 @@ func Run(repositoryRoot string) ([]Error, error) {
 	}
 
 	var paths []string
-	for _, directory := range []string{"open", "completed"} {
-		root := filepath.Join(repositoryRoot, "tasks", directory)
-		if err := collectMarkdownFiles(root, &paths); err != nil {
+	tasksRoot := filepath.Join(repositoryRoot, "tasks")
+	statusDirectories, err := os.ReadDir(tasksRoot)
+	if err != nil {
+		return nil, fmt.Errorf("read tasks directory %s: %w", tasksRoot, err)
+	}
+	for _, entry := range statusDirectories {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		if err := collectMarkdownFiles(
+			filepath.Join(tasksRoot, entry.Name()),
+			&paths,
+		); err != nil {
 			return nil, err
 		}
 	}

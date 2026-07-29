@@ -165,7 +165,7 @@ class ScheduleService(
             throw ConflictException("이미 출석 처리된 사용자가 포함되어 있습니다.")
         }
 
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(KST)
         val attendances =
             userIds.map { userId ->
                 ScheduleMemberApply(

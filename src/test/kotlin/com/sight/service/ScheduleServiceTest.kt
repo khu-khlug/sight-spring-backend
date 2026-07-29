@@ -25,6 +25,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -38,6 +39,7 @@ class ScheduleServiceTest {
     private val memberRepository: MemberRepository = mock()
     private val pointService: PointService = mock()
     private lateinit var scheduleService: ScheduleService
+    private val kst = ZoneId.of("Asia/Seoul")
 
     @BeforeEach
     fun setUp() {
@@ -400,7 +402,7 @@ class ScheduleServiceTest {
 
     @Test
     fun `listActiveSchedules returns active attendance schedules from repository`() {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(kst)
         val activeSchedule =
             scheduleOf(
                 id = 1L,
@@ -596,7 +598,7 @@ class ScheduleServiceTest {
     @Test
     fun `checkScheduleAttendance는 출석체크 시간 밖이면 BadRequestException을 던진다`() {
         val requesterUserId = 10L
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(kst)
         val beforeSchedule =
             attendanceSchedule(
                 scheduledAt = now.plusHours(1),
@@ -972,8 +974,8 @@ class ScheduleServiceTest {
         id: Long = 100L,
         expoint: Int = 10,
         checkCode: String? = "1234",
-        scheduledAt: LocalDateTime = LocalDateTime.now().minusHours(1),
-        endAt: LocalDateTime = LocalDateTime.now().plusHours(1),
+        scheduledAt: LocalDateTime = LocalDateTime.now(kst).minusHours(1),
+        endAt: LocalDateTime = LocalDateTime.now(kst).plusHours(1),
     ): Schedule {
         return Schedule(
             id = id,

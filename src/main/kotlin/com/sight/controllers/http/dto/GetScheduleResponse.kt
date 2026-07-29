@@ -18,6 +18,9 @@ data class GetScheduleResponse(
     val expoint: Int,
     val checkCode: String?,
     val author: Long,
+    val authorName: String?,
+    val groupId: Long?,
+    val groupTitle: String?,
     val createdAt: String,
     val updatedAt: String,
     val isSummerSeason: Boolean?,
@@ -28,6 +31,8 @@ data class GetScheduleResponse(
             schedule: Schedule,
             role: UserRole,
             bigSeminar: BigSeminar? = null,
+            authorName: String? = null,
+            groupTitle: String? = null,
         ): GetScheduleResponse {
             return GetScheduleResponse(
                 id = schedule.id,
@@ -40,6 +45,9 @@ data class GetScheduleResponse(
                 expoint = schedule.expoint,
                 checkCode = if (role == UserRole.MANAGER) schedule.checkCode else null,
                 author = schedule.author,
+                authorName = authorName,
+                groupId = schedule.groupId,
+                groupTitle = groupTitle,
                 createdAt = schedule.createdAt.toString(),
                 updatedAt = schedule.updatedAt.toString(),
                 isSummerSeason = bigSeminar?.isSummerSeason,

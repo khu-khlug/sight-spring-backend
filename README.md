@@ -73,19 +73,7 @@ docker build -f Dockerfile.Build -t sight-spring-backend .
 
 ## Task 기반 작업 진행
 
-이 저장소의 작업은 구현 전에 `tasks/open/`에 Task 문서를 작성하고 검토하는 것을 원칙으로 합니다. Task 문서에는 내부 구현 방법보다 HTTP API, database, 외부 시스템과의 계약, 사용자에게 관찰되는 비즈니스 동작, 보안 및 운영 영향을 작성합니다.
-
-- 작성 원칙: [`tasks/STANDARD.md`](tasks/STANDARD.md)
-- 진행 중인 Task: `tasks/open/`
-- 완료된 Task: `tasks/completed/`
-
-Task 문서를 생성하거나 수정한 뒤에는 현재 OS와 architecture에 맞는 `tools/task-lint/bin/task-lint-*` binary로 필수 섹션과 내용을 검증해야 합니다. binary가 없거나 source와 일치하지 않으면 다음 명령으로 다시 build합니다.
-
-```bash
-docker buildx build --file tools/task-lint/Dockerfile --output type=local,dest=tools/task-lint/bin .
-```
-
-자세한 build 및 실행 방법은 [`tools/task-lint/README.md`](tools/task-lint/README.md)를 참고합니다.
+Task 문서와 관련 정책 및 lint 도구는 [`sight-workspace`](https://github.com/khu-khlug/sight-workspace)에서 통합 관리합니다. Task 문서를 기반으로 이 저장소의 작업을 진행하려면 `sight-workspace`를 먼저 clone하고 그 아래에 이 저장소를 clone한 뒤, 워크스페이스의 `tasks/open/`에 Task를 설정해 주세요. 작성과 검증에는 워크스페이스의 `tasks/STANDARD.md`와 Task lint를 따릅니다.
 
 ## 애플리케이션 설정
 

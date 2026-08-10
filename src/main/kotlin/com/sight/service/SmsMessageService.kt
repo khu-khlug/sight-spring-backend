@@ -41,7 +41,7 @@ class SmsMessageService(
     private val smsMessageClient: SmsMessageClient,
 ) {
     @Transactional(readOnly = true)
-    fun createSmsMessages(
+    fun sendSmsMessages(
         memberIds: List<Long>,
         additionalPhoneNumbers: List<String>,
         message: String,

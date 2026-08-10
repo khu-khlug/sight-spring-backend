@@ -18,11 +18,11 @@ class SmsMessageController(
 ) {
     @Auth([UserRole.MANAGER])
     @PostMapping("/manager/sms-messages")
-    fun createSmsMessages(
+    fun sendSmsMessages(
         @Valid @RequestBody request: CreateSmsMessageRequest,
     ): ResponseEntity<CreateSmsMessageResponse> {
         val result =
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = checkNotNull(request.memberIds).filterNotNull(),
                 additionalPhoneNumbers = checkNotNull(request.additionalPhoneNumbers).filterNotNull(),
                 message = checkNotNull(request.message),

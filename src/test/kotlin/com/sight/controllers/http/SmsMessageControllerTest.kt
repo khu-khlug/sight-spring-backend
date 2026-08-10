@@ -61,7 +61,7 @@ class SmsMessageControllerTest {
     fun `모든 수신자가 정상 접수되면 200 OK와 결과를 반환한다`() {
         val request = request()
         given(
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 request.memberIds!!.filterNotNull(),
                 request.additionalPhoneNumbers!!.filterNotNull(),
                 request.message!!,
@@ -99,7 +99,7 @@ class SmsMessageControllerTest {
     fun `실패하거나 건너뛴 수신자가 있으면 422와 수신자별 결과를 반환한다`() {
         val request = request()
         given(
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 request.memberIds!!.filterNotNull(),
                 request.additionalPhoneNumbers!!.filterNotNull(),
                 request.message!!,
@@ -208,7 +208,7 @@ class SmsMessageControllerTest {
     fun `운영진의 요청 필드를 서비스 인자로 전달한다`() {
         val request = request()
         given(
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 request.memberIds!!.filterNotNull(),
                 request.additionalPhoneNumbers!!.filterNotNull(),
                 request.message!!,
@@ -223,7 +223,7 @@ class SmsMessageControllerTest {
         )
             .andExpect(status().isOk)
 
-        verify(smsMessageService).createSmsMessages(
+        verify(smsMessageService).sendSmsMessages(
             memberIds = listOf(1L),
             additionalPhoneNumbers = listOf("010-3333-4444"),
             message = "안녕하세요 {realname}",

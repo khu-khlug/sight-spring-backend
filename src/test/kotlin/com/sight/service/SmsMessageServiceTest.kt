@@ -50,7 +50,7 @@ class SmsMessageServiceTest {
         val messagesCaptor = argumentCaptor<List<SendSmsMessage>>()
 
         val result =
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = listOf(2L, 1L, 2L),
                 additionalPhoneNumbers = listOf("010-1111-2222, 010-3333-4444", "번호 없음"),
                 message = "안녕하세요 {realname}",
@@ -74,7 +74,7 @@ class SmsMessageServiceTest {
         given(memberRepository.findAllById(listOf(1L, 999L))).willReturn(listOf(unitedMember))
 
         assertThrows<BadRequestException> {
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = listOf(1L, 999L),
                 additionalPhoneNumbers = listOf("01012345678"),
                 message = "안내 메시지",
@@ -94,7 +94,7 @@ class SmsMessageServiceTest {
         )
 
         val result =
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = listOf(1L),
                 additionalPhoneNumbers = emptyList(),
                 message = "안내 메시지",
@@ -110,7 +110,7 @@ class SmsMessageServiceTest {
         given(memberRepository.findAllById(listOf(1L))).willReturn(listOf(member))
 
         val result =
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = listOf(1L),
                 additionalPhoneNumbers = emptyList(),
                 message = "안내 메시지",
@@ -127,7 +127,7 @@ class SmsMessageServiceTest {
     @Test
     fun `유효한 회원과 직접 지정 전화번호가 없으면 요청을 거부한다`() {
         assertThrows<BadRequestException> {
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = emptyList(),
                 additionalPhoneNumbers = listOf("번호 없음", "---"),
                 message = "안내 메시지",
@@ -139,7 +139,7 @@ class SmsMessageServiceTest {
     @Test
     fun `공백 메시지는 회원 조회와 외부 발송 전에 거부한다`() {
         assertThrows<BadRequestException> {
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = listOf(1L),
                 additionalPhoneNumbers = emptyList(),
                 message = "   ",
@@ -161,7 +161,7 @@ class SmsMessageServiceTest {
         )
 
         val result =
-            smsMessageService.createSmsMessages(
+            smsMessageService.sendSmsMessages(
                 memberIds = emptyList(),
                 additionalPhoneNumbers = listOf("01011112222", "01033334444"),
                 message = "안내 메시지",
@@ -187,7 +187,7 @@ class SmsMessageServiceTest {
         }
         val messagesCaptor = argumentCaptor<List<SendSmsMessage>>()
 
-        smsMessageService.createSmsMessages(
+        smsMessageService.sendSmsMessages(
             memberIds = listOf(1L, 2L),
             additionalPhoneNumbers = emptyList(),
             message = "a".repeat(88) + "{realname}",
@@ -206,7 +206,7 @@ class SmsMessageServiceTest {
 
         val exception =
             assertThrows<InternalServerErrorException> {
-                smsMessageService.createSmsMessages(
+                smsMessageService.sendSmsMessages(
                     memberIds = emptyList(),
                     additionalPhoneNumbers = listOf("01011112222"),
                     message = "안내 메시지",

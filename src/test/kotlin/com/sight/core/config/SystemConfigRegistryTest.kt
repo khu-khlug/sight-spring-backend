@@ -77,6 +77,27 @@ class SystemConfigRegistryTest {
     }
 
     @Test
+    fun `getFreshValue는 캐시 값이 있어도 DB의 최신 값을 반환한다`() {
+        val key = ConfigKey.SMS_SENDER_PHONE
+        val initialConfig =
+            SystemConfig(
+                id = "01HZ9QXXX0000000000000012",
+                configKey = key,
+                configValue = "0211111111",
+            )
+        val updatedConfig = initialConfig.copy(configValue = "0222222222")
+        whenever(systemConfigRepository.findByConfigKey(key))
+            .thenReturn(initialConfig)
+            .thenReturn(updatedConfig)
+
+        systemConfigRegistry.getValue(key)
+        val result = systemConfigRegistry.getFreshValue(key)
+
+        assertEquals("0222222222", result)
+        verify(systemConfigRepository, org.mockito.kotlin.times(2)).findByConfigKey(key)
+    }
+
+    @Test
     fun `getValueAsBoolean은 Boolean 값으로 반환한다`() {
         // given
         val key = ConfigKey.KHLUG_ACCOUNT_NUMBER

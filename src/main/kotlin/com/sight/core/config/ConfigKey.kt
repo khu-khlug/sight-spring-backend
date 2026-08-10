@@ -24,4 +24,8 @@ enum class ConfigKey(
         defaultValue = "",
         description = "도서 스캔 허용 IP(동방 공유기의 외부 IP)",
     ),
+    SMS_SENDER_PHONE(
+        defaultValue = "",
+        description = "문자 발송에 사용하는 동아리 공식 전화번호",
+    ),
 }

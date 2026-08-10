@@ -21,6 +21,12 @@ logging:
     com.sight: INFO
     org.springframework: INFO
 
+solapi:
+  api-key: ${SOLAPI_API_KEY:}
+  api-secret: ${SOLAPI_API_SECRET:}
+  base-url: ${SOLAPI_BASE_URL:https://api.solapi.com}
+  timeout: 10s
+
 ---
 spring:
   config:

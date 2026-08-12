@@ -84,7 +84,8 @@ class SolapiMessageClientTest {
                           "subject": "쿠러그, 경희대학교 중앙 IT 동아리",
                           "customFields": {"recipientIndex": "1"}
                         }
-                      ]
+                      ],
+                      "showMessageList": true
                     }
                     """.trimIndent(),
                     true,

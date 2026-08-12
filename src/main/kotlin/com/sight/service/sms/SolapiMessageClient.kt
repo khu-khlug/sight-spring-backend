@@ -43,6 +43,7 @@ class SolapiMessageClient(
             HttpEntity(
                 SolapiSendRequest(
                     messages = messages.map { it.toSolapiRequest() },
+                    showMessageList = true,
                 ),
                 headers,
             )
@@ -125,6 +126,7 @@ class SolapiMessageClient(
 
     private data class SolapiSendRequest(
         val messages: List<SolapiMessageRequest>,
+        val showMessageList: Boolean,
     )
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

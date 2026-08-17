@@ -74,14 +74,14 @@ class SmsMessageService(
             val member = checkNotNull(membersById[memberId])
             val phone = PhoneNumberNormalizer.normalize(member.phone)
             if (phone.isBlank()) {
-                plans += RecipientPlan.skipped(memberId, "${member.college}${member.realname}")
+                plans += RecipientPlan.skipped(memberId, member.realname)
             } else if (usedPhones.add(phone)) {
                 plans +=
                     RecipientPlan.sendable(
                         memberId = memberId,
                         phone = phone,
                         message = SmsMessage.personalize(message, member.realname),
-                        notificationRecipient = "${member.college}${member.realname}",
+                        notificationRecipient = member.realname,
                     )
             }
         }

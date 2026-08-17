@@ -41,7 +41,7 @@ class SmsMessageServiceTest {
 
     @Test
     fun `회원과 직접 지정 수신자를 정규화하고 중복 제거 후 요청 순서로 발송한다`() {
-        val firstMember = member(id = 2L, realname = "김쿠러그", phone = "010-1111-2222")
+        val firstMember = member(id = 2L, realname = "김쿠러그", college = "공과대학", phone = "010-1111-2222")
         val duplicatedPhoneMember = member(id = 1L, realname = "이쿠러그", phone = "01011112222")
         given(memberRepository.findAllById(listOf(2L, 1L))).willReturn(listOf(duplicatedPhoneMember, firstMember))
         given(senderPhoneService.getSenderPhoneForSending()).willReturn("029302266")
@@ -233,6 +233,7 @@ class SmsMessageServiceTest {
     private fun member(
         id: Long,
         realname: String = "회원$id",
+        college: String = "",
         phone: String? = "01012345678",
         studentStatus: StudentStatus = StudentStatus.UNDERGRADUATE,
         status: UserStatus = UserStatus.ACTIVE,
@@ -241,6 +242,7 @@ class SmsMessageServiceTest {
             id = id,
             name = "member$id",
             realname = realname,
+            college = college,
             phone = phone,
             studentStatus = studentStatus,
             status = status,

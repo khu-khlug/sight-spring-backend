@@ -5,6 +5,7 @@ import com.sight.core.exception.InternalServerErrorException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.domain.notification.NotificationCategory
 import com.sight.domain.sms.SmsMessageType
 import com.sight.repository.MemberRepository
 import com.sight.service.sms.SendSmsMessage
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
@@ -29,11 +31,12 @@ class SmsMessageServiceTest {
     private val memberRepository = mock<MemberRepository>()
     private val senderPhoneService = mock<SenderPhoneService>()
     private val smsMessageClient = mock<SmsMessageClient>()
+    private val notificationService = mock<NotificationService>()
     private lateinit var smsMessageService: SmsMessageService
 
     @BeforeEach
     fun setUp() {
-        smsMessageService = SmsMessageService(memberRepository, senderPhoneService, smsMessageClient)
+        smsMessageService = SmsMessageService(memberRepository, senderPhoneService, smsMessageClient, notificationService)
     }
 
     @Test
@@ -66,6 +69,11 @@ class SmsMessageServiceTest {
         assertEquals(listOf("01011112222", "01033334444"), result.results.map { it.phone })
         assertTrue(result.results.all { it.status == SmsMessageResultStatus.SENT })
         assertFalse(result.hasFailures)
+        verify(notificationService).createNotificationForManagers(
+            NotificationCategory.SYSTEM,
+            "",
+            "<u>김쿠러그</u> 회원, <u>010-3333-4444</u>에게 <u>안녕하세요 {realname}</u> 내용으로 문자를 발송했습니다.",
+        )
     }
 
     @Test
@@ -214,6 +222,12 @@ class SmsMessageServiceTest {
             }
 
         assertEquals("문자 발송 서비스와 통신할 수 없습니다", exception.message)
+        verify(notificationService, never()).createNotificationForManagers(
+            any<NotificationCategory>(),
+            any<String>(),
+            any<String>(),
+            anyOrNull(),
+        )
     }
 
     private fun member(

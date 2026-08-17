@@ -4,6 +4,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
+import com.sight.domain.notification.NotificationCategory
 import com.sight.domain.sms.PhoneNumberNormalizer
 import com.sight.domain.sms.SmsMessage
 import com.sight.domain.sms.SmsMessageType
@@ -13,6 +14,7 @@ import com.sight.service.sms.SmsMessageClient
 import com.sight.service.sms.SmsMessageClientException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.util.HtmlUtils
 
 enum class SmsMessageResultStatus {
     SENT,
@@ -39,8 +41,13 @@ class SmsMessageService(
     private val memberRepository: MemberRepository,
     private val senderPhoneService: SenderPhoneService,
     private val smsMessageClient: SmsMessageClient,
+    private val notificationService: NotificationService,
 ) {
-    @Transactional(readOnly = true)
+    companion object {
+        private val phoneNumberPattern = Regex("(^02|^01.|[0-9]{3})([0-9]+)([0-9]{4})")
+    }
+
+    @Transactional
     fun sendSmsMessages(
         memberIds: List<Long>,
         additionalPhoneNumbers: List<String>,
@@ -67,13 +74,14 @@ class SmsMessageService(
             val member = checkNotNull(membersById[memberId])
             val phone = PhoneNumberNormalizer.normalize(member.phone)
             if (phone.isBlank()) {
-                plans += RecipientPlan.skipped(memberId)
+                plans += RecipientPlan.skipped(memberId, "${member.college}${member.realname}")
             } else if (usedPhones.add(phone)) {
                 plans +=
                     RecipientPlan.sendable(
                         memberId = memberId,
                         phone = phone,
                         message = SmsMessage.personalize(message, member.realname),
+                        notificationRecipient = "${member.college}${member.realname}",
                     )
             }
         }
@@ -89,6 +97,7 @@ class SmsMessageService(
                             memberId = null,
                             phone = phone,
                             message = SmsMessage.personalize(message, phone),
+                            notificationRecipient = formatPhone(phone),
                         )
                 }
             }
@@ -99,7 +108,7 @@ class SmsMessageService(
 
         val sendablePlans = plans.filter { it.message != null }
         if (sendablePlans.isEmpty()) {
-            return CreateSmsMessagesResult(plans.map { it.toSkippedResult() })
+            return createResultAndNotification(plans, plans.map { it.toSkippedResult() }, message)
         }
 
         val senderPhone = senderPhoneService.getSenderPhoneForSending()
@@ -126,7 +135,8 @@ class SmsMessageService(
                 plan to checkNotNull(clientResultsByIndex[recipientIndex]).accepted
             }
 
-        return CreateSmsMessagesResult(
+        return createResultAndNotification(
+            plans,
             plans.map { plan ->
                 if (plan.message == null) {
                     plan.toSkippedResult()
@@ -134,13 +144,50 @@ class SmsMessageService(
                     plan.toDeliveryResult(accepted = checkNotNull(acceptedByPlan[plan]))
                 }
             },
+            message,
         )
     }
+
+    private fun createResultAndNotification(
+        plans: List<RecipientPlan>,
+        results: List<SmsMessageResult>,
+        message: String,
+    ): CreateSmsMessagesResult {
+        notificationService.createNotificationForManagers(
+            category = NotificationCategory.SYSTEM,
+            title = "",
+            content = createNotificationContent(plans, message),
+        )
+        return CreateSmsMessagesResult(results)
+    }
+
+    private fun createNotificationContent(
+        plans: List<RecipientPlan>,
+        message: String,
+    ): String {
+        val memberRecipients =
+            plans
+                .filter { it.memberId != null }
+                .joinToString(" ") { plan -> "<u>${HtmlUtils.htmlEscape(plan.notificationRecipient)}</u>" }
+                .takeIf { it.isNotEmpty() }
+                ?.plus(" 회원")
+        val additionalRecipients =
+            plans
+                .filter { it.memberId == null }
+                .joinToString(" ") { plan -> "<u>${HtmlUtils.htmlEscape(plan.notificationRecipient)}</u>" }
+                .takeIf { it.isNotEmpty() }
+        val recipients = listOfNotNull(memberRecipients, additionalRecipients).joinToString(", ")
+
+        return "${recipients}에게 <u>${HtmlUtils.htmlEscape(message)}</u> 내용으로 문자를 발송했습니다."
+    }
+
+    private fun formatPhone(phone: String): String = phone.replace(phoneNumberPattern, "$1-$2-$3")
 
     private data class RecipientPlan(
         val memberId: Long?,
         val phone: String?,
         val message: SmsMessage?,
+        val notificationRecipient: String,
     ) {
         fun toSkippedResult(): SmsMessageResult =
             SmsMessageResult(
@@ -161,13 +208,29 @@ class SmsMessageService(
             )
 
         companion object {
-            fun skipped(memberId: Long): RecipientPlan = RecipientPlan(memberId = memberId, phone = null, message = null)
+            fun skipped(
+                memberId: Long,
+                notificationRecipient: String,
+            ): RecipientPlan =
+                RecipientPlan(
+                    memberId = memberId,
+                    phone = null,
+                    message = null,
+                    notificationRecipient = notificationRecipient,
+                )
 
             fun sendable(
                 memberId: Long?,
                 phone: String,
                 message: SmsMessage,
-            ): RecipientPlan = RecipientPlan(memberId = memberId, phone = phone, message = message)
+                notificationRecipient: String,
+            ): RecipientPlan =
+                RecipientPlan(
+                    memberId = memberId,
+                    phone = phone,
+                    message = message,
+                    notificationRecipient = notificationRecipient,
+                )
         }
     }
 }

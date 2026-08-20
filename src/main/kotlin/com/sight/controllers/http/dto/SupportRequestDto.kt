@@ -1,0 +1,101 @@
+package com.sight.controllers.http.dto
+
+import com.sight.domain.supportrequest.SupportRequestCategory
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
+import java.time.Instant
+
+data class SupportRequestUserResponse(
+    val userId: Long,
+    val name: String,
+)
+
+data class SupportRequestCommentResponse(
+    val id: String,
+    val content: String,
+    val author: SupportRequestUserResponse,
+    val createdAt: Instant,
+)
+
+data class ListSupportRequestResponse(
+    val id: String,
+    val category: SupportRequestCategory,
+    val title: String,
+    val content: String,
+    val requester: SupportRequestUserResponse,
+    val hasComments: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+data class ListSupportRequestsResponse(
+    val count: Long,
+    val supportRequests: List<ListSupportRequestResponse>,
+)
+
+data class GetSupportRequestResponse(
+    val id: String,
+    val category: SupportRequestCategory,
+    val title: String,
+    val content: String,
+    val requester: SupportRequestUserResponse,
+    val hasComments: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val comments: List<SupportRequestCommentResponse>,
+)
+
+data class CreateSupportRequestRequest(
+    @field:NotNull
+    val category: SupportRequestCategory?,
+    @field:NotBlank
+    @field:Size(max = 255)
+    val title: String?,
+    @field:NotBlank
+    val content: String?,
+)
+
+data class CreateSupportRequestResponse(
+    val id: String,
+    val category: SupportRequestCategory,
+    val title: String,
+    val content: String,
+    val requester: SupportRequestUserResponse,
+    val hasComments: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+data class UpdateSupportRequestRequest(
+    @field:NotNull
+    val category: SupportRequestCategory?,
+    @field:NotBlank
+    @field:Size(max = 255)
+    val title: String?,
+    @field:NotBlank
+    val content: String?,
+)
+
+data class UpdateSupportRequestResponse(
+    val id: String,
+    val category: SupportRequestCategory,
+    val title: String,
+    val content: String,
+    val requester: SupportRequestUserResponse,
+    val hasComments: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+data class CreateSupportRequestCommentRequest(
+    @field:NotBlank
+    val content: String?,
+)
+
+data class CreateSupportRequestCommentResponse(
+    val id: String,
+    val content: String,
+    val author: SupportRequestUserResponse,
+    val createdAt: Instant,
+)

@@ -69,6 +69,8 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
+  channels:
+    support-request-alert: ${DISCORD_SUPPORT_REQUEST_ALERT_CHANNEL_ID:}
 
 khlug:
   phone:
@@ -123,6 +125,8 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
+  channels:
+    support-request-alert: ${DISCORD_SUPPORT_REQUEST_ALERT_CHANNEL_ID:}
 
 khlug:
   phone:

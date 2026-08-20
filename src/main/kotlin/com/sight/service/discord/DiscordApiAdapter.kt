@@ -25,4 +25,19 @@ interface DiscordApiAdapter {
         channelId: String,
         discordUserId: String,
     ): Boolean
+
+    fun sendSupportRequestCreatedMessage(
+        channelId: String,
+        supportRequestId: String,
+        category: String,
+        title: String,
+        requesterName: String,
+    )
+
+    fun sendSupportRequestCommentDirectMessage(
+        discordUserId: String,
+        supportRequestId: String,
+        title: String,
+        authorName: String,
+    )
 }

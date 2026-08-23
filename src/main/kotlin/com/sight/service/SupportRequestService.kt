@@ -14,7 +14,7 @@ import com.sight.repository.MemberRepository
 import com.sight.repository.OffsetLimitPageable
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
-import com.sight.service.discord.DiscordApiAdapter
+import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Sort
@@ -55,7 +55,7 @@ class SupportRequestService(
     private val memberRepository: MemberRepository,
     private val notificationService: NotificationService,
     private val discordIntegrationRepository: DiscordIntegrationRepository,
-    private val discordApiAdapter: DiscordApiAdapter,
+    private val discordMessageSender: DiscordMessageSender,
     private val discordWebhookAdapter: DiscordWebhookAdapter,
 ) {
     private val logger = LoggerFactory.getLogger(SupportRequestService::class.java)
@@ -267,11 +267,9 @@ class SupportRequestService(
     ) {
         val discordIntegration = discordIntegrationRepository.findByUserId(supportRequest.requesterId) ?: return
         runCatching {
-            discordApiAdapter.sendSupportRequestCommentDirectMessage(
+            discordMessageSender.sendDirectMessage(
                 discordUserId = discordIntegration.discordUserId,
-                supportRequestId = supportRequest.id,
-                title = supportRequest.title,
-                authorName = author.realname,
+                content = "지원 신청 댓글: [${supportRequest.id}] ${supportRequest.title} / ${author.realname}",
             )
         }.onFailure { error ->
             logger.error("Discord 전송 실패: supportRequestId={}, target=REQUESTER_DM", supportRequest.id, error)

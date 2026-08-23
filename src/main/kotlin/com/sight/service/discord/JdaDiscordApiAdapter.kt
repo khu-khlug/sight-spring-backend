@@ -13,14 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.EnumSet
-import java.util.concurrent.TimeUnit
 
 @Component
 class JdaDiscordApiAdapter(
     @Autowired(required = false) private val jda: JDA?,
     @param:Value("\${discord.guild-id:}") private val guildId: String,
     @param:Value("\${discord.categories.group:}") private val groupCategoryId: String,
-    @param:Value("\${discord.api.timeout:5000}") private val timeoutMillis: Long,
     private val discordRoleRepository: DiscordRoleRepository,
 ) : DiscordApiAdapter {
     private val logger = LoggerFactory.getLogger(JdaDiscordApiAdapter::class.java)
@@ -124,21 +122,6 @@ class JdaDiscordApiAdapter(
             logger.debug("Failed to check if user $discordUserId is in channel $channelId", e)
             false
         }
-    }
-
-    override fun sendSupportRequestCommentDirectMessage(
-        discordUserId: String,
-        supportRequestId: String,
-        title: String,
-        authorName: String,
-    ) {
-        val user = requireJda().retrieveUserById(discordUserId).submit().get(timeoutMillis, TimeUnit.MILLISECONDS)
-        user.openPrivateChannel()
-            .submit()
-            .get(timeoutMillis, TimeUnit.MILLISECONDS)
-            .sendMessage("지원 신청 댓글: [$supportRequestId] $title / $authorName")
-            .submit()
-            .get(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 
     private fun getRoleByDiscordRole(

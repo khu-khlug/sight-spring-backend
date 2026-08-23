@@ -16,7 +16,7 @@ import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
-import com.sight.service.discord.DiscordApiAdapter
+import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -38,7 +38,7 @@ class SupportRequestServiceTest {
     private val memberRepository: MemberRepository = mock()
     private val notificationService: NotificationService = mock()
     private val discordIntegrationRepository: DiscordIntegrationRepository = mock()
-    private val discordApiAdapter: DiscordApiAdapter = mock()
+    private val discordMessageSender: DiscordMessageSender = mock()
     private val discordWebhookAdapter: DiscordWebhookAdapter = mock()
     private lateinit var supportRequestService: SupportRequestService
 
@@ -51,7 +51,7 @@ class SupportRequestServiceTest {
                 memberRepository,
                 notificationService,
                 discordIntegrationRepository,
-                discordApiAdapter,
+                discordMessageSender,
                 discordWebhookAdapter,
             )
     }
@@ -191,7 +191,7 @@ class SupportRequestServiceTest {
             "기존 제목 지원 신청에 댓글이 등록되었습니다.",
             "/support/${supportRequest.id}",
         )
-        verify(discordApiAdapter, never()).sendSupportRequestCommentDirectMessage(any(), any(), any(), any())
+        verify(discordMessageSender, never()).sendDirectMessage(any(), any())
     }
 
     @Test
@@ -226,11 +226,9 @@ class SupportRequestServiceTest {
 
         supportRequestService.createSupportRequestComment(supportRequest.id, 20L, true, "운영진 댓글")
 
-        verify(discordApiAdapter).sendSupportRequestCommentDirectMessage(
+        verify(discordMessageSender).sendDirectMessage(
             "discord-user",
-            supportRequest.id,
-            "기존 제목",
-            "운영진",
+            "지원 신청 댓글: [${supportRequest.id}] 기존 제목 / 운영진",
         )
         verify(notificationService, never()).createNotification(any(), any(), any(), any(), anyOrNull())
     }

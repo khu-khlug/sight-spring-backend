@@ -17,8 +17,6 @@ import com.sight.core.auth.UserRole
 import com.sight.service.SupportRequestCommentResult
 import com.sight.service.SupportRequestDetail
 import com.sight.service.SupportRequestService
-import com.sight.service.SupportRequestSummary
-import com.sight.service.SupportRequestUser
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -53,7 +51,7 @@ class SupportRequestController(
                 category = checkNotNull(request.category),
                 title = checkNotNull(request.title),
                 content = checkNotNull(request.content),
-            ).toCreateResponse()
+            ).let(CreateSupportRequestResponse::from)
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/support-requests")
@@ -67,7 +65,7 @@ class SupportRequestController(
         val result = supportRequestService.listSupportRequests(offset, limit, category)
         return ListSupportRequestsResponse(
             count = result.count,
-            supportRequests = result.supportRequests.map { it.toListResponse() },
+            supportRequests = result.supportRequests.map(ListSupportRequestResponse::from),
         )
     }
 
@@ -91,7 +89,7 @@ class SupportRequestController(
                 category = checkNotNull(request.category),
                 title = checkNotNull(request.title),
                 content = checkNotNull(request.content),
-            ).toUpdateResponse()
+            ).let(UpdateSupportRequestResponse::from)
 
     @Auth([UserRole.MANAGER])
     @DeleteMapping("/support-requests/{supportRequestId}")
@@ -118,49 +116,13 @@ class SupportRequestController(
                 content = checkNotNull(request.content),
             ).toCreateCommentResponse()
 
-    private fun SupportRequestSummary.toListResponse(): ListSupportRequestResponse =
-        ListSupportRequestResponse(
-            id = supportRequest.id,
-            category = supportRequest.category,
-            title = supportRequest.title,
-            content = supportRequest.content,
-            requester = requester.toResponse(),
-            hasComments = hasComments,
-            createdAt = supportRequest.createdAt,
-            updatedAt = supportRequest.updatedAt,
-        )
-
-    private fun SupportRequestSummary.toCreateResponse(): CreateSupportRequestResponse =
-        CreateSupportRequestResponse(
-            id = supportRequest.id,
-            category = supportRequest.category,
-            title = supportRequest.title,
-            content = supportRequest.content,
-            requester = requester.toResponse(),
-            hasComments = hasComments,
-            createdAt = supportRequest.createdAt,
-            updatedAt = supportRequest.updatedAt,
-        )
-
-    private fun SupportRequestSummary.toUpdateResponse(): UpdateSupportRequestResponse =
-        UpdateSupportRequestResponse(
-            id = supportRequest.id,
-            category = supportRequest.category,
-            title = supportRequest.title,
-            content = supportRequest.content,
-            requester = requester.toResponse(),
-            hasComments = hasComments,
-            createdAt = supportRequest.createdAt,
-            updatedAt = supportRequest.updatedAt,
-        )
-
     private fun SupportRequestDetail.toGetResponse(): GetSupportRequestResponse =
         GetSupportRequestResponse(
             id = supportRequest.id,
             category = supportRequest.category,
             title = supportRequest.title,
             content = supportRequest.content,
-            requester = requester.toResponse(),
+            requester = SupportRequestUserResponse.from(requester),
             hasComments = comments.isNotEmpty(),
             createdAt = supportRequest.createdAt,
             updatedAt = supportRequest.updatedAt,
@@ -171,7 +133,7 @@ class SupportRequestController(
         CreateSupportRequestCommentResponse(
             id = comment.id,
             content = comment.content,
-            author = author.toResponse(),
+            author = SupportRequestUserResponse.from(author),
             createdAt = comment.createdAt,
         )
 
@@ -179,9 +141,7 @@ class SupportRequestController(
         SupportRequestCommentResponse(
             id = comment.id,
             content = comment.content,
-            author = author.toResponse(),
+            author = SupportRequestUserResponse.from(author),
             createdAt = comment.createdAt,
         )
-
-    private fun SupportRequestUser.toResponse(): SupportRequestUserResponse = SupportRequestUserResponse(userId = userId, name = name)
 }

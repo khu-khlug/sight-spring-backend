@@ -126,22 +126,6 @@ class JdaDiscordApiAdapter(
         }
     }
 
-    override fun sendSupportRequestCreatedMessage(
-        channelId: String,
-        supportRequestId: String,
-        category: String,
-        title: String,
-        requesterName: String,
-    ) {
-        val channel =
-            requireJda().getTextChannelById(channelId)
-                ?: throw IllegalStateException("지원 신청 알림 채널을 찾을 수 없습니다")
-        channel
-            .sendMessage("지원 신청 등록: [$supportRequestId] $category / $title / $requesterName")
-            .submit()
-            .get(timeoutMillis, TimeUnit.MILLISECONDS)
-    }
-
     override fun sendSupportRequestCommentDirectMessage(
         discordUserId: String,
         supportRequestId: String,

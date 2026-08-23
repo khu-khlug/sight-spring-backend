@@ -1,6 +1,8 @@
 package com.sight.controllers.http.dto
 
 import com.sight.domain.supportrequest.SupportRequestCategory
+import com.sight.service.SupportRequestSummary
+import com.sight.service.SupportRequestUser
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
@@ -9,7 +11,11 @@ import java.time.Instant
 data class SupportRequestUserResponse(
     val userId: Long,
     val name: String,
-)
+) {
+    companion object {
+        fun from(user: SupportRequestUser): SupportRequestUserResponse = SupportRequestUserResponse(user.userId, user.name)
+    }
+}
 
 data class SupportRequestCommentResponse(
     val id: String,
@@ -27,7 +33,21 @@ data class ListSupportRequestResponse(
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    companion object {
+        fun from(summary: SupportRequestSummary): ListSupportRequestResponse =
+            ListSupportRequestResponse(
+                id = summary.supportRequest.id,
+                category = summary.supportRequest.category,
+                title = summary.supportRequest.title,
+                content = summary.supportRequest.content,
+                requester = SupportRequestUserResponse.from(summary.requester),
+                hasComments = summary.hasComments,
+                createdAt = summary.supportRequest.createdAt,
+                updatedAt = summary.supportRequest.updatedAt,
+            )
+    }
+}
 
 data class ListSupportRequestsResponse(
     val count: Long,
@@ -65,7 +85,21 @@ data class CreateSupportRequestResponse(
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    companion object {
+        fun from(summary: SupportRequestSummary): CreateSupportRequestResponse =
+            CreateSupportRequestResponse(
+                id = summary.supportRequest.id,
+                category = summary.supportRequest.category,
+                title = summary.supportRequest.title,
+                content = summary.supportRequest.content,
+                requester = SupportRequestUserResponse.from(summary.requester),
+                hasComments = summary.hasComments,
+                createdAt = summary.supportRequest.createdAt,
+                updatedAt = summary.supportRequest.updatedAt,
+            )
+    }
+}
 
 data class UpdateSupportRequestRequest(
     @field:NotNull
@@ -86,7 +120,21 @@ data class UpdateSupportRequestResponse(
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    companion object {
+        fun from(summary: SupportRequestSummary): UpdateSupportRequestResponse =
+            UpdateSupportRequestResponse(
+                id = summary.supportRequest.id,
+                category = summary.supportRequest.category,
+                title = summary.supportRequest.title,
+                content = summary.supportRequest.content,
+                requester = SupportRequestUserResponse.from(summary.requester),
+                hasComments = summary.hasComments,
+                createdAt = summary.supportRequest.createdAt,
+                updatedAt = summary.supportRequest.updatedAt,
+            )
+    }
+}
 
 data class CreateSupportRequestCommentRequest(
     @field:NotBlank

@@ -15,8 +15,8 @@ import com.sight.repository.OffsetLimitPageable
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordApiAdapter
+import com.sight.service.discord.DiscordWebhookAdapter
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -56,8 +56,7 @@ class SupportRequestService(
     private val notificationService: NotificationService,
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val discordApiAdapter: DiscordApiAdapter,
-    @param:Value("\${discord.channels.support-request-alert:}")
-    private val supportRequestAlertChannelId: String,
+    private val discordWebhookAdapter: DiscordWebhookAdapter,
 ) {
     private val logger = LoggerFactory.getLogger(SupportRequestService::class.java)
 
@@ -81,7 +80,7 @@ class SupportRequestService(
             )
 
         createRequestNotifications(supportRequest)
-        sendRequestCreatedDiscordMessage(supportRequest, requester)
+        sendRequestCreatedDiscordWebhook(supportRequest, requester)
 
         return SupportRequestSummary(
             supportRequest = supportRequest,
@@ -235,23 +234,30 @@ class SupportRequestService(
         }
     }
 
-    private fun sendRequestCreatedDiscordMessage(
+    private fun sendRequestCreatedDiscordWebhook(
         supportRequest: SupportRequest,
         requester: Member,
     ) {
-        if (supportRequestAlertChannelId.isBlank()) {
-            return
-        }
         runCatching {
-            discordApiAdapter.sendSupportRequestCreatedMessage(
-                channelId = supportRequestAlertChannelId,
-                supportRequestId = supportRequest.id,
-                category = supportRequest.category.name,
-                title = supportRequest.title,
-                requesterName = requester.realname,
+            discordWebhookAdapter.sendSystemAlert(
+                mapOf(
+                    "embeds" to
+                        listOf(
+                            mapOf(
+                                "title" to "새 지원 신청",
+                                "description" to
+                                    listOf(
+                                        "지원 신청 ID: ${supportRequest.id}",
+                                        "카테고리: ${supportRequest.category.name}",
+                                        "제목: ${supportRequest.title}",
+                                        "신청자: ${requester.realname}",
+                                    ).joinToString("\n"),
+                            ),
+                        ),
+                ),
             )
         }.onFailure { error ->
-            logger.error("Discord 전송 실패: supportRequestId={}, target=SUPPORT_REQUEST_ALERT_CHANNEL", supportRequest.id, error)
+            logger.error("Discord 전송 실패: supportRequestId={}, target=SYSTEM_ALERT_WEBHOOK", supportRequest.id, error)
         }
     }
 

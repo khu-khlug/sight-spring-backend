@@ -17,6 +17,7 @@ import com.sight.repository.MemberRepository
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordApiAdapter
+import com.sight.service.discord.DiscordWebhookAdapter
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -38,6 +39,7 @@ class SupportRequestServiceTest {
     private val notificationService: NotificationService = mock()
     private val discordIntegrationRepository: DiscordIntegrationRepository = mock()
     private val discordApiAdapter: DiscordApiAdapter = mock()
+    private val discordWebhookAdapter: DiscordWebhookAdapter = mock()
     private lateinit var supportRequestService: SupportRequestService
 
     @BeforeEach
@@ -50,12 +52,12 @@ class SupportRequestServiceTest {
                 notificationService,
                 discordIntegrationRepository,
                 discordApiAdapter,
-                "support-request-channel",
+                discordWebhookAdapter,
             )
     }
 
     @Test
-    fun `지원 신청을 생성하면 운영진 알림과 Discord 운영 채널 전송을 수행한다`() {
+    fun `지원 신청을 생성하면 운영진 알림과 Discord 시스템 알림 Webhook 전송을 수행한다`() {
         val requester = member(id = 10L, realname = "신청자")
         given(memberRepository.findById(10L)).willReturn(Optional.of(requester))
         given(supportRequestRepository.save(any<SupportRequest>())).willAnswer { it.arguments[0] }
@@ -79,12 +81,22 @@ class SupportRequestServiceTest {
             "서버 공간 지원 신청이 등록되었습니다.",
             "/support/${result.supportRequest.id}",
         )
-        verify(discordApiAdapter).sendSupportRequestCreatedMessage(
-            "support-request-channel",
-            result.supportRequest.id,
-            "SERVER_SPACE",
-            "서버 공간",
-            "신청자",
+        verify(discordWebhookAdapter).sendSystemAlert(
+            mapOf(
+                "embeds" to
+                    listOf(
+                        mapOf(
+                            "title" to "새 지원 신청",
+                            "description" to
+                                listOf(
+                                    "지원 신청 ID: ${result.supportRequest.id}",
+                                    "카테고리: SERVER_SPACE",
+                                    "제목: 서버 공간",
+                                    "신청자: 신청자",
+                                ).joinToString("\n"),
+                        ),
+                    ),
+            ),
         )
     }
 
@@ -231,8 +243,8 @@ class SupportRequestServiceTest {
         given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull()))
             .willReturn(emptyList())
         org.mockito.kotlin.doThrow(RuntimeException("Discord timeout"))
-            .`when`(discordApiAdapter)
-            .sendSupportRequestCreatedMessage(any(), any(), any(), any(), any())
+            .`when`(discordWebhookAdapter)
+            .sendSystemAlert(any())
 
         val result = supportRequestService.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
 
@@ -253,29 +265,6 @@ class SupportRequestServiceTest {
 
         assertEquals("제목", result.supportRequest.title)
         verify(supportRequestRepository).save(any<SupportRequest>())
-    }
-
-    @Test
-    fun `운영 알림 채널이 비어 있으면 Discord 전송을 건너뛴다`() {
-        val requester = member(id = 10L)
-        val serviceWithoutAlertChannel =
-            SupportRequestService(
-                supportRequestRepository,
-                supportRequestCommentRepository,
-                memberRepository,
-                notificationService,
-                discordIntegrationRepository,
-                discordApiAdapter,
-                "",
-            )
-        given(memberRepository.findById(10L)).willReturn(Optional.of(requester))
-        given(supportRequestRepository.save(any<SupportRequest>())).willAnswer { it.arguments[0] }
-        given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull()))
-            .willReturn(emptyList())
-
-        serviceWithoutAlertChannel.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
-
-        verify(discordApiAdapter, never()).sendSupportRequestCreatedMessage(any(), any(), any(), any(), any())
     }
 
     @Test

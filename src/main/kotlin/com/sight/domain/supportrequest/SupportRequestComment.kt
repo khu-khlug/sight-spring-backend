@@ -6,7 +6,6 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.ForeignKey
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
-import jakarta.persistence.Lob
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import org.hibernate.annotations.CreationTimestamp
@@ -40,8 +39,7 @@ class SupportRequestComment(
     @Column(name = "author_id", nullable = false)
     val authorId: Long = authorId
 
-    @Lob
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", nullable = false, columnDefinition = "LONGTEXT")
     val content: String = content
 
     @CreationTimestamp

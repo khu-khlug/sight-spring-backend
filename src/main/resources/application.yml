@@ -69,10 +69,8 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
-
-khlug:
-  phone:
-    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+  webhook:
+    system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
 
 naver:
   client-id: ${NAVER_CLIENT_ID:}
@@ -123,10 +121,8 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
-
-khlug:
-  phone:
-    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+  webhook:
+    system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
 
 stuauth:
   api-uri: ${STUAUTH_API_URI}

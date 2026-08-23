@@ -1,6 +1,7 @@
 package com.sight.core.exception
 
 import com.sight.core.response.ErrorResponse
+import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -29,6 +30,19 @@ class GlobalExceptionHandler {
                 "${fieldError.field}: ${fieldError.defaultMessage}"
             }
 
+        val errorResponse =
+            ErrorResponse(
+                statusCode = HttpStatus.BAD_REQUEST.value(),
+                message = "입력값이 올바르지 않습니다",
+                data = mapOf("errors" to errors),
+                timestamp = Instant.now().toEpochMilli(),
+            )
+        return ResponseEntity.badRequest().body(errorResponse)
+    }
+
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolationException(e: ConstraintViolationException): ResponseEntity<ErrorResponse> {
+        val errors = e.constraintViolations.map { violation -> violation.message }
         val errorResponse =
             ErrorResponse(
                 statusCode = HttpStatus.BAD_REQUEST.value(),

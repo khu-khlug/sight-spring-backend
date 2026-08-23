@@ -11,13 +11,11 @@ import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.domain.supportrequest.SupportRequestComment
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.MemberRepository
-import com.sight.repository.OffsetLimitPageable
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
 import org.slf4j.LoggerFactory
-import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -96,25 +94,14 @@ class SupportRequestService(
         category: String?,
     ): SupportRequestListResult {
         val supportRequestCategory = category?.let(SupportRequestCategory::valueOf)
-        val pageable = OffsetLimitPageable(offset, limit, Sort.by(Sort.Direction.DESC, "createdAt"))
-        val page =
-            if (supportRequestCategory == null) {
-                supportRequestRepository.findAll(pageable)
-            } else {
-                supportRequestRepository.findByCategory(supportRequestCategory, pageable)
-            }
-        val count =
-            if (supportRequestCategory == null) {
-                supportRequestRepository.count()
-            } else {
-                supportRequestRepository.countByCategory(supportRequestCategory)
-            }
-        val requesters = findUsers(page.content.map { it.requesterId })
+        val supportRequests = supportRequestRepository.findSupportRequests(offset, limit, supportRequestCategory)
+        val count = supportRequestRepository.countSupportRequests(supportRequestCategory)
+        val requesters = findUsers(supportRequests.map { it.requesterId })
 
         return SupportRequestListResult(
             count = count,
             supportRequests =
-                page.content.map { supportRequest ->
+                supportRequests.map { supportRequest ->
                     SupportRequestSummary(
                         supportRequest = supportRequest,
                         requester = checkNotNull(requesters[supportRequest.requesterId]),

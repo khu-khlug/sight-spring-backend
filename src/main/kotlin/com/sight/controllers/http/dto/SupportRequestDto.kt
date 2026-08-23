@@ -1,6 +1,8 @@
 package com.sight.controllers.http.dto
 
 import com.sight.domain.supportrequest.SupportRequestCategory
+import com.sight.service.SupportRequestCommentResult
+import com.sight.service.SupportRequestDetail
 import com.sight.service.SupportRequestSummary
 import com.sight.service.SupportRequestUser
 import jakarta.validation.constraints.NotBlank
@@ -22,7 +24,17 @@ data class SupportRequestCommentResponse(
     val content: String,
     val author: SupportRequestUserResponse,
     val createdAt: Instant,
-)
+) {
+    companion object {
+        fun from(commentResult: SupportRequestCommentResult): SupportRequestCommentResponse =
+            SupportRequestCommentResponse(
+                id = commentResult.comment.id,
+                content = commentResult.comment.content,
+                author = SupportRequestUserResponse.from(commentResult.author),
+                createdAt = commentResult.comment.createdAt,
+            )
+    }
+}
 
 data class ListSupportRequestResponse(
     val id: String,
@@ -64,7 +76,22 @@ data class GetSupportRequestResponse(
     val createdAt: Instant,
     val updatedAt: Instant,
     val comments: List<SupportRequestCommentResponse>,
-)
+) {
+    companion object {
+        fun from(detail: SupportRequestDetail): GetSupportRequestResponse =
+            GetSupportRequestResponse(
+                id = detail.supportRequest.id,
+                category = detail.supportRequest.category,
+                title = detail.supportRequest.title,
+                content = detail.supportRequest.content,
+                requester = SupportRequestUserResponse.from(detail.requester),
+                hasComments = detail.comments.isNotEmpty(),
+                createdAt = detail.supportRequest.createdAt,
+                updatedAt = detail.supportRequest.updatedAt,
+                comments = detail.comments.map(SupportRequestCommentResponse::from),
+            )
+    }
+}
 
 data class CreateSupportRequestRequest(
     @field:NotNull
@@ -146,4 +173,14 @@ data class CreateSupportRequestCommentResponse(
     val content: String,
     val author: SupportRequestUserResponse,
     val createdAt: Instant,
-)
+) {
+    companion object {
+        fun from(commentResult: SupportRequestCommentResult): CreateSupportRequestCommentResponse =
+            CreateSupportRequestCommentResponse(
+                id = commentResult.comment.id,
+                content = commentResult.comment.content,
+                author = SupportRequestUserResponse.from(commentResult.author),
+                createdAt = commentResult.comment.createdAt,
+            )
+    }
+}

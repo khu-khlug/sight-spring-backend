@@ -14,21 +14,21 @@ import java.time.Instant
 @Entity
 @Table(name = "support_request")
 class SupportRequest(
-    @Id
-    @Column(name = "id", nullable = false, length = 100)
-    val id: String,
-    @Column(name = "requester_id", nullable = false)
-    val requesterId: Long,
+    id: String,
+    requesterId: Long,
     category: SupportRequestCategory,
     title: String,
     content: String,
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: Instant = Instant.now(),
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    var updatedAt: Instant = Instant.now(),
+    createdAt: Instant = Instant.now(),
+    updatedAt: Instant = Instant.now(),
 ) {
+    @Id
+    @Column(name = "id", nullable = false, length = 100)
+    val id: String = id
+
+    @Column(name = "requester_id", nullable = false)
+    val requesterId: Long = requesterId
+
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 20)
     var category: SupportRequestCategory = category
@@ -41,6 +41,15 @@ class SupportRequest(
     @Lob
     @Column(name = "content", nullable = false)
     var content: String = content
+        private set
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    val createdAt: Instant = createdAt
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = updatedAt
         private set
 
     fun update(

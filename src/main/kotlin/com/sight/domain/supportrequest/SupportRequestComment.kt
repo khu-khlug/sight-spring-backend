@@ -17,9 +17,16 @@ import java.time.Instant
 @Entity
 @Table(name = "support_request_comment")
 class SupportRequestComment(
+    id: String,
+    supportRequest: SupportRequest,
+    authorId: Long,
+    content: String,
+    createdAt: Instant = Instant.now(),
+) {
     @Id
     @Column(name = "id", nullable = false, length = 100)
-    val id: String,
+    val id: String = id
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
         name = "support_request_id",
@@ -28,13 +35,16 @@ class SupportRequestComment(
         foreignKey = ForeignKey(name = "fk_support_request_comment_request"),
     )
     @OnDelete(action = OnDeleteAction.CASCADE)
-    val supportRequest: SupportRequest,
+    val supportRequest: SupportRequest = supportRequest
+
     @Column(name = "author_id", nullable = false)
-    val authorId: Long,
+    val authorId: Long = authorId
+
     @Lob
     @Column(name = "content", nullable = false)
-    val content: String,
+    val content: String = content
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: Instant = Instant.now(),
-)
+    val createdAt: Instant = createdAt
+}

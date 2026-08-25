@@ -1,12 +1,20 @@
 package com.sight.service
 
+import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ConflictException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupState
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
+import com.sight.repository.MemberRepository
 import com.sight.repository.ScheduleRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -20,6 +28,9 @@ import kotlin.random.Random
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val bigSeminarRepository: BigSeminarRepository,
+    private val groupMemberRepository: GroupMemberRepository,
+    private val groupRepository: GroupRepository,
+    private val memberRepository: MemberRepository,
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
@@ -40,6 +51,46 @@ class ScheduleService(
             ?: throw NotFoundException("존재하지 않는 일정입니다.")
     }
 
+    @Transactional(readOnly = true)
+    fun getScheduleWithDetails(id: Long): Triple<Schedule, String, String?> {
+        val schedule =
+            scheduleRepository.findActiveById(id)
+                ?: throw NotFoundException("존재하지 않는 일정입니다.")
+        val authorName = memberRepository.findById(schedule.author).map { it.name }.orElse(null)
+        val groupTitle = schedule.groupId?.let { groupRepository.findById(it).map { g -> g.title }.orElse(null) }
+        return Triple(schedule, authorName ?: "알 수 없음", groupTitle)
+    }
+
+    @Transactional
+    fun createGroupActivitySchedule(
+        requester: Requester,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+        groupId: Long,
+    ): Schedule {
+        val group =
+            groupRepository.findById(groupId).orElseThrow { NotFoundException("존재하지 않는 그룹입니다.") }
+        if (group.state != GroupState.PROGRESS) {
+            throw BadRequestException("진행 중인 그룹만 그룹 활동 일정을 등록할 수 있습니다.")
+        }
+        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requester.userId)) {
+            throw ForbiddenException("해당 그룹의 멤버만 그룹 활동 일정을 등록할 수 있습니다.")
+        }
+        return saveNewSchedule(
+            requesterUserId = requester.userId,
+            title = title,
+            category = ScheduleCategory.GROUP_ACTIVITY,
+            location = location,
+            scheduledAt = scheduledAt,
+            endAt = endAt,
+            expoint = 0,
+            generateCheckCode = false,
+            groupId = groupId,
+        )
+    }
+
     @Transactional
     fun createSchedule(
         requesterUserId: Long,
@@ -58,6 +109,38 @@ class ScheduleService(
     }
 
     @Transactional
+    fun createBigSeminarSchedule(
+        requester: Requester,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+        expoint: Int,
+        generateCheckCode: Boolean,
+        isSummerSeason: Boolean,
+        isSpeakAfter: Boolean,
+    ): Pair<Schedule, BigSeminar> {
+        val schedule =
+            saveNewSchedule(requester.userId, title, ScheduleCategory.SEMINAR, location, scheduledAt, endAt, expoint, generateCheckCode)
+        val bigSeminar = upsertBigSeminar(schedule.id, isSummerSeason, isSpeakAfter)
+        return schedule to bigSeminar
+    }
+
+    @Transactional
+    fun updateGroupActivitySchedule(
+        requester: Requester,
+        id: Long,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+    ): Schedule {
+        val existing = findActiveScheduleInTier(id) { it.isGroupActivity }
+        assertIsAuthor(requester, existing)
+        return applyScheduleUpdate(existing, title, location, scheduledAt, endAt, existing.expoint)
+    }
+
+    @Transactional
     fun updateSchedule(
         id: Long,
         title: String,
@@ -68,6 +151,24 @@ class ScheduleService(
     ): Schedule {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
         return applyScheduleUpdate(existing, title, location, scheduledAt, endAt, expoint)
+    }
+
+    @Transactional
+    fun updateBigSeminarSchedule(
+        requester: Requester,
+        id: Long,
+        title: String,
+        location: String?,
+        scheduledAt: LocalDateTime,
+        endAt: LocalDateTime,
+        expoint: Int,
+        isSummerSeason: Boolean,
+        isSpeakAfter: Boolean,
+    ): Pair<Schedule, BigSeminar> {
+        val existing = findActiveScheduleInTier(id) { it.isSeminar }
+        val updated = applyScheduleUpdate(existing, title, location, scheduledAt, endAt, expoint)
+        val bigSeminar = upsertBigSeminar(updated.id, isSummerSeason, isSpeakAfter)
+        return updated to bigSeminar
     }
 
     @Transactional
@@ -103,9 +204,29 @@ class ScheduleService(
     }
 
     @Transactional
+    fun deleteGroupActivitySchedule(
+        requester: Requester,
+        id: Long,
+    ) {
+        val existing = findActiveScheduleInTier(id) { it.isGroupActivity }
+        assertIsAuthorOrManager(requester, existing)
+        scheduleRepository.deleteActiveById(existing.id)
+    }
+
+    @Transactional
     fun deleteSchedule(id: Long) {
         val existing = findActiveScheduleInTier(id) { it.isManagerCategory }
         scheduleRepository.deleteActiveById(existing.id)
+    }
+
+    @Transactional
+    fun deleteBigSeminarSchedule(
+        requester: Requester,
+        id: Long,
+    ) {
+        val existing = findActiveScheduleInTier(id) { it.isSeminar }
+        scheduleRepository.deleteActiveById(existing.id)
+        bigSeminarRepository.deleteByScheduleId(existing.id)
     }
 
     // ===== 공통 helper =====
@@ -119,8 +240,14 @@ class ScheduleService(
         endAt: LocalDateTime,
         expoint: Int,
         generateCheckCode: Boolean,
+        groupId: Long? = null,
     ): Schedule {
         validateTimeRange(scheduledAt, endAt)
+        if (location != null && location in CLUB_ROOM_LOCATIONS) {
+            if (scheduleRepository.countOverlappingAtLocation(location, scheduledAt, endAt) > 0) {
+                throw ConflictException("해당 장소에 시간이 겹치는 일정이 이미 있습니다.")
+            }
+        }
         val schedule =
             Schedule(
                 id = pickAvailableScheduleId(),
@@ -133,6 +260,7 @@ class ScheduleService(
                 location = location,
                 expoint = expoint,
                 checkCode = if (generateCheckCode) createCheckCode() else null,
+                groupId = groupId,
             )
         return scheduleRepository.save(schedule)
     }
@@ -188,6 +316,24 @@ class ScheduleService(
         return existing
     }
 
+    private fun assertIsAuthor(
+        requester: Requester,
+        existing: Schedule,
+    ) {
+        if (existing.author != requester.userId) {
+            throw ForbiddenException("본인이 작성한 일정만 수정할 수 있습니다.")
+        }
+    }
+
+    private fun assertIsAuthorOrManager(
+        requester: Requester,
+        existing: Schedule,
+    ) {
+        if (requester.role == UserRole.USER && existing.author != requester.userId) {
+            throw ForbiddenException("본인이 작성한 일정만 삭제할 수 있습니다.")
+        }
+    }
+
     private fun validateTimeRange(
         scheduledAt: LocalDateTime,
         endAt: LocalDateTime,
@@ -221,5 +367,6 @@ class ScheduleService(
     companion object {
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val MAX_SCHEDULE_ID_RETRY = 3
+        private val CLUB_ROOM_LOCATIONS = setOf("405", "406", "410")
     }
 }

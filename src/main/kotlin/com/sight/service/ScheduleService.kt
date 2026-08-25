@@ -1,13 +1,20 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ConflictException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.exception.UnauthorizedException
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
+import com.sight.domain.schedule.ScheduleMemberApply
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
+import com.sight.repository.ScheduleMemberApplyRepository
 import com.sight.repository.ScheduleRepository
+import com.sight.service.dto.CheckScheduleAttendanceResult
+import com.sight.service.dto.ListScheduleAttendancesResult
+import com.sight.service.dto.ScheduleAttendanceItem
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,6 +27,8 @@ import kotlin.random.Random
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val bigSeminarRepository: BigSeminarRepository,
+    private val scheduleMemberApplyRepository: ScheduleMemberApplyRepository,
+    private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
@@ -38,6 +47,74 @@ class ScheduleService(
     fun getScheduleById(id: Long): Schedule {
         return scheduleRepository.findActiveById(id)
             ?: throw NotFoundException("존재하지 않는 일정입니다.")
+    }
+
+    @Transactional(readOnly = true)
+    fun listScheduleAttendances(scheduleId: Long): ListScheduleAttendancesResult {
+        if (scheduleRepository.findActiveById(scheduleId) == null) {
+            throw NotFoundException("존재하지 않는 일정입니다.")
+        }
+
+        val attendances =
+            scheduleMemberApplyRepository.findByScheduleIdOrderByCreatedAtAsc(scheduleId).map { apply ->
+                ScheduleAttendanceItem(
+                    userId = apply.memberId,
+                    isChecked = apply.attendedAt != null,
+                    createdAt = apply.createdAt,
+                )
+            }
+
+        return ListScheduleAttendancesResult(attendances = attendances)
+    }
+
+    @Transactional
+    fun checkScheduleAttendance(
+        requesterUserId: Long,
+        scheduleId: Long,
+        code: String,
+    ): CheckScheduleAttendanceResult {
+        val schedule =
+            scheduleRepository.findActiveById(scheduleId)
+                ?: throw NotFoundException("존재하지 않는 일정입니다.")
+
+        if (scheduleMemberApplyRepository.existsByMemberIdAndScheduleId(requesterUserId, scheduleId)) {
+            throw ConflictException("이미 출석체크한 일정입니다.")
+        }
+
+        val now = LocalDateTime.now()
+        if (schedule.checkCode == null) {
+            throw BadRequestException("출석 코드가 설정되지 않은 일정입니다.")
+        }
+        if (now.isBefore(schedule.scheduledAt) || now.isAfter(schedule.endAt)) {
+            throw BadRequestException("출석체크 가능한 시간이 아닙니다.")
+        }
+        if (code != schedule.checkCode) {
+            throw UnauthorizedException("출석 코드가 일치하지 않습니다.")
+        }
+
+        val attendance =
+            scheduleMemberApplyRepository.save(
+                ScheduleMemberApply(
+                    memberId = requesterUserId,
+                    scheduleId = scheduleId,
+                    attendedAt = now,
+                ),
+            )
+
+        if (schedule.expoint > 0) {
+            pointService.givePoint(
+                targetUserId = requesterUserId,
+                point = schedule.expoint,
+                message = "${schedule.title} 출석",
+            )
+        }
+
+        return CheckScheduleAttendanceResult(
+            scheduleId = attendance.scheduleId,
+            userId = attendance.memberId,
+            expointGranted = schedule.expoint,
+            createdAt = attendance.createdAt,
+        )
     }
 
     @Transactional

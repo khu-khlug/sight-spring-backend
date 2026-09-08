@@ -12,6 +12,7 @@ import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.domain.supportrequest.SupportRequestComment
 import com.sight.service.SupportRequestCommentResult
 import com.sight.service.SupportRequestDetail
+import com.sight.service.SupportRequestGroup
 import com.sight.service.SupportRequestListResult
 import com.sight.service.SupportRequestService
 import com.sight.service.SupportRequestSummary
@@ -69,11 +70,11 @@ class SupportRequestControllerTest {
 
     @Test
     fun `지원 신청 생성 API는 201 Created와 지원 신청을 반환한다`() {
-        val request = CreateSupportRequestRequest(SupportRequestCategory.SERVER_SPACE, "서버 공간", "프로젝트 서버가 필요합니다")
+        val request = CreateSupportRequestRequest(null, SupportRequestCategory.SERVER_SPACE, "서버 공간", "프로젝트 서버가 필요합니다")
         val category = checkNotNull(request.category)
         val title = checkNotNull(request.title)
         val content = checkNotNull(request.content)
-        given(supportRequestService.createSupportRequest(1L, category, title, content))
+        given(supportRequestService.createSupportRequest(1L, null, category, title, content))
             .willReturn(summary())
 
         mockMvc.perform(
@@ -87,7 +88,7 @@ class SupportRequestControllerTest {
             .andExpect(jsonPath("$.requester.name").value("신청자"))
             .andExpect(jsonPath("$.hasComments").value(false))
 
-        verify(supportRequestService).createSupportRequest(1L, category, title, content)
+        verify(supportRequestService).createSupportRequest(1L, null, category, title, content)
     }
 
     @Test
@@ -112,6 +113,17 @@ class SupportRequestControllerTest {
     }
 
     @Test
+    fun `지원 신청 응답은 연결된 그룹 정보를 포함한다`() {
+        given(supportRequestService.listSupportRequests(0, 20, null))
+            .willReturn(SupportRequestListResult(1, listOf(summary(SupportRequestGroup(100L, "사이트 개발 그룹")))))
+
+        mockMvc.perform(get("/support-requests"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.supportRequests[0].group.id").value(100))
+            .andExpect(jsonPath("$.supportRequests[0].group.title").value("사이트 개발 그룹"))
+    }
+
+    @Test
     fun `모든 인증 회원은 다른 회원의 지원 신청 상세와 댓글을 조회할 수 있다`() {
         val supportRequest = summary().supportRequest
         val comment = commentResult()
@@ -132,7 +144,7 @@ class SupportRequestControllerTest {
 
     @Test
     fun `신청자는 자신의 지원 신청을 수정할 수 있다`() {
-        val request = UpdateSupportRequestRequest(SupportRequestCategory.BOOK, "변경 제목", "변경 내용")
+        val request = UpdateSupportRequestRequest(null, SupportRequestCategory.BOOK, "변경 제목", "변경 내용")
         val category = checkNotNull(request.category)
         val title = checkNotNull(request.title)
         val content = checkNotNull(request.content)
@@ -140,6 +152,7 @@ class SupportRequestControllerTest {
             supportRequestService.updateSupportRequest(
                 "support-request-1",
                 1L,
+                null,
                 category,
                 title,
                 content,
@@ -157,6 +170,7 @@ class SupportRequestControllerTest {
         verify(supportRequestService).updateSupportRequest(
             "support-request-1",
             1L,
+            null,
             category,
             title,
             content,
@@ -206,7 +220,7 @@ class SupportRequestControllerTest {
             .andExpect(status().isUnauthorized)
     }
 
-    private fun summary(): SupportRequestSummary {
+    private fun summary(group: SupportRequestGroup? = null): SupportRequestSummary {
         val supportRequest =
             SupportRequest(
                 id = "support-request-1",
@@ -217,7 +231,7 @@ class SupportRequestControllerTest {
                 createdAt = Instant.parse("2026-08-21T09:00:00Z"),
                 updatedAt = Instant.parse("2026-08-21T09:00:00Z"),
             )
-        return SupportRequestSummary(supportRequest, SupportRequestUser(1L, "신청자"), false)
+        return SupportRequestSummary(supportRequest, SupportRequestUser(1L, "신청자"), false, group)
     }
 
     private fun commentResult(): SupportRequestCommentResult {

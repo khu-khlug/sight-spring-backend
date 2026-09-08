@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
@@ -10,6 +11,8 @@ import com.sight.domain.supportrequest.SupportRequest
 import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.domain.supportrequest.SupportRequestComment
 import com.sight.repository.DiscordIntegrationRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
@@ -24,10 +27,16 @@ data class SupportRequestUser(
     val name: String,
 )
 
+data class SupportRequestGroup(
+    val id: Long,
+    val title: String,
+)
+
 data class SupportRequestSummary(
     val supportRequest: SupportRequest,
     val requester: SupportRequestUser,
     val hasComments: Boolean,
+    val group: SupportRequestGroup? = null,
 )
 
 data class SupportRequestCommentResult(
@@ -39,6 +48,7 @@ data class SupportRequestDetail(
     val supportRequest: SupportRequest,
     val requester: SupportRequestUser,
     val comments: List<SupportRequestCommentResult>,
+    val group: SupportRequestGroup? = null,
 )
 
 data class SupportRequestListResult(
@@ -51,6 +61,8 @@ class SupportRequestService(
     private val supportRequestRepository: SupportRequestRepository,
     private val supportRequestCommentRepository: SupportRequestCommentRepository,
     private val memberRepository: MemberRepository,
+    private val groupRepository: GroupRepository,
+    private val groupMemberRepository: GroupMemberRepository,
     private val notificationService: NotificationService,
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val discordMessageSender: DiscordMessageSender,
@@ -61,16 +73,19 @@ class SupportRequestService(
     @Transactional
     fun createSupportRequest(
         requesterId: Long,
+        groupId: Long?,
         category: SupportRequestCategory,
         title: String,
         content: String,
     ): SupportRequestSummary {
+        val group = getGroupForRequester(groupId, requesterId)
         val requester = getMember(requesterId)
         val supportRequest =
             supportRequestRepository.save(
                 SupportRequest(
                     id = UlidCreator.getUlid().toString(),
                     requesterId = requesterId,
+                    groupId = groupId,
                     category = category,
                     title = title,
                     content = content,
@@ -84,6 +99,7 @@ class SupportRequestService(
             supportRequest = supportRequest,
             requester = requester.toSupportRequestUser(),
             hasComments = false,
+            group = group,
         )
     }
 
@@ -97,6 +113,7 @@ class SupportRequestService(
         val supportRequests = supportRequestRepository.findSupportRequests(offset, limit, supportRequestCategory)
         val count = supportRequestRepository.countSupportRequests(supportRequestCategory)
         val requesters = findUsers(supportRequests.map { it.requesterId })
+        val groups = findGroups(supportRequests.mapNotNull { it.groupId })
 
         return SupportRequestListResult(
             count = count,
@@ -106,6 +123,7 @@ class SupportRequestService(
                         supportRequest = supportRequest,
                         requester = checkNotNull(requesters[supportRequest.requesterId]),
                         hasComments = supportRequestCommentRepository.existsBySupportRequestId(supportRequest.id),
+                        group = supportRequest.groupId?.let { checkNotNull(groups[it]) },
                     )
                 },
         )
@@ -115,19 +133,21 @@ class SupportRequestService(
     fun getSupportRequestById(supportRequestId: String): SupportRequestDetail {
         val supportRequest = getSupportRequest(supportRequestId)
         val requester = getMember(supportRequest.requesterId).toSupportRequestUser()
+        val group = findGroup(supportRequest.groupId)
         val storedComments = supportRequestCommentRepository.findBySupportRequestIdOrderByCreatedAtAscIdAsc(supportRequestId)
         val authors = findUsers(storedComments.map { it.authorId })
         val comments =
             storedComments
                 .map { comment -> SupportRequestCommentResult(comment, checkNotNull(authors[comment.authorId])) }
 
-        return SupportRequestDetail(supportRequest, requester, comments)
+        return SupportRequestDetail(supportRequest, requester, comments, group)
     }
 
     @Transactional
     fun updateSupportRequest(
         supportRequestId: String,
         requesterId: Long,
+        groupId: Long?,
         category: SupportRequestCategory,
         title: String,
         content: String,
@@ -140,11 +160,13 @@ class SupportRequestService(
             throw ConflictException("댓글이 등록된 지원 신청은 수정할 수 없습니다")
         }
 
-        supportRequest.update(category, title, content)
+        val group = getGroupForRequester(groupId, requesterId)
+        supportRequest.update(groupId, category, title, content)
         return SupportRequestSummary(
             supportRequest = supportRequest,
             requester = getMember(requesterId).toSupportRequestUser(),
             hasComments = false,
+            group = group,
         )
     }
 
@@ -275,6 +297,31 @@ class SupportRequestService(
     private fun getMember(userId: Long): Member =
         memberRepository.findById(userId).orElseThrow {
             NotFoundException("회원을 찾을 수 없습니다")
+        }
+
+    private fun getGroupForRequester(
+        groupId: Long?,
+        requesterId: Long,
+    ): SupportRequestGroup? {
+        if (groupId == null) return null
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                BadRequestException("존재하지 않는 그룹에는 지원 신청을 연결할 수 없습니다")
+            }
+        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)) {
+            throw BadRequestException("현재 속하지 않은 그룹에는 지원 신청을 연결할 수 없습니다")
+        }
+        return SupportRequestGroup(group.id, group.title)
+    }
+
+    private fun findGroups(groupIds: List<Long>): Map<Long, SupportRequestGroup> =
+        groupRepository.findAllById(groupIds.distinct()).associate { group ->
+            group.id to SupportRequestGroup(group.id, group.title)
+        }
+
+    private fun findGroup(groupId: Long?): SupportRequestGroup? =
+        groupId?.let { id ->
+            groupRepository.findById(id).map { group -> SupportRequestGroup(group.id, group.title) }.orElse(null)
         }
 
     private fun findUsers(userIds: List<Long>): Map<Long, SupportRequestUser> =

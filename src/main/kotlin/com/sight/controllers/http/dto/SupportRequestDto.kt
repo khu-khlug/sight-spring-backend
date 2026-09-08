@@ -3,6 +3,7 @@ package com.sight.controllers.http.dto
 import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.service.SupportRequestCommentResult
 import com.sight.service.SupportRequestDetail
+import com.sight.service.SupportRequestGroup
 import com.sight.service.SupportRequestSummary
 import com.sight.service.SupportRequestUser
 import jakarta.validation.constraints.NotBlank
@@ -16,6 +17,15 @@ data class SupportRequestUserResponse(
 ) {
     companion object {
         fun from(user: SupportRequestUser): SupportRequestUserResponse = SupportRequestUserResponse(user.userId, user.name)
+    }
+}
+
+data class SupportRequestGroupResponse(
+    val id: Long,
+    val title: String,
+) {
+    companion object {
+        fun from(group: SupportRequestGroup): SupportRequestGroupResponse = SupportRequestGroupResponse(group.id, group.title)
     }
 }
 
@@ -42,6 +52,7 @@ data class ListSupportRequestResponse(
     val title: String,
     val content: String,
     val requester: SupportRequestUserResponse,
+    val group: SupportRequestGroupResponse?,
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -54,6 +65,7 @@ data class ListSupportRequestResponse(
                 title = summary.supportRequest.title,
                 content = summary.supportRequest.content,
                 requester = SupportRequestUserResponse.from(summary.requester),
+                group = summary.group?.let(SupportRequestGroupResponse::from),
                 hasComments = summary.hasComments,
                 createdAt = summary.supportRequest.createdAt,
                 updatedAt = summary.supportRequest.updatedAt,
@@ -72,6 +84,7 @@ data class GetSupportRequestResponse(
     val title: String,
     val content: String,
     val requester: SupportRequestUserResponse,
+    val group: SupportRequestGroupResponse?,
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -85,6 +98,7 @@ data class GetSupportRequestResponse(
                 title = detail.supportRequest.title,
                 content = detail.supportRequest.content,
                 requester = SupportRequestUserResponse.from(detail.requester),
+                group = detail.group?.let(SupportRequestGroupResponse::from),
                 hasComments = detail.comments.isNotEmpty(),
                 createdAt = detail.supportRequest.createdAt,
                 updatedAt = detail.supportRequest.updatedAt,
@@ -94,6 +108,7 @@ data class GetSupportRequestResponse(
 }
 
 data class CreateSupportRequestRequest(
+    val groupId: Long? = null,
     @field:NotNull
     val category: SupportRequestCategory?,
     @field:NotBlank
@@ -109,6 +124,7 @@ data class CreateSupportRequestResponse(
     val title: String,
     val content: String,
     val requester: SupportRequestUserResponse,
+    val group: SupportRequestGroupResponse?,
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -121,6 +137,7 @@ data class CreateSupportRequestResponse(
                 title = summary.supportRequest.title,
                 content = summary.supportRequest.content,
                 requester = SupportRequestUserResponse.from(summary.requester),
+                group = summary.group?.let(SupportRequestGroupResponse::from),
                 hasComments = summary.hasComments,
                 createdAt = summary.supportRequest.createdAt,
                 updatedAt = summary.supportRequest.updatedAt,
@@ -129,6 +146,7 @@ data class CreateSupportRequestResponse(
 }
 
 data class UpdateSupportRequestRequest(
+    val groupId: Long? = null,
     @field:NotNull
     val category: SupportRequestCategory?,
     @field:NotBlank
@@ -144,6 +162,7 @@ data class UpdateSupportRequestResponse(
     val title: String,
     val content: String,
     val requester: SupportRequestUserResponse,
+    val group: SupportRequestGroupResponse?,
     val hasComments: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -156,6 +175,7 @@ data class UpdateSupportRequestResponse(
                 title = summary.supportRequest.title,
                 content = summary.supportRequest.content,
                 requester = SupportRequestUserResponse.from(summary.requester),
+                group = summary.group?.let(SupportRequestGroupResponse::from),
                 hasComments = summary.hasComments,
                 createdAt = summary.supportRequest.createdAt,
                 updatedAt = summary.supportRequest.updatedAt,

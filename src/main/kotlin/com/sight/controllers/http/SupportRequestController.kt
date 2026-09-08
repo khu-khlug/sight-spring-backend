@@ -44,6 +44,7 @@ class SupportRequestController(
         supportRequestService
             .createSupportRequest(
                 requesterId = requester.userId,
+                groupId = request.groupId,
                 category = checkNotNull(request.category),
                 title = checkNotNull(request.title),
                 content = checkNotNull(request.content),
@@ -82,6 +83,7 @@ class SupportRequestController(
             .updateSupportRequest(
                 supportRequestId = supportRequestId,
                 requesterId = requester.userId,
+                groupId = request.groupId,
                 category = checkNotNull(request.category),
                 title = checkNotNull(request.title),
                 content = checkNotNull(request.content),

@@ -1,9 +1,13 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.discord.DiscordIntegration
+import com.sight.domain.group.Group
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupState
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -13,6 +17,8 @@ import com.sight.domain.supportrequest.SupportRequest
 import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.domain.supportrequest.SupportRequestComment
 import com.sight.repository.DiscordIntegrationRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
@@ -36,6 +42,8 @@ class SupportRequestServiceTest {
     private val supportRequestRepository: SupportRequestRepository = mock()
     private val supportRequestCommentRepository: SupportRequestCommentRepository = mock()
     private val memberRepository: MemberRepository = mock()
+    private val groupRepository: GroupRepository = mock()
+    private val groupMemberRepository: GroupMemberRepository = mock()
     private val notificationService: NotificationService = mock()
     private val discordIntegrationRepository: DiscordIntegrationRepository = mock()
     private val discordMessageSender: DiscordMessageSender = mock()
@@ -49,6 +57,8 @@ class SupportRequestServiceTest {
                 supportRequestRepository,
                 supportRequestCommentRepository,
                 memberRepository,
+                groupRepository,
+                groupMemberRepository,
                 notificationService,
                 discordIntegrationRepository,
                 discordMessageSender,
@@ -67,6 +77,7 @@ class SupportRequestServiceTest {
         val result =
             supportRequestService.createSupportRequest(
                 requesterId = 10L,
+                groupId = null,
                 category = SupportRequestCategory.SERVER_SPACE,
                 title = "서버 공간",
                 content = "프로젝트 서버가 필요합니다",
@@ -108,8 +119,8 @@ class SupportRequestServiceTest {
         given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull()))
             .willReturn(emptyList())
 
-        val first = supportRequestService.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
-        val second = supportRequestService.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
+        val first = supportRequestService.createSupportRequest(10L, null, SupportRequestCategory.OTHER, "제목", "내용")
+        val second = supportRequestService.createSupportRequest(10L, null, SupportRequestCategory.OTHER, "제목", "내용")
 
         assert(first.supportRequest.id != second.supportRequest.id)
         verify(supportRequestRepository, org.mockito.kotlin.times(2)).save(any<SupportRequest>())
@@ -125,6 +136,7 @@ class SupportRequestServiceTest {
             supportRequestService.updateSupportRequest(
                 supportRequest.id,
                 requesterId = supportRequest.requesterId,
+                groupId = null,
                 category = SupportRequestCategory.BOOK,
                 title = "변경 제목",
                 content = "변경 내용",
@@ -145,6 +157,7 @@ class SupportRequestServiceTest {
             supportRequestService.updateSupportRequest(
                 supportRequest.id,
                 requesterId = supportRequest.requesterId,
+                groupId = null,
                 category = SupportRequestCategory.BOOK,
                 title = "변경 제목",
                 content = "변경 내용",
@@ -164,6 +177,7 @@ class SupportRequestServiceTest {
             supportRequestService.updateSupportRequest(
                 supportRequest.id,
                 requesterId = 99L,
+                groupId = null,
                 category = SupportRequestCategory.BOOK,
                 title = "변경 제목",
                 content = "변경 내용",
@@ -244,7 +258,7 @@ class SupportRequestServiceTest {
             .`when`(discordWebhookAdapter)
             .sendSystemAlert(any())
 
-        val result = supportRequestService.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
+        val result = supportRequestService.createSupportRequest(10L, null, SupportRequestCategory.OTHER, "제목", "내용")
 
         assertEquals("제목", result.supportRequest.title)
         verify(supportRequestRepository).save(any<SupportRequest>())
@@ -259,7 +273,7 @@ class SupportRequestServiceTest {
             .`when`(notificationService)
             .createNotificationForManagers(any(), any(), any(), anyOrNull())
 
-        val result = supportRequestService.createSupportRequest(10L, SupportRequestCategory.OTHER, "제목", "내용")
+        val result = supportRequestService.createSupportRequest(10L, null, SupportRequestCategory.OTHER, "제목", "내용")
 
         assertEquals("제목", result.supportRequest.title)
         verify(supportRequestRepository).save(any<SupportRequest>())
@@ -299,16 +313,106 @@ class SupportRequestServiceTest {
         verify(supportRequestRepository).delete(supportRequest)
     }
 
+    @Test
+    fun `구성원인 그룹에 연결한 지원 신청을 생성할 수 있다`() {
+        val requester = member(id = 10L)
+        val group = group(id = 100L)
+        given(memberRepository.findById(10L)).willReturn(Optional.of(requester))
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 10L)).willReturn(true)
+        given(supportRequestRepository.save(any<SupportRequest>())).willAnswer { it.arguments[0] }
+        given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull())).willReturn(emptyList())
+
+        val result = supportRequestService.createSupportRequest(10L, 100L, SupportRequestCategory.OTHER, "제목", "내용")
+
+        assertEquals(100L, result.supportRequest.groupId)
+        assertEquals(SupportRequestGroup(100L, "사이트 개발 그룹"), result.group)
+    }
+
+    @Test
+    fun `구성원이 아닌 그룹에는 지원 신청을 연결할 수 없다`() {
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group(id = 100L)))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 10L)).willReturn(false)
+
+        assertThrows<BadRequestException> {
+            supportRequestService.createSupportRequest(10L, 100L, SupportRequestCategory.OTHER, "제목", "내용")
+        }
+        verify(supportRequestRepository, never()).save(any<SupportRequest>())
+    }
+
+    @Test
+    fun `존재하지 않는 그룹에는 지원 신청을 연결할 수 없다`() {
+        given(groupRepository.findById(100L)).willReturn(Optional.empty())
+
+        assertThrows<BadRequestException> {
+            supportRequestService.createSupportRequest(10L, 100L, SupportRequestCategory.OTHER, "제목", "내용")
+        }
+        verify(groupMemberRepository, never()).existsByGroupIdAndMemberId(any(), any())
+        verify(supportRequestRepository, never()).save(any<SupportRequest>())
+    }
+
+    @Test
+    fun `종료된 그룹도 현재 구성원이면 지원 신청에 연결할 수 있다`() {
+        val requester = member(id = 10L)
+        val endedGroup = group(id = 100L, state = GroupState.END_SUCCESS)
+        given(memberRepository.findById(10L)).willReturn(Optional.of(requester))
+        given(groupRepository.findById(100L)).willReturn(Optional.of(endedGroup))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 10L)).willReturn(true)
+        given(supportRequestRepository.save(any<SupportRequest>())).willAnswer { it.arguments[0] }
+        given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull())).willReturn(emptyList())
+
+        val result = supportRequestService.createSupportRequest(10L, 100L, SupportRequestCategory.OTHER, "제목", "내용")
+
+        assertEquals(100L, result.group?.id)
+    }
+
+    @Test
+    fun `첫 댓글 전 신청자는 그룹 연결을 해제할 수 있다`() {
+        val supportRequest = supportRequest(groupId = 100L)
+        val requester = member(id = supportRequest.requesterId)
+        given(supportRequestRepository.findByIdForUpdate(supportRequest.id)).willReturn(supportRequest)
+        given(supportRequestCommentRepository.existsBySupportRequestId(supportRequest.id)).willReturn(false)
+        given(memberRepository.findById(supportRequest.requesterId)).willReturn(Optional.of(requester))
+
+        val result =
+            supportRequestService.updateSupportRequest(
+                supportRequest.id,
+                requesterId = supportRequest.requesterId,
+                groupId = null,
+                category = SupportRequestCategory.BOOK,
+                title = "변경 제목",
+                content = "변경 내용",
+            )
+
+        assertEquals(null, result.supportRequest.groupId)
+        assertEquals(null, result.group)
+    }
+
     private fun supportRequest(
         id: String = "01JQ5J4ZAVY7YKA0GHRD33RHZG",
         requesterId: Long = 10L,
+        groupId: Long? = null,
     ): SupportRequest =
         SupportRequest(
             id = id,
             requesterId = requesterId,
+            groupId = groupId,
             category = SupportRequestCategory.SERVER_SPACE,
             title = "기존 제목",
             content = "기존 내용",
+        )
+
+    private fun group(
+        id: Long,
+        state: GroupState = GroupState.PROGRESS,
+    ): Group =
+        Group(
+            id = id,
+            category = GroupCategory.PROJECT,
+            title = "사이트 개발 그룹",
+            author = 10L,
+            master = 10L,
+            state = state,
         )
 
     private fun notification(userId: Long): Notification =

@@ -15,6 +15,7 @@ import java.time.Instant
 class SupportRequest(
     id: String,
     requesterId: Long,
+    groupId: Long? = null,
     category: SupportRequestCategory,
     title: String,
     content: String,
@@ -27,6 +28,10 @@ class SupportRequest(
 
     @Column(name = "requester_id", nullable = false)
     val requesterId: Long = requesterId
+
+    @Column(name = "group_id")
+    var groupId: Long? = groupId
+        private set
 
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 20)
@@ -51,10 +56,12 @@ class SupportRequest(
         private set
 
     fun update(
+        groupId: Long?,
         category: SupportRequestCategory,
         title: String,
         content: String,
     ) {
+        this.groupId = groupId
         this.category = category
         this.title = title
         this.content = content

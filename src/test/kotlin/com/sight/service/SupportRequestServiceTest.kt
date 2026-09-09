@@ -63,6 +63,7 @@ class SupportRequestServiceTest {
                 discordIntegrationRepository,
                 discordMessageSender,
                 discordWebhookAdapter,
+                "https://app.example.com",
             )
     }
 
@@ -97,14 +98,35 @@ class SupportRequestServiceTest {
                 "embeds" to
                     listOf(
                         mapOf(
-                            "title" to "새 지원 신청",
-                            "description" to
+                            "title" to "✏️ 새 지원 신청이 왔어요!",
+                            "description" to "**서버 공간**",
+                            "color" to 0x3498DB,
+                            "fields" to
                                 listOf(
-                                    "지원 신청 ID: ${result.supportRequest.id}",
-                                    "카테고리: SERVER_SPACE",
-                                    "제목: 서버 공간",
-                                    "신청자: 신청자",
-                                ).joinToString("\n"),
+                                    mapOf(
+                                        "name" to "카테고리",
+                                        "value" to "서버 공간",
+                                    ),
+                                    mapOf(
+                                        "name" to "신청자",
+                                        "value" to "신청자",
+                                    ),
+                                ),
+                        ),
+                    ),
+                "components" to
+                    listOf(
+                        mapOf(
+                            "type" to 1,
+                            "components" to
+                                listOf(
+                                    mapOf(
+                                        "type" to 2,
+                                        "style" to 5,
+                                        "label" to "지원 신청 확인",
+                                        "url" to "https://app.example.com/support/${result.supportRequest.id}",
+                                    ),
+                                ),
                         ),
                     ),
             ),

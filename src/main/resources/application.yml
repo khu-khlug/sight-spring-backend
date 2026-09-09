@@ -21,6 +21,9 @@ logging:
     com.sight: INFO
     org.springframework: INFO
 
+app:
+  url: ${APP_URL:https://app.khlug.org}
+
 solapi:
   api-key: ${SOLAPI_API_KEY:}
   api-secret: ${SOLAPI_API_SECRET:}

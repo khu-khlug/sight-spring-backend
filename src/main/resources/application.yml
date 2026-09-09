@@ -74,6 +74,7 @@ discord:
     group: ${DISCORD_GROUP_CATEGORY:}
   webhook:
     system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+    door-lock-alert-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
 
 naver:
   client-id: ${NAVER_CLIENT_ID:}
@@ -126,6 +127,7 @@ discord:
     group: ${DISCORD_GROUP_CATEGORY:}
   webhook:
     system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+    door-lock-alert-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
 
 stuauth:
   api-uri: ${STUAUTH_API_URI}

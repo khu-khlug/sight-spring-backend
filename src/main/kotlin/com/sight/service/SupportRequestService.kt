@@ -255,7 +255,7 @@ class SupportRequestService(
                     "embeds" to
                         listOf(
                             mapOf(
-                                "title" to "✏️ 새 지원 신청",
+                                "title" to "✏️ 새 지원 신청이 왔어요!",
                                 "description" to "**${supportRequest.title}**",
                                 "color" to 0x3498DB,
                                 "fields" to
@@ -263,12 +263,10 @@ class SupportRequestService(
                                         mapOf(
                                             "name" to "카테고리",
                                             "value" to supportRequest.category.displayName(),
-                                            "inline" to true,
                                         ),
                                         mapOf(
                                             "name" to "신청자",
                                             "value" to requester.realname,
-                                            "inline" to true,
                                         ),
                                     ),
                             ),

@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.util.UriComponentsBuilder
 
 interface DiscordWebhookAdapter {
     fun sendSystemAlert(payload: Map<String, Any>)
@@ -28,6 +29,12 @@ class RestTemplateDiscordWebhookAdapter(
             HttpHeaders().apply {
                 contentType = MediaType.APPLICATION_JSON
             }
-        restTemplate.postForEntity(systemAlertWebhookUrl, HttpEntity(payload, headers), String::class.java)
+        val webhookUrl =
+            UriComponentsBuilder
+                .fromUriString(systemAlertWebhookUrl)
+                .queryParam("with_components", true)
+                .build()
+                .toUriString()
+        restTemplate.postForEntity(webhookUrl, HttpEntity(payload, headers), String::class.java)
     }
 }

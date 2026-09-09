@@ -98,7 +98,7 @@ class SupportRequestServiceTest {
                 "embeds" to
                     listOf(
                         mapOf(
-                            "title" to "✏️ 새 지원 신청",
+                            "title" to "✏️ 새 지원 신청이 왔어요!",
                             "description" to "**서버 공간**",
                             "color" to 0x3498DB,
                             "fields" to
@@ -106,12 +106,10 @@ class SupportRequestServiceTest {
                                     mapOf(
                                         "name" to "카테고리",
                                         "value" to "서버 공간",
-                                        "inline" to true,
                                     ),
                                     mapOf(
                                         "name" to "신청자",
                                         "value" to "신청자",
-                                        "inline" to true,
                                     ),
                                 ),
                         ),

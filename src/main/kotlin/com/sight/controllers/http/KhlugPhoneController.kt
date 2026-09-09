@@ -20,7 +20,10 @@ class KhlugPhoneController(
     fun reportPhoneStatus(
         @Valid @RequestBody request: ReportPhoneStatusRequest,
     ): ResponseEntity<Void> {
-        khlugPhoneService.reportPhoneStatus(request)
+        khlugPhoneService.reportPhoneStatus(
+            batteryPercent = request.batteryPercent,
+            batteryStatus = request.batteryStatus,
+        )
         return ResponseEntity.noContent().build()
     }
 
@@ -29,7 +32,12 @@ class KhlugPhoneController(
     fun forwardNotification(
         @Valid @RequestBody request: ForwardNotificationRequest,
     ): ResponseEntity<Void> {
-        khlugPhoneService.forwardNotification(request)
+        khlugPhoneService.forwardNotification(
+            appName = request.appName,
+            title = request.title,
+            content = request.content,
+            receivedAt = request.receivedAt,
+        )
         return ResponseEntity.noContent().build()
     }
 }

@@ -47,6 +47,12 @@ class GroupMatchingService(
     private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional(readOnly = true)
+    fun getGroupsByQuery(
+        groupMatchingId: String,
+        groupType: String?,
+    ): List<GroupMatchingGroupDto> = getGroups(groupMatchingId, groupType?.toGroupMatchingType())
+
+    @Transactional(readOnly = true)
     fun getGroups(
         groupMatchingId: String,
         groupType: GroupMatchingType?,
@@ -393,3 +399,7 @@ class GroupMatchingService(
         val KST: ZoneId = ZoneId.of("Asia/Seoul")
     }
 }
+
+private fun String.toGroupMatchingType(): GroupMatchingType =
+    runCatching { GroupMatchingType.valueOf(this.uppercase()) }
+        .getOrElse { throw BadRequestException("유효하지 않은 그룹 매칭 유형입니다: $this") }

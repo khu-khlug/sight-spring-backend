@@ -17,11 +17,14 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -123,6 +126,35 @@ class ApplicationFormControllerTest {
     }
 
     @Test
+    fun `운영진 가입 신청서 목록 조회 API는 applications와 count를 반환한다`() {
+        // given
+        val managerRequester = Requester(userId = 12345L, role = UserRole.MANAGER)
+        SecurityContextHolder.getContext().authentication =
+            UsernamePasswordAuthenticationToken(
+                managerRequester,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_MANAGER")),
+            )
+        val form =
+            ApplicationForm(
+                id = "form-ulid",
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.SUBMITTED,
+            )
+        given(applicationFormService.listForms(1, emptyList(), null))
+            .willReturn(PageImpl(listOf(form), PageRequest.of(0, 20), 1))
+
+        // when & then
+        mockMvc.perform(get("/manager/application-forms"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.count").value(1))
+            .andExpect(jsonPath("$.applications[0].id").value("form-ulid"))
+
+        verify(applicationFormService).listForms(1, emptyList(), null)
+    }
+
+    @Test
     fun `가입 신청서 합격 처리 API가 정상 작동하면 204 No Content를 반환한다`() {
         // given
         val applicationFormId = "form-ulid"
@@ -197,6 +229,46 @@ class ApplicationFormControllerTest {
             .andExpect(status().isNoContent)
 
         verify(applicationFormService).rejectApplicationForm(
+            applicationFormId = applicationFormId,
+            authorUserId = managerRequester.userId,
+        )
+    }
+
+    @Test
+    fun `가입 신청서 중단 처리 API가 정상 작동하면 204 No Content를 반환한다`() {
+        // given
+        val applicationFormId = "form-ulid"
+        val managerRequester = Requester(userId = 12345L, role = UserRole.MANAGER)
+        val auth =
+            UsernamePasswordAuthenticationToken(
+                managerRequester,
+                null,
+                listOf(SimpleGrantedAuthority("ROLE_MANAGER")),
+            )
+        SecurityContextHolder.getContext().authentication = auth
+
+        val expectedForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.SUSPENDED,
+            )
+
+        given(
+            applicationFormService.suspendApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = managerRequester.userId,
+            ),
+        ).willReturn(expectedForm)
+
+        // when & then
+        mockMvc.perform(
+            patch("/application-forms/$applicationFormId/suspend"),
+        )
+            .andExpect(status().isNoContent)
+
+        verify(applicationFormService).suspendApplicationForm(
             applicationFormId = applicationFormId,
             authorUserId = managerRequester.userId,
         )

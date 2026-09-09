@@ -1,7 +1,7 @@
 package com.sight.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.sight.controllers.http.dto.ErrorResponse
+import com.sight.core.response.ErrorResponse
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpStatus

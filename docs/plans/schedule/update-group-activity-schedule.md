@@ -1,6 +1,6 @@
 # 그룹 활동 일정 수정
 
-그룹 활동(`GROUP_ACTIVITY`) 일정의 정보를 수정합니다. 회원 인증이 필요하며, 일반 회원(`USER`)은 본인이 작성한 그룹 활동 일정만 수정할 수 있고, 운영진(`MANAGER`)도 수정할 수 있습니다. `category`는 변경할 수 없으며(카테고리 변경은 [`update-schedule-category.md`](update-schedule-category.md) 참조), 그룹 활동 일정은 경험치(`expoint`)를 가지지 않습니다. 일정 시작(`scheduledAt`)·종료(`endAt`) 이후에도 시점 제한 없이 수정할 수 있습니다.
+그룹 활동(`GROUP_ACTIVITY`) 일정의 정보를 수정합니다. 회원 인증이 필요하며, 본인이 작성한 그룹 활동 일정만 수정할 수 있습니다. 운영진(`MANAGER`)이라도 타인이 작성한 그룹 활동 일정은 수정할 수 없습니다. `category`는 변경할 수 없으며(카테고리 변경은 [`update-schedule-category.md`](update-schedule-category.md) 참조), 그룹 활동 일정은 경험치(`expoint`)를 가지지 않습니다. 일정 시작(`scheduledAt`)·종료(`endAt`) 이후에도 시점 제한 없이 수정할 수 있습니다.
 
 > 대상 일정이 그룹 활동(`GROUP_ACTIVITY`)이 아니면 이 엔드포인트로 수정할 수 없습니다.
 
@@ -40,5 +40,6 @@ PATCH /schedules/group-activity/{scheduleId}
 5. 일정 시작·종료 이후에도 `scheduledAt`/`endAt` 수정 가능 → 200 (시점 제한 없음)
 6. 일반 회원(`USER`)이 본인 작성 일정 수정 → 200
 7. 일반 회원이 타인 작성 일정 수정 시도 → 403
-8. 운영진(`MANAGER`)이 수정 → 200
-9. 인증되지 않은 요청 → 401
+8. 운영진(`MANAGER`)이 본인 작성 일정 수정 → 200
+9. 운영진(`MANAGER`)이 타인 작성 일정 수정 시도 → 403
+10. 인증되지 않은 요청 → 401

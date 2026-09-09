@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.groupmatching.GroupMatchingOption
 import com.sight.domain.groupmatching.GroupMatchingType
@@ -14,6 +15,12 @@ class GroupMatchingOptionService(
     private val groupMatchingRepository: GroupMatchingRepository,
 ) {
     @Transactional(readOnly = true)
+    fun listOptionsByQuery(
+        groupMatchingId: String,
+        type: String,
+    ): List<GroupMatchingOption> = listOptions(groupMatchingId, type.toGroupMatchingType())
+
+    @Transactional(readOnly = true)
     fun listOptions(
         groupMatchingId: String,
         type: GroupMatchingType,
@@ -27,3 +34,7 @@ class GroupMatchingOptionService(
         )
     }
 }
+
+private fun String.toGroupMatchingType(): GroupMatchingType =
+    runCatching { GroupMatchingType.valueOf(this.uppercase()) }
+        .getOrElse { throw BadRequestException("유효하지 않은 그룹 매칭 유형입니다: $this") }

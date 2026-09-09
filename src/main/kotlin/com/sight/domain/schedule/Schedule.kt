@@ -44,6 +44,9 @@ data class Schedule(
     @Column(name = "check_code", length = 255)
     val checkCode: String? = null,
 
+    @Column(name = "group_id")
+    val groupId: Long? = null,
+
     @Column(name = "created_at", nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),
 

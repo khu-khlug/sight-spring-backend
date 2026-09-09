@@ -11,7 +11,7 @@ import org.springframework.web.client.RestTemplate
 
 @Service
 class DoorLockAlertService(
-    @param:Value("\${khlug.door-lock.webhook-url:}")
+    @param:Value("\${discord.webhook.door-lock-alert-url:}")
     private val webhookUrl: String,
     @param:Qualifier("discordRestTemplate")
     private val restTemplate: RestTemplate,

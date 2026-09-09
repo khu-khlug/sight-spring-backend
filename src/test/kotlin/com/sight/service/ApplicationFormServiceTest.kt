@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.core.exception.UnprocessableEntityException
@@ -10,6 +11,7 @@ import com.sight.core.info21.StuauthResponse
 import com.sight.domain.application.ApplicationComment
 import com.sight.domain.application.ApplicationContent
 import com.sight.domain.application.ApplicationForm
+import com.sight.domain.application.ApplicationFormAuthToken
 import com.sight.domain.application.ApplicationFormStatus
 import com.sight.domain.application.ApplicationQuestion
 import com.sight.domain.application.InterviewAvailableTime
@@ -121,6 +123,34 @@ class ApplicationFormServiceTest {
         }
 
         verify(applicationFormRepository).findById(applicationFormId)
+    }
+
+    @Test
+    fun `getDetail은 신청서와 답변과 면접 가능 시간과 댓글을 함께 반환한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.SUBMITTED)
+        val content = ApplicationContent("content-1", formId, "question-1", "지원 내용")
+        val time = InterviewAvailableTime("time-1", formId, "2026-06-01 10:00")
+        val comment = ApplicationComment("comment-1", formId, 1L, "검토 완료")
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(content))
+        given(interviewAvailableTimeRepository.findAllByApplicationFormId(formId)).willReturn(listOf(time))
+        given(applicationCommentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(comment))
+
+        val result = service.getDetail(formId)
+
+        assertEquals(form, result.form)
+        assertEquals(listOf(content), result.contents)
+        assertEquals(listOf(time), result.times)
+        assertEquals(listOf(comment), result.comments)
+    }
+
+    @Test
+    fun `getDetail은 존재하지 않는 가입 신청서면 NotFoundException을 던진다`() {
+        given(applicationFormRepository.findById("missing-form")).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> { service.getDetail("missing-form") }
+        verify(applicationContentRepository, never()).findAllByApplicationFormId(any())
     }
 
     @Test
@@ -359,7 +389,7 @@ class ApplicationFormServiceTest {
         given(applicationCommentRepository.save(any<ApplicationComment>()))
             .willReturn(savedComment)
         given(applicationFormRepository.save(any<ApplicationForm>()))
-            .willReturn(applicationForm.copy(status = ApplicationFormStatus.PASSED))
+            .willReturn(applicationForm)
 
         // when
         val result =
@@ -452,7 +482,7 @@ class ApplicationFormServiceTest {
         given(applicationCommentRepository.save(any<ApplicationComment>()))
             .willReturn(savedComment)
         given(applicationFormRepository.save(any<ApplicationForm>()))
-            .willReturn(applicationForm.copy(status = ApplicationFormStatus.REJECTED))
+            .willReturn(applicationForm)
 
         // when
         val result =
@@ -516,5 +546,175 @@ class ApplicationFormServiceTest {
         }
 
         verify(applicationFormRepository).findById(applicationFormId)
+    }
+
+    @Test
+    fun `suspendApplicationForm는 가입 신청서가 존재하고 제출된 상태일 때 정상적으로 중단 처리한다`() {
+        // given
+        val applicationFormId = "form-ulid"
+        val authorUserId = 12345L
+
+        val applicationForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.SUBMITTED,
+            )
+
+        val savedComment =
+            ApplicationComment(
+                id = "comment-ulid",
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+                content = "가입신청서가 중단 처리되었습니다.",
+            )
+
+        given(applicationFormRepository.findById(applicationFormId))
+            .willReturn(Optional.of(applicationForm))
+        given(applicationCommentRepository.save(any<ApplicationComment>()))
+            .willReturn(savedComment)
+        given(applicationFormRepository.save(any<ApplicationForm>()))
+            .willReturn(applicationForm)
+
+        // when
+        val result =
+            service.suspendApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+            )
+
+        // then
+        assertNotNull(result)
+        assertEquals(ApplicationFormStatus.SUSPENDED, result.status)
+
+        verify(applicationFormRepository).findById(applicationFormId)
+        verify(applicationCommentRepository).save(any<ApplicationComment>())
+        verify(applicationFormRepository).save(any<ApplicationForm>())
+    }
+
+    @Test
+    fun `suspendApplicationForm는 존재하지 않는 가입 신청서인 경우 NotFoundException을 던진다`() {
+        // given
+        val applicationFormId = "non-existent-form"
+        val authorUserId = 12345L
+
+        given(applicationFormRepository.findById(applicationFormId))
+            .willReturn(Optional.empty())
+
+        // when & then
+        assertThrows<NotFoundException> {
+            service.suspendApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+            )
+        }
+
+        verify(applicationFormRepository).findById(applicationFormId)
+    }
+
+    @Test
+    fun `suspendApplicationForm는 가입 신청서가 제출됨 상태가 아닌 경우 UnprocessableEntityException을 던진다`() {
+        // given
+        val applicationFormId = "form-ulid"
+        val authorUserId = 12345L
+
+        val applicationForm =
+            ApplicationForm(
+                id = applicationFormId,
+                info21Id = "info21-id",
+                submittee = "홍길동",
+                status = ApplicationFormStatus.SUSPENDED,
+            )
+
+        given(applicationFormRepository.findById(applicationFormId))
+            .willReturn(Optional.of(applicationForm))
+
+        // when & then
+        assertThrows<UnprocessableEntityException> {
+            service.suspendApplicationForm(
+                applicationFormId = applicationFormId,
+                authorUserId = authorUserId,
+            )
+        }
+
+        verify(applicationFormRepository).findById(applicationFormId)
+    }
+
+    @Test
+    fun `saveDraft는 인증된 신청서의 답변과 면접 가능 시간을 저장한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val content = ApplicationContent("content-1", formId, "question-1", "기존 답변")
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(listOf(content))
+
+        service.saveDraft(formId, "valid-token", listOf("2026-06-01" to "10:00"), mapOf("question-1" to "수정 답변"))
+
+        assertEquals("수정 답변", content.content)
+        verify(applicationContentRepository).saveAll(listOf(content))
+        verify(interviewAvailableTimeRepository).deleteAllByApplicationFormId(formId)
+        verify(interviewAvailableTimeRepository).saveAll(any<List<InterviewAvailableTime>>())
+    }
+
+    @Test
+    fun `saveDraft는 유효하지 않은 토큰이면 UnauthorizedException을 던진다`() {
+        val formId = "form-1"
+        val expired = ApplicationFormAuthToken("token-1", formId, "token", LocalDateTime.now().minusSeconds(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(expired)
+
+        assertThrows<UnauthorizedException> { service.saveDraft(formId, "token", emptyList(), emptyMap()) }
+        verify(applicationFormRepository, never()).findById(any())
+    }
+
+    @Test
+    fun `saveDraft는 문항 목록이 일치하지 않으면 BadRequestException을 던진다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val token = ApplicationFormAuthToken("token-1", formId, "token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+        given(applicationContentRepository.findAllByApplicationFormId(formId)).willReturn(emptyList())
+
+        assertThrows<BadRequestException> { service.saveDraft(formId, "token", emptyList(), mapOf("question-1" to "답변")) }
+    }
+
+    @Test
+    fun `submit은 인증된 임시저장 신청서를 제출 상태로 저장한다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.DRAFT)
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        val formCaptor = argumentCaptor<ApplicationForm>()
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+
+        service.submit(formId, "valid-token")
+
+        verify(applicationFormRepository).save(formCaptor.capture())
+        assertEquals(ApplicationFormStatus.SUBMITTED, formCaptor.firstValue.status)
+    }
+
+    @Test
+    fun `submit은 유효하지 않은 토큰이면 UnauthorizedException을 던진다`() {
+        val formId = "form-1"
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+
+        assertThrows<UnauthorizedException> { service.submit(formId, "wrong-token") }
+        verify(applicationFormRepository, never()).findById(any())
+    }
+
+    @Test
+    fun `submit은 임시저장 상태가 아니면 UnprocessableEntityException을 던진다`() {
+        val formId = "form-1"
+        val form = ApplicationForm(formId, "info21", "홍길동", ApplicationFormStatus.SUBMITTED)
+        val token = ApplicationFormAuthToken("token-1", formId, "valid-token", LocalDateTime.now().plusHours(1))
+        given(applicationFormAuthTokenRepository.findFirstByApplicationFormIdOrderByCreatedAtDesc(formId)).willReturn(token)
+        given(applicationFormRepository.findById(formId)).willReturn(Optional.of(form))
+
+        assertThrows<UnprocessableEntityException> { service.submit(formId, "valid-token") }
+        verify(applicationFormRepository, never()).save(any())
     }
 }

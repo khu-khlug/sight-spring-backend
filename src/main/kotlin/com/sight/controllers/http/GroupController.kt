@@ -11,7 +11,6 @@ import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
-import com.sight.domain.group.GroupOrderBy
 import com.sight.service.GroupDiscordChannelService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
@@ -44,11 +43,11 @@ class GroupController(
         @RequestParam(required = false) state: String?,
         @RequestParam(required = false) interest: String?,
         @RequestParam(required = false) keyword: String?,
-        @RequestParam(required = false) orderBy: GroupOrderBy?,
+        @RequestParam(required = false) orderBy: String?,
         requester: Requester,
     ): ListGroupsResponse {
         val result =
-            groupService.listGroups(
+            groupService.listGroupsByQuery(
                 offset = offset,
                 limit = limit,
                 bookmarked = bookmarked,

@@ -53,6 +53,7 @@ dependencies {
     testImplementation("org.testcontainers:mysql")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("com.lemonappdev:konsist:0.17.3")
 }
 
 tasks.withType<KotlinCompile> {

@@ -21,6 +21,15 @@ logging:
     com.sight: INFO
     org.springframework: INFO
 
+app:
+  url: ${APP_URL:https://app.khlug.org}
+
+solapi:
+  api-key: ${SOLAPI_API_KEY:}
+  api-secret: ${SOLAPI_API_SECRET:}
+  base-url: ${SOLAPI_BASE_URL:https://api.solapi.com}
+  timeout: 10s
+
 ---
 spring:
   config:
@@ -63,12 +72,9 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
-
-khlug:
-  door-lock:
-    webhook-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
-  phone:
-    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+  webhook:
+    system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+    door-lock-alert-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
 
 naver:
   client-id: ${NAVER_CLIENT_ID:}
@@ -119,12 +125,9 @@ discord:
     state-secret: ${DISCORD_STATE_SECRET:}
   categories:
     group: ${DISCORD_GROUP_CATEGORY:}
-
-khlug:
-  door-lock:
-    webhook-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
-  phone:
-    webhook-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+  webhook:
+    system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
+    door-lock-alert-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
 
 stuauth:
   api-uri: ${STUAUTH_API_URI}

@@ -19,6 +19,7 @@ import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -67,6 +68,7 @@ class SupportRequestService(
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val discordMessageSender: DiscordMessageSender,
     private val discordWebhookAdapter: DiscordWebhookAdapter,
+    @param:Value("\${app.url}") private val appUrl: String,
 ) {
     private val logger = LoggerFactory.getLogger(SupportRequestService::class.java)
 
@@ -253,14 +255,37 @@ class SupportRequestService(
                     "embeds" to
                         listOf(
                             mapOf(
-                                "title" to "새 지원 신청",
-                                "description" to
+                                "title" to "✏️ 새 지원 신청",
+                                "description" to "**${supportRequest.title}**",
+                                "color" to 0x3498DB,
+                                "fields" to
                                     listOf(
-                                        "지원 신청 ID: ${supportRequest.id}",
-                                        "카테고리: ${supportRequest.category.name}",
-                                        "제목: ${supportRequest.title}",
-                                        "신청자: ${requester.realname}",
-                                    ).joinToString("\n"),
+                                        mapOf(
+                                            "name" to "카테고리",
+                                            "value" to supportRequest.category.displayName(),
+                                            "inline" to true,
+                                        ),
+                                        mapOf(
+                                            "name" to "신청자",
+                                            "value" to requester.realname,
+                                            "inline" to true,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                    "components" to
+                        listOf(
+                            mapOf(
+                                "type" to 1,
+                                "components" to
+                                    listOf(
+                                        mapOf(
+                                            "type" to 2,
+                                            "style" to 5,
+                                            "label" to "지원 신청 확인",
+                                            "url" to "${appUrl.trimEnd('/')}/support/${supportRequest.id}",
+                                        ),
+                                    ),
                             ),
                         ),
                 ),
@@ -330,4 +355,13 @@ class SupportRequestService(
         }
 
     private fun Member.toSupportRequestUser(): SupportRequestUser = SupportRequestUser(id, realname)
+
+    private fun SupportRequestCategory.displayName(): String =
+        when (this) {
+            SupportRequestCategory.SERVER_SPACE -> "서버 공간"
+            SupportRequestCategory.SUBDOMAIN -> "서브 도메인"
+            SupportRequestCategory.HARDWARE -> "하드웨어"
+            SupportRequestCategory.BOOK -> "도서"
+            SupportRequestCategory.OTHER -> "기타"
+        }
 }

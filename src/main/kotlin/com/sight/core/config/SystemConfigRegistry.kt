@@ -54,6 +54,14 @@ class SystemConfigRegistry(
     }
 
     /**
+     * 인스턴스 내부 캐시를 사용하지 않고 저장소의 최신 설정 값을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    fun getFreshValue(key: ConfigKey): String {
+        return systemConfigRepository.findByConfigKey(key)?.configValue ?: key.defaultValue
+    }
+
+    /**
      * 설정 값을 Boolean으로 파싱하여 반환합니다.
      */
     fun getValueAsBoolean(key: ConfigKey): Boolean {

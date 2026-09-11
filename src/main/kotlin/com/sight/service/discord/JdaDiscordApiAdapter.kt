@@ -13,14 +13,16 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.util.EnumSet
+import java.util.concurrent.TimeUnit
 
 @Component
 class JdaDiscordApiAdapter(
     @Autowired(required = false) private val jda: JDA?,
     @param:Value("\${discord.guild-id:}") private val guildId: String,
     @param:Value("\${discord.categories.group:}") private val groupCategoryId: String,
+    @param:Value("\${discord.api.timeout:5000}") private val timeoutMillis: Long,
     private val discordRoleRepository: DiscordRoleRepository,
-) : DiscordApiAdapter {
+) : DiscordApiAdapter, DiscordMessageSender {
     private val logger = LoggerFactory.getLogger(JdaDiscordApiAdapter::class.java)
 
     private fun requireJda(): JDA = jda ?: throw IllegalStateException("DISCORD_ENABLED=false로 설정되어 Discord 기능을 사용할 수 없습니다.")
@@ -122,6 +124,19 @@ class JdaDiscordApiAdapter(
             logger.debug("Failed to check if user $discordUserId is in channel $channelId", e)
             false
         }
+    }
+
+    override fun sendDirectMessage(
+        discordUserId: String,
+        content: String,
+    ) {
+        val user = requireJda().retrieveUserById(discordUserId).submit().get(timeoutMillis, TimeUnit.MILLISECONDS)
+        user.openPrivateChannel()
+            .submit()
+            .get(timeoutMillis, TimeUnit.MILLISECONDS)
+            .sendMessage(content)
+            .submit()
+            .get(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 
     private fun getRoleByDiscordRole(

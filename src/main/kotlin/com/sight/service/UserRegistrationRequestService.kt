@@ -22,6 +22,15 @@ class UserRegistrationRequestService(
     private val info21AuthClient: Info21AuthClient,
 ) {
     @Transactional
+    fun delete(requestId: String) {
+        val request =
+            userRegistrationRequestRepository.findById(requestId).orElseThrow {
+                NotFoundException("회원 등록 요청을 찾을 수 없습니다")
+            }
+        userRegistrationRequestRepository.delete(request)
+    }
+
+    @Transactional
     fun approve(requestId: String): UserRegistrationRequest {
         val userRegistrationRequest =
             userRegistrationRequestRepository.findById(requestId).orElseThrow {

@@ -15,5 +15,7 @@ interface MemberRepository : JpaRepository<Member, Long>, MemberRepositoryCustom
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     fun findByNumber(number: Long): Member?
 
+    fun findAllByNumberIn(numbers: Collection<Long>): List<Member>
+
     fun findByName(name: String): Member?
 }

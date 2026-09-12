@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface ApplicationCommentRepository : JpaRepository<ApplicationComment, String>
+interface ApplicationCommentRepository : JpaRepository<ApplicationComment, String> {
+    fun findAllByApplicationFormId(applicationFormId: String): List<ApplicationComment>
+}

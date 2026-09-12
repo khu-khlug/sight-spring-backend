@@ -13,7 +13,7 @@ import java.time.Instant
 
 @Service
 class KhlugPhoneService(
-    @param:Value("\${khlug.phone.webhook-url:}")
+    @param:Value("\${discord.webhook.system-alert-url:}")
     private val webhookUrl: String,
     @param:Qualifier("discordRestTemplate")
     private val restTemplate: RestTemplate,

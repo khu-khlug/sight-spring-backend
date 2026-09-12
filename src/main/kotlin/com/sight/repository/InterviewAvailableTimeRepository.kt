@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface InterviewAvailableTimeRepository : JpaRepository<InterviewAvailableTime, String> {
     fun findAllByApplicationFormId(applicationFormId: String): List<InterviewAvailableTime>
+
+    fun deleteAllByApplicationFormId(applicationFormId: String)
 }

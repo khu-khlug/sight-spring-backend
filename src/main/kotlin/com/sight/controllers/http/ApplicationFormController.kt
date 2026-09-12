@@ -5,25 +5,79 @@ import com.sight.controllers.http.dto.CreateApplicationCommentRequest
 import com.sight.controllers.http.dto.CreateApplicationCommentResponse
 import com.sight.controllers.http.dto.CreateApplicationFormDraftRequest
 import com.sight.controllers.http.dto.CreateApplicationFormDraftResponse
+import com.sight.controllers.http.dto.GetApplicationFormDetailResponse
+import com.sight.controllers.http.dto.ListApplicationFormsResponse
+import com.sight.controllers.http.dto.SaveApplicationFormDraftRequest
+import com.sight.controllers.http.dto.SubmitApplicationFormRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.ApplicationFormService
 import jakarta.validation.Valid
+import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import java.time.LocalDateTime
 
 @RestController
 class ApplicationFormController(
     private val applicationFormService: ApplicationFormService,
 ) {
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/manager/application-forms")
+    fun listForms(
+        @RequestParam(defaultValue = "1") page: Int,
+        @RequestParam(required = false) interviewTime: List<String>?,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        date: LocalDateTime?,
+    ): ListApplicationFormsResponse {
+        val forms = applicationFormService.listForms(page, interviewTime ?: emptyList(), date)
+        return ListApplicationFormsResponse(
+            forms.content.map {
+                ListApplicationFormsResponse.Application(it.id, it.submittee, it.status, it.assignedUserId, it.createdAt, it.updatedAt)
+            },
+            forms.totalElements,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @GetMapping("/manager/application-forms/{applicationFormId}")
+    fun getDetail(
+        @PathVariable applicationFormId: String,
+    ): GetApplicationFormDetailResponse {
+        val detail = applicationFormService.getDetail(applicationFormId)
+        return GetApplicationFormDetailResponse(
+            detail.form.id,
+            detail.form.submittee,
+            detail.form.status,
+            detail.form.assignedUserId,
+            detail.contents.map {
+                GetApplicationFormDetailResponse.Content(it.questionId, it.content)
+            },
+            detail.times.map {
+                GetApplicationFormDetailResponse.Time(it.availableAt)
+            },
+            detail.comments.map {
+                GetApplicationFormDetailResponse.Comment(
+                    it.id,
+                    it.authorUserId,
+                    it.content,
+                    it.createdAt,
+                )
+            },
+        )
+    }
+
     @Auth([UserRole.USER, UserRole.MANAGER])
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/application-forms/{applicationFormId}/comments")
@@ -87,6 +141,31 @@ class ApplicationFormController(
             createdAt = draft.createdAt,
             updatedAt = draft.updatedAt,
         )
+    }
+
+    @PutMapping("/application-forms/{applicationFormId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun saveDraft(
+        @PathVariable applicationFormId: String,
+        @Valid @RequestBody request: SaveApplicationFormDraftRequest,
+    ) {
+        applicationFormService.saveDraft(
+            applicationFormId,
+            request.token,
+            request.interviewAvailableTimes.map {
+                it.date to it.time
+            },
+            request.contents.associate { it.questionId to it.content },
+        )
+    }
+
+    @PostMapping("/application-forms/{applicationFormId}/submit")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun submit(
+        @PathVariable applicationFormId: String,
+        @Valid @RequestBody request: SubmitApplicationFormRequest,
+    ) {
+        applicationFormService.submit(applicationFormId, request.token)
     }
 
     @Auth([UserRole.MANAGER])

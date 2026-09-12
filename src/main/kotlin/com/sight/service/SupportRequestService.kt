@@ -1,0 +1,365 @@
+package com.sight.service
+
+import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ConflictException
+import com.sight.core.exception.ForbiddenException
+import com.sight.core.exception.NotFoundException
+import com.sight.domain.member.Member
+import com.sight.domain.notification.NotificationCategory
+import com.sight.domain.supportrequest.SupportRequest
+import com.sight.domain.supportrequest.SupportRequestCategory
+import com.sight.domain.supportrequest.SupportRequestComment
+import com.sight.repository.DiscordIntegrationRepository
+import com.sight.repository.GroupMemberRepository
+import com.sight.repository.GroupRepository
+import com.sight.repository.MemberRepository
+import com.sight.repository.SupportRequestCommentRepository
+import com.sight.repository.SupportRequestRepository
+import com.sight.service.discord.DiscordMessageSender
+import com.sight.service.discord.DiscordWebhookAdapter
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+data class SupportRequestUser(
+    val userId: Long,
+    val name: String,
+)
+
+data class SupportRequestGroup(
+    val id: Long,
+    val title: String,
+)
+
+data class SupportRequestSummary(
+    val supportRequest: SupportRequest,
+    val requester: SupportRequestUser,
+    val hasComments: Boolean,
+    val group: SupportRequestGroup? = null,
+)
+
+data class SupportRequestCommentResult(
+    val comment: SupportRequestComment,
+    val author: SupportRequestUser,
+)
+
+data class SupportRequestDetail(
+    val supportRequest: SupportRequest,
+    val requester: SupportRequestUser,
+    val comments: List<SupportRequestCommentResult>,
+    val group: SupportRequestGroup? = null,
+)
+
+data class SupportRequestListResult(
+    val count: Long,
+    val supportRequests: List<SupportRequestSummary>,
+)
+
+@Service
+class SupportRequestService(
+    private val supportRequestRepository: SupportRequestRepository,
+    private val supportRequestCommentRepository: SupportRequestCommentRepository,
+    private val memberRepository: MemberRepository,
+    private val groupRepository: GroupRepository,
+    private val groupMemberRepository: GroupMemberRepository,
+    private val notificationService: NotificationService,
+    private val discordIntegrationRepository: DiscordIntegrationRepository,
+    private val discordMessageSender: DiscordMessageSender,
+    private val discordWebhookAdapter: DiscordWebhookAdapter,
+    @param:Value("\${app.url}") private val appUrl: String,
+) {
+    private val logger = LoggerFactory.getLogger(SupportRequestService::class.java)
+
+    @Transactional
+    fun createSupportRequest(
+        requesterId: Long,
+        groupId: Long?,
+        category: SupportRequestCategory,
+        title: String,
+        content: String,
+    ): SupportRequestSummary {
+        val group = getGroupForRequester(groupId, requesterId)
+        val requester = getMember(requesterId)
+        val supportRequest =
+            supportRequestRepository.save(
+                SupportRequest(
+                    id = UlidCreator.getUlid().toString(),
+                    requesterId = requesterId,
+                    groupId = groupId,
+                    category = category,
+                    title = title,
+                    content = content,
+                ),
+            )
+
+        createRequestNotifications(supportRequest)
+        sendRequestCreatedDiscordWebhook(supportRequest, requester)
+
+        return SupportRequestSummary(
+            supportRequest = supportRequest,
+            requester = requester.toSupportRequestUser(),
+            hasComments = false,
+            group = group,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun listSupportRequests(
+        offset: Int,
+        limit: Int,
+        category: String?,
+    ): SupportRequestListResult {
+        val supportRequestCategory = category?.let(SupportRequestCategory::valueOf)
+        val supportRequests = supportRequestRepository.findSupportRequests(offset, limit, supportRequestCategory)
+        val count = supportRequestRepository.countSupportRequests(supportRequestCategory)
+        val requesters = findUsers(supportRequests.map { it.requesterId })
+        val groups = findGroups(supportRequests.mapNotNull { it.groupId })
+
+        return SupportRequestListResult(
+            count = count,
+            supportRequests =
+                supportRequests.map { supportRequest ->
+                    SupportRequestSummary(
+                        supportRequest = supportRequest,
+                        requester = checkNotNull(requesters[supportRequest.requesterId]),
+                        hasComments = supportRequestCommentRepository.existsBySupportRequestId(supportRequest.id),
+                        group = supportRequest.groupId?.let { checkNotNull(groups[it]) },
+                    )
+                },
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getSupportRequestById(supportRequestId: String): SupportRequestDetail {
+        val supportRequest = getSupportRequest(supportRequestId)
+        val requester = getMember(supportRequest.requesterId).toSupportRequestUser()
+        val group = findGroup(supportRequest.groupId)
+        val storedComments = supportRequestCommentRepository.findBySupportRequestIdOrderByCreatedAtAscIdAsc(supportRequestId)
+        val authors = findUsers(storedComments.map { it.authorId })
+        val comments =
+            storedComments
+                .map { comment -> SupportRequestCommentResult(comment, checkNotNull(authors[comment.authorId])) }
+
+        return SupportRequestDetail(supportRequest, requester, comments, group)
+    }
+
+    @Transactional
+    fun updateSupportRequest(
+        supportRequestId: String,
+        requesterId: Long,
+        groupId: Long?,
+        category: SupportRequestCategory,
+        title: String,
+        content: String,
+    ): SupportRequestSummary {
+        val supportRequest = getSupportRequestForUpdate(supportRequestId)
+        if (supportRequest.requesterId != requesterId) {
+            throw NotFoundException("지원 신청을 찾을 수 없습니다")
+        }
+        if (supportRequestCommentRepository.existsBySupportRequestId(supportRequestId)) {
+            throw ConflictException("댓글이 등록된 지원 신청은 수정할 수 없습니다")
+        }
+
+        val group = getGroupForRequester(groupId, requesterId)
+        supportRequest.update(groupId, category, title, content)
+        return SupportRequestSummary(
+            supportRequest = supportRequest,
+            requester = getMember(requesterId).toSupportRequestUser(),
+            hasComments = false,
+            group = group,
+        )
+    }
+
+    @Transactional
+    fun deleteSupportRequest(supportRequestId: String) {
+        val supportRequest = getSupportRequestForUpdate(supportRequestId)
+        supportRequestRepository.delete(supportRequest)
+    }
+
+    @Transactional
+    fun createSupportRequestComment(
+        supportRequestId: String,
+        authorId: Long,
+        isManager: Boolean,
+        content: String,
+    ): SupportRequestCommentResult {
+        val supportRequest = getSupportRequestForUpdate(supportRequestId)
+        if (!isManager && supportRequest.requesterId != authorId) {
+            throw ForbiddenException("다른 회원의 지원 신청에는 댓글을 작성할 수 없습니다")
+        }
+
+        val author = getMember(authorId)
+        val comment =
+            supportRequestCommentRepository.save(
+                SupportRequestComment(
+                    id = UlidCreator.getUlid().toString(),
+                    supportRequest = supportRequest,
+                    authorId = authorId,
+                    content = content,
+                ),
+            )
+
+        createCommentNotifications(supportRequest)
+        if (isManager) {
+            sendManagerCommentDiscordMessage(supportRequest, author)
+        }
+
+        return SupportRequestCommentResult(comment, author.toSupportRequestUser())
+    }
+
+    private fun createRequestNotifications(supportRequest: SupportRequest) {
+        runCatching {
+            notificationService.createNotificationForManagers(
+                category = NotificationCategory.SYSTEM,
+                title = "새 지원 신청",
+                content = "${supportRequest.title} 지원 신청이 등록되었습니다.",
+                url = "/support/${supportRequest.id}",
+            )
+        }.onFailure { error ->
+            logger.error("지원 신청 사이트 내 알림 생성 실패: supportRequestId={}", supportRequest.id, error)
+        }
+    }
+
+    private fun createCommentNotifications(supportRequest: SupportRequest) {
+        runCatching {
+            val managerNotifications =
+                notificationService.createNotificationForManagers(
+                    category = NotificationCategory.SYSTEM,
+                    title = "지원 신청 댓글",
+                    content = "${supportRequest.title} 지원 신청에 댓글이 등록되었습니다.",
+                    url = "/support/${supportRequest.id}",
+                )
+            if (managerNotifications.none { it.userId == supportRequest.requesterId }) {
+                notificationService.createNotification(
+                    userId = supportRequest.requesterId,
+                    category = NotificationCategory.SYSTEM,
+                    title = "지원 신청 댓글",
+                    content = "${supportRequest.title} 지원 신청에 댓글이 등록되었습니다.",
+                    url = "/support/${supportRequest.id}",
+                )
+            }
+        }.onFailure { error ->
+            logger.error("지원 신청 댓글 사이트 내 알림 생성 실패: supportRequestId={}", supportRequest.id, error)
+        }
+    }
+
+    private fun sendRequestCreatedDiscordWebhook(
+        supportRequest: SupportRequest,
+        requester: Member,
+    ) {
+        runCatching {
+            discordWebhookAdapter.sendSystemAlert(
+                mapOf(
+                    "embeds" to
+                        listOf(
+                            mapOf(
+                                "title" to "✏️ 새 지원 신청이 왔어요!",
+                                "description" to "**${supportRequest.title}**",
+                                "color" to 0x3498DB,
+                                "fields" to
+                                    listOf(
+                                        mapOf(
+                                            "name" to "카테고리",
+                                            "value" to supportRequest.category.displayName(),
+                                        ),
+                                        mapOf(
+                                            "name" to "신청자",
+                                            "value" to requester.realname,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                    "components" to
+                        listOf(
+                            mapOf(
+                                "type" to 1,
+                                "components" to
+                                    listOf(
+                                        mapOf(
+                                            "type" to 2,
+                                            "style" to 5,
+                                            "label" to "지원 신청 확인",
+                                            "url" to "${appUrl.trimEnd('/')}/support/${supportRequest.id}",
+                                        ),
+                                    ),
+                            ),
+                        ),
+                ),
+            )
+        }.onFailure { error ->
+            logger.error("Discord 전송 실패: supportRequestId={}, target=SYSTEM_ALERT_WEBHOOK", supportRequest.id, error)
+        }
+    }
+
+    private fun sendManagerCommentDiscordMessage(
+        supportRequest: SupportRequest,
+        author: Member,
+    ) {
+        val discordIntegration = discordIntegrationRepository.findByUserId(supportRequest.requesterId) ?: return
+        runCatching {
+            discordMessageSender.sendDirectMessage(
+                discordUserId = discordIntegration.discordUserId,
+                content = "지원 신청 댓글: [${supportRequest.id}] ${supportRequest.title} / ${author.realname}",
+            )
+        }.onFailure { error ->
+            logger.error("Discord 전송 실패: supportRequestId={}, target=REQUESTER_DM", supportRequest.id, error)
+        }
+    }
+
+    private fun getSupportRequest(supportRequestId: String): SupportRequest =
+        supportRequestRepository.findById(supportRequestId).orElseThrow {
+            NotFoundException("지원 신청을 찾을 수 없습니다")
+        }
+
+    private fun getSupportRequestForUpdate(supportRequestId: String): SupportRequest =
+        supportRequestRepository.findByIdForUpdate(supportRequestId)
+            ?: throw NotFoundException("지원 신청을 찾을 수 없습니다")
+
+    private fun getMember(userId: Long): Member =
+        memberRepository.findById(userId).orElseThrow {
+            NotFoundException("회원을 찾을 수 없습니다")
+        }
+
+    private fun getGroupForRequester(
+        groupId: Long?,
+        requesterId: Long,
+    ): SupportRequestGroup? {
+        if (groupId == null) return null
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                BadRequestException("존재하지 않는 그룹에는 지원 신청을 연결할 수 없습니다")
+            }
+        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)) {
+            throw BadRequestException("현재 속하지 않은 그룹에는 지원 신청을 연결할 수 없습니다")
+        }
+        return SupportRequestGroup(group.id, group.title)
+    }
+
+    private fun findGroups(groupIds: List<Long>): Map<Long, SupportRequestGroup> =
+        groupRepository.findAllById(groupIds.distinct()).associate { group ->
+            group.id to SupportRequestGroup(group.id, group.title)
+        }
+
+    private fun findGroup(groupId: Long?): SupportRequestGroup? =
+        groupId?.let { id ->
+            groupRepository.findById(id).map { group -> SupportRequestGroup(group.id, group.title) }.orElse(null)
+        }
+
+    private fun findUsers(userIds: List<Long>): Map<Long, SupportRequestUser> =
+        memberRepository.findAllById(userIds.distinct()).associate { member ->
+            member.id to member.toSupportRequestUser()
+        }
+
+    private fun Member.toSupportRequestUser(): SupportRequestUser = SupportRequestUser(id, realname)
+
+    private fun SupportRequestCategory.displayName(): String =
+        when (this) {
+            SupportRequestCategory.SERVER_SPACE -> "서버 공간"
+            SupportRequestCategory.SUBDOMAIN -> "서브 도메인"
+            SupportRequestCategory.HARDWARE -> "하드웨어"
+            SupportRequestCategory.BOOK -> "도서"
+            SupportRequestCategory.OTHER -> "기타"
+        }
+}

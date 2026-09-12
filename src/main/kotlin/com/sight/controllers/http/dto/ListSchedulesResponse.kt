@@ -27,6 +27,7 @@ data class ScheduleDto(
     val endAt: String,
     val expoint: Int,
     val author: Long,
+    val groupId: Long?,
 ) {
     companion object {
         fun from(schedule: Schedule): ScheduleDto {
@@ -40,6 +41,7 @@ data class ScheduleDto(
                 endAt = schedule.endAt.toString(),
                 expoint = schedule.expoint,
                 author = schedule.author,
+                groupId = schedule.groupId,
             )
         }
     }

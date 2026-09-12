@@ -18,7 +18,6 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
-
 # IntelliJ IDEA
 .idea/
 *.iws
@@ -98,4 +97,3 @@ test-results/
 
 .env
 .obsidian/
-

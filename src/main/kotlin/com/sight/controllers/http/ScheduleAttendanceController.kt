@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.CreateScheduleAttendanceListRequest
 import com.sight.controllers.http.dto.CreateScheduleAttendanceRequest
 import com.sight.controllers.http.dto.CreateScheduleAttendanceResponse
 import com.sight.controllers.http.dto.ListScheduleAttendancesResponse
@@ -9,6 +10,7 @@ import com.sight.core.auth.UserRole
 import com.sight.service.ScheduleService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -44,5 +46,35 @@ class ScheduleAttendanceController(
                 code = request.code,
             )
         return CreateScheduleAttendanceResponse.from(result)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @DeleteMapping("/schedules/{scheduleId}/attendances/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeScheduleAttendance(
+        requester: Requester,
+        @PathVariable scheduleId: Long,
+        @PathVariable userId: Long,
+    ) {
+        scheduleService.removeScheduleAttendance(
+            requester = requester,
+            scheduleId = scheduleId,
+            userId = userId,
+        )
+    }
+
+    @Auth([UserRole.MANAGER])
+    @PostMapping("/schedules/{scheduleId}/attendances")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addScheduleAttendances(
+        requester: Requester,
+        @PathVariable scheduleId: Long,
+        @Valid @RequestBody request: CreateScheduleAttendanceListRequest,
+    ) {
+        scheduleService.addScheduleAttendances(
+            requester = requester,
+            scheduleId = scheduleId,
+            userIds = request.userIds,
+        )
     }
 }

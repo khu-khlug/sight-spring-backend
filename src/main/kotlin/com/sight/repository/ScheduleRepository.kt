@@ -34,6 +34,17 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
     )
 
     @Query(
+        "SELECT s FROM Schedule s " +
+            "WHERE s.scheduledAt <= :now AND s.endAt >= :now " +
+            "AND s.checkCode IS NOT NULL AND s.state = 'public' " +
+            "ORDER BY s.scheduledAt ASC",
+    )
+    fun findAttendanceActive(
+        @Param("now") now: LocalDateTime,
+        pageable: Pageable,
+    ): List<Schedule>
+
+    @Query(
         "SELECT COUNT(s) FROM Schedule s " +
             "WHERE s.location = :location AND s.state = 'public' " +
             "AND s.scheduledAt < :endAt AND s.endAt > :scheduledAt",

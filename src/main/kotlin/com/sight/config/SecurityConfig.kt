@@ -41,6 +41,8 @@ class SecurityConfig {
                 .authorizeHttpRequests { auth ->
                     auth.requestMatchers("/ping", "/actuator/**", "/test/public", "/error")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/occupants")
+                        .permitAll()
                         .requestMatchers(HttpMethod.POST, "/application-forms")
                         .permitAll()
                         .anyRequest()

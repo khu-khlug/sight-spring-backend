@@ -23,7 +23,6 @@ import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.context.annotation.EnableAspectJAutoProxy
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
-import org.springframework.security.authentication.AnonymousAuthenticationToken
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
@@ -166,8 +165,7 @@ class DoorLockOccupancyControllerTest {
     }
 
     @Test
-    fun `일반 회원은 재실자 이름과 동기화 시각을 조회한다`() {
-        authenticate(UserRole.USER)
+    fun `재실자 이름과 동기화 시각을 조회한다`() {
         val syncedAt = Instant.parse("2026-09-12T10:30:00Z")
         given(doorLockOccupancyService.listOccupants())
             .willReturn(
@@ -187,8 +185,8 @@ class DoorLockOccupancyControllerTest {
     }
 
     @Test
-    fun `운영진도 재실 상태를 조회할 수 있다`() {
-        authenticate(UserRole.MANAGER)
+    fun `인증되지 않은 요청도 초기 재실 상태를 조회할 수 있다`() {
+        SecurityContextHolder.clearContext()
         given(doorLockOccupancyService.listOccupants())
             .willReturn(DoorLockOccupancyResult(emptyList(), null))
 
@@ -196,25 +194,6 @@ class DoorLockOccupancyControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.occupants").isEmpty)
             .andExpect(jsonPath("$.lastSyncedAt").value(nullValue()))
-    }
-
-    @Test
-    fun `시스템은 재실 상태를 조회할 수 없다`() {
-        mockMvc.perform(get("/occupants"))
-            .andExpect(status().isForbidden)
-    }
-
-    @Test
-    fun `인증되지 않은 요청은 재실 상태를 조회할 수 없다`() {
-        SecurityContextHolder.getContext().authentication =
-            AnonymousAuthenticationToken(
-                "anonymous-key",
-                "anonymousUser",
-                listOf(SimpleGrantedAuthority("ROLE_ANONYMOUS")),
-            )
-
-        mockMvc.perform(get("/occupants"))
-            .andExpect(status().isUnauthorized)
     }
 
     private fun authenticate(role: UserRole) {

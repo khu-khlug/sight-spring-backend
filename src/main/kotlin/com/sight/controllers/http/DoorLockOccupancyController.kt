@@ -39,7 +39,6 @@ class DoorLockOccupancyController(
         return UpdateDoorLockOccupantsResponse(status = "OK")
     }
 
-    @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/occupants")
     @ResponseStatus(HttpStatus.OK)
     fun listDoorLockOccupants(): ListDoorLockOccupantsResponse {

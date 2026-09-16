@@ -1,8 +1,8 @@
 package com.sight.service
 
+import com.sight.core.book.BookInfoClient
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
-import com.sight.core.naver.NaverBookClient
 import com.sight.domain.book.BookInfo
 import com.sight.repository.BookBorrowRecordRepository
 import com.sight.repository.BookInfoRepository
@@ -23,7 +23,7 @@ class BookService(
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,
     private val memberRepository: MemberRepository,
-    private val naverBookClient: NaverBookClient,
+    private val bookInfoClient: BookInfoClient,
 ) {
     @Transactional(readOnly = true)
     fun getStats(): BookStatsResult {
@@ -93,16 +93,16 @@ class BookService(
                 description = existing.description,
             )
         }
-        val naverItem =
-            naverBookClient.searchByIsbn(isbn)
+        val bookItem =
+            bookInfoClient.searchByIsbn(isbn)
                 ?: throw NotFoundException("도서 정보를 찾을 수 없습니다")
         return GetBookPreviewResult(
-            title = naverItem.title,
-            author = naverItem.author,
-            coverImageUrl = naverItem.image,
-            publisher = naverItem.publisher,
-            publishedYear = naverItem.pubdate.take(4).toIntOrNull() ?: 0,
-            description = naverItem.description,
+            title = bookItem.title,
+            author = bookItem.author,
+            coverImageUrl = bookItem.coverImageUrl,
+            publisher = bookItem.publisher,
+            publishedYear = bookItem.publishedYear,
+            description = bookItem.description,
         )
     }
 

@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
 
+@Deprecated("네이버 책 검색 API 서비스 종료로 Data4LibraryBookClient로 대체됨. 롤백 대비로 유지.")
 @Component
 class NaverBookClient(
     private val restTemplate: RestTemplate,

@@ -1,13 +1,13 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.book.BookInfoClient
 import com.sight.core.config.ConfigKey
 import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
-import com.sight.core.naver.NaverBookClient
 import com.sight.domain.book.BookBorrowRecord
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
@@ -23,7 +23,7 @@ class BookActionService(
     private val bookInfoRepository: BookInfoRepository,
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,
-    private val naverBookClient: NaverBookClient,
+    private val bookInfoClient: BookInfoClient,
     private val systemConfigRegistry: SystemConfigRegistry,
 ) {
     @Transactional
@@ -43,19 +43,19 @@ class BookActionService(
             if (existingBookInfo != null) {
                 existingBookInfo.id
             } else {
-                val naverItem =
-                    naverBookClient.searchByIsbn(isbn)
+                val bookItem =
+                    bookInfoClient.searchByIsbn(isbn)
                         ?: throw InternalServerErrorException("외부 도서 정보를 조회할 수 없습니다")
                 val newBookInfo =
                     BookInfo(
                         id = UlidCreator.getUlid().toString(),
                         isbn = isbn,
-                        title = naverItem.title,
-                        author = naverItem.author,
-                        publisher = naverItem.publisher,
-                        publishedYear = naverItem.pubdate.take(4).toIntOrNull() ?: 0,
-                        coverImageUrl = naverItem.image,
-                        description = naverItem.description,
+                        title = bookItem.title,
+                        author = bookItem.author,
+                        publisher = bookItem.publisher,
+                        publishedYear = bookItem.publishedYear,
+                        coverImageUrl = bookItem.coverImageUrl,
+                        description = bookItem.description,
                     )
                 bookInfoRepository.save(newBookInfo)
                 newBookInfo.id

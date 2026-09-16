@@ -7,6 +7,7 @@ import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
+import com.sight.core.room.CLUB_ROOM_LOCATIONS
 import com.sight.domain.group.GroupState
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
@@ -319,7 +320,7 @@ class ScheduleService(
         groupId: Long? = null,
     ): Schedule {
         validateTimeRange(scheduledAt, endAt)
-        if (location != null && location in CLUB_ROOM_LOCATIONS) {
+        if (location != null && location.toIntOrNull() in CLUB_ROOM_LOCATIONS) {
             if (scheduleRepository.countOverlappingAtLocation(location, scheduledAt, endAt) > 0) {
                 throw ConflictException("해당 장소에 시간이 겹치는 일정이 이미 있습니다.")
             }
@@ -443,6 +444,5 @@ class ScheduleService(
     companion object {
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val MAX_SCHEDULE_ID_RETRY = 3
-        private val CLUB_ROOM_LOCATIONS = setOf("405", "406", "410")
     }
 }

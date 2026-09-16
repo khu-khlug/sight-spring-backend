@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.room.CLUB_ROOM_LOCATIONS
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -15,6 +16,7 @@ data class CreateDoorLockAccessResult(
 @Service
 class DoorLockAccessService(
     private val memberRepository: MemberRepository,
+    private val roomService: RoomService,
     private val pointService: PointService,
 ) {
     @Transactional
@@ -26,16 +28,19 @@ class DoorLockAccessService(
         if (number <= 0) {
             throw BadRequestException("학번은 양수여야 합니다")
         }
-        if (roomNumber <= 0) {
-            throw BadRequestException("방 번호는 양수여야 합니다")
+        if (roomNumber !in CLUB_ROOM_LOCATIONS) {
+            throw BadRequestException("유효하지 않은 방 번호입니다")
         }
 
         val member =
             memberRepository.findByNumber(number)
                 ?: throw NotFoundException("사용자를 찾을 수 없습니다")
-        val isFirstAccessToday = member.lastEnter.toLocalDate() != now.toLocalDate()
+        val today = now.toLocalDate()
+        val isFirstAccessToday = member.lastEnter.toLocalDate() != today
 
         memberRepository.save(member.copy(lastEnter = now))
+
+        roomService.upsertDailyVisitLog(roomNumber, member.id, today)
 
         if (isFirstAccessToday) {
             pointService.givePoint(

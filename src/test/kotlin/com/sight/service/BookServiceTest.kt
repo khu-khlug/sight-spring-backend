@@ -1,9 +1,9 @@
 package com.sight.service
 
+import com.sight.core.book.BookInfoClient
+import com.sight.core.book.BookInfoItem
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
-import com.sight.core.naver.NaverBookClient
-import com.sight.core.naver.NaverBookItem
 import com.sight.domain.book.BookBorrowRecord
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
@@ -30,7 +30,7 @@ class BookServiceTest {
     private val bookItemRepository: BookItemRepository = mock()
     private val bookBorrowRecordRepository: BookBorrowRecordRepository = mock()
     private val memberRepository: MemberRepository = mock()
-    private val naverBookClient: NaverBookClient = mock()
+    private val bookInfoClient: BookInfoClient = mock()
     private lateinit var bookService: BookService
 
     @BeforeEach
@@ -41,7 +41,7 @@ class BookServiceTest {
                 bookItemRepository = bookItemRepository,
                 bookBorrowRecordRepository = bookBorrowRecordRepository,
                 memberRepository = memberRepository,
-                naverBookClient = naverBookClient,
+                bookInfoClient = bookInfoClient,
             )
     }
 
@@ -317,28 +317,28 @@ class BookServiceTest {
     fun `해당 isbn의 도서가 DB에 없고 외부 조회가 가능하면 외부 API 정보를 반환한다`() {
         // given
         val isbn = "9780000000001"
-        val naverItem =
-            NaverBookItem(
-                title = "네이버 도서",
-                author = "네이버 저자",
-                publisher = "네이버 출판사",
-                pubdate = "20240101",
-                image = "https://example.com/cover.jpg",
-                description = "네이버 설명",
+        val bookItem =
+            BookInfoItem(
+                title = "정보나루 도서",
+                author = "정보나루 저자",
+                publisher = "정보나루 출판사",
+                publishedYear = 2024,
+                coverImageUrl = "https://example.com/cover.jpg",
+                description = "정보나루 설명",
             )
         given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
-        given(naverBookClient.searchByIsbn(isbn)).willReturn(naverItem)
+        given(bookInfoClient.searchByIsbn(isbn)).willReturn(bookItem)
 
         // when
         val result = bookService.previewBook(isbn)
 
         // then
-        assertEquals(naverItem.title, result.title)
-        assertEquals(naverItem.author, result.author)
-        assertEquals(naverItem.image, result.coverImageUrl)
-        assertEquals(naverItem.publisher, result.publisher)
+        assertEquals(bookItem.title, result.title)
+        assertEquals(bookItem.author, result.author)
+        assertEquals(bookItem.coverImageUrl, result.coverImageUrl)
+        assertEquals(bookItem.publisher, result.publisher)
         assertEquals(2024, result.publishedYear)
-        assertEquals(naverItem.description, result.description)
+        assertEquals(bookItem.description, result.description)
     }
 
     @Test
@@ -346,7 +346,7 @@ class BookServiceTest {
         // given
         val isbn = "9780000000001"
         given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
-        given(naverBookClient.searchByIsbn(isbn)).willReturn(null)
+        given(bookInfoClient.searchByIsbn(isbn)).willReturn(null)
 
         // then
         assertThrows<NotFoundException> {

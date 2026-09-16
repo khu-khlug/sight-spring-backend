@@ -5,7 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpEntity
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
@@ -18,12 +20,15 @@ class Data4LibraryBookClient(
     private val logger = LoggerFactory.getLogger(Data4LibraryBookClient::class.java)
 
     override fun searchByIsbn(isbn: String): BookInfoItem? {
+        // data4library.kr은 Accept 헤더에 */*가 없으면 406을 반환한다 — RestTemplate 기본 Accept는
+        // 응답 타입(POJO)을 읽을 수 있는 컨버터(Jackson)만 반영해 application/json 계열로 좁아진다.
+        val headers = HttpHeaders().apply { accept = listOf(MediaType.APPLICATION_JSON, MediaType.ALL) }
         val response =
             try {
                 restTemplate.exchange(
                     "https://data4library.kr/api/srchDtlList?authKey=$authKey&isbn13=$isbn&format=json",
                     HttpMethod.GET,
-                    HttpEntity.EMPTY,
+                    HttpEntity<Void>(headers),
                     Data4LibraryResponse::class.java,
                 )
             } catch (e: RestClientException) {

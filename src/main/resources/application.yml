@@ -80,6 +80,9 @@ naver:
   client-id: ${NAVER_CLIENT_ID:}
   client-secret: ${NAVER_CLIENT_SECRET:}
 
+data4library:
+  auth-key: ${DATA4LIBRARY_AUTH_KEY:}
+
 stuauth:
   api-uri: ${STUAUTH_API_URI:}
   token: ${STUAUTH_TOKEN:}

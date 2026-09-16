@@ -1,6 +1,9 @@
 package com.sight.core.book
 
 interface BookInfoClient {
+    // ISBN으로 도서 정보를 조회.
+    // ISBN이 유효하지 않거나 정보가 없으면 null을 반환.
+    // 네트워크 에러시 null을 반환.
     fun searchByIsbn(isbn: String): BookInfoItem?
 }
 

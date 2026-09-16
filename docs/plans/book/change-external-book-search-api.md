@@ -45,15 +45,16 @@
 GET https://data4library.kr/api/srchDtlList?authKey={authKey}&isbn13={isbn13}&format=json
 ```
 
-- `authKey`, `isbn13`(13자리) 필수. `format=json`으로 JSON 응답이 오는 것까지는 확인함. 다만 발급한 키가 아직 활성화 전이라 실제 `detail.book` 페이로드는 못 봤음 — 활성화되는 대로 필드 재검증 필요.
-- 응답 구조: `{ response: { request: {...}, resultNum, detail: [{ book: { bookname, authors, publisher, publication_year, isbn13, bookImageURL, description, ... } }] } }`
+- `authKey`, `isbn13`(13자리) 필수. `format=json` 정상 동작 확인함(실제 키로 호출 테스트 완료).
+- 응답 구조: `{ response: { request: {...}, detail: [{ book: { bookname, authors, publisher, publication_year, isbn13, bookImageURL, description, ... } }] } }`
+- 값이 없는 필드는 키를 생략하지 않고 빈 문자열(`""`)로 채워서 줌 (`vol`, `class_no`, `addition_symbol` 등에서 실제 확인됨) — 네이버 API와 동일한 규칙이라 non-null `String` 필드로 그대로 매핑해도 역직렬화 실패 없음.
 
 ## 필드 매핑
 
 | 정보나루 응답 필드 | 기존 `NaverBookItem` 필드 | 비고 |
 | --- | --- | --- |
 | `bookname` | `title` | |
-| `authors` | `author` | ⚠️ "지은이: 김호연" 처럼 역할 접두어가 붙는 경우가 있다고 알려짐 — 실제 응답 확인 후 정제 로직 필요 여부 판단 |
+| `authors` | `author` | 책마다 형식이 제각각임을 실제 응답으로 확인함 — `"조앤 K. 롤링 저;최인자 옮김"`, `"지은이: 김초엽"`, `"남궁성 (지은이)"` 등. 정규식으로 정제하지 않고 기존대로 **원문 그대로 저장**하기로 결정함 |
 | `publisher` | `publisher` | |
 | `publication_year` | `publishedYear` | 기존 코드는 `pubdate.take(4).toIntOrNull()`로 연도만 뽑아 썼는데, 정보나루는 애초에 연도만 주므로 `take(4)` 로직 자체가 불필요해짐 |
 | `bookImageURL` | `coverImageUrl`(구 `image`) | |
@@ -70,8 +71,13 @@ GET https://data4library.kr/api/srchDtlList?authKey={authKey}&isbn13={isbn13}&fo
 ## 미해결/검증 필요
 
 1. 발급받은 키가 아직 비활성 상태(`vitalizationErr`) — 활성화된 뒤 실제 `authors`/`bookImageURL` 응답 형식 재확인.
+  -> 해결됨. 응답형식이 미리 확인했던 필드매핑과 같음.
 2. `srchDtlList`에서 `format=json`이 실제로 XML과 동일한 필드를 주는지(다른 정보나루 API에서는 확인했지만 이 API 자체 문서엔 명시 안 됨) — 활성화 후 확인.
+  -> 해결됨. 실제 키로 `format=json` 호출해서 `bookname`/`authors`/`publisher`/`publication_year`/`bookImageURL`/`description` 전부 정상 응답 확인.
 3. `authors` 필드에 역할 접두어가 섞여 오면 파싱 규칙을 어떻게 할지(첫 번째 이름만 쓸지, 접두어를 정규식으로 제거할지) 결정 필요.
+  -> 해결됨. 책마다 형식이 제각각(`"이름 저;이름 옮김"`, `"지은이: 이름"`, `"이름 (지은이)"` 등)이라 정규식 정제 대신 원문 그대로 저장하기로 결정.
+4. `description`/`bookImageURL`이 진짜로 비어있는 도서를 아직 직접 못 만나봤음 — `vol`/`class_no`/`addition_symbol`이 빈 문자열로 오는 건 실제 응답으로 확인했지만 `description`/`bookImageURL`도 같은 규칙일지는 추정.
+  -> 미해결. 빈 문자열로 온다고 가정하고 진행.
 
 ## 검증
 

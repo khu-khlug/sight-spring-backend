@@ -1,5 +1,7 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import com.sight.core.room.CLUB_ROOM_LOCATIONS
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
@@ -18,7 +20,11 @@ class DoorLockAlertService(
 ) {
     private val logger = LoggerFactory.getLogger(DoorLockAlertService::class.java)
 
-    fun alertDie() {
+    fun alertDie(roomNumber: Int) {
+        if (roomNumber !in CLUB_ROOM_LOCATIONS) {
+            throw BadRequestException("유효하지 않은 방 번호입니다")
+        }
+
         if (webhookUrl.isBlank()) {
             logger.warn("도어락 알림 웹훅 URL이 설정되지 않았습니다")
             return
@@ -29,7 +35,7 @@ class DoorLockAlertService(
                 HttpHeaders().apply {
                     contentType = MediaType.APPLICATION_JSON
                 }
-            val payload = mapOf("content" to ALERT_MESSAGE)
+            val payload = mapOf("content" to "${roomNumber}호 $ALERT_MESSAGE")
 
             restTemplate.postForEntity(
                 webhookUrl,

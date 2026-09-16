@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.controllers.http.dto.AlertDoorLockDieRequest
 import com.sight.controllers.http.dto.CreateDoorLockAccessRequest
 import com.sight.controllers.http.dto.CreateDoorLockAccessResponse
 import com.sight.core.auth.Auth
@@ -34,7 +35,9 @@ class DoorLockAccessController(
     @Auth([UserRole.SYSTEM])
     @PostMapping("/internal/door-lock/alert-die")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    fun alertDoorLockDie() {
-        doorLockAlertService.alertDie()
+    fun alertDoorLockDie(
+        @Valid @RequestBody request: AlertDoorLockDieRequest,
+    ) {
+        doorLockAlertService.alertDie(roomNumber = request.roomNumber!!)
     }
 }

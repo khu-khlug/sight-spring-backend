@@ -56,6 +56,7 @@ class BookService(
                 publishedYear = bookInfo.publishedYear,
                 totalCount = totalCount,
                 availableCount = availableCount,
+                category = bookInfo.category,
             )
         }
     }
@@ -150,6 +151,7 @@ class BookService(
             availableCount = availableCount,
             isbn = bookInfo.isbn,
             description = bookInfo.description,
+            category = bookInfo.category,
             itemList = itemList,
         )
     }

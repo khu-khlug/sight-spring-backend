@@ -1,5 +1,6 @@
 package com.sight.service.dto
 
+import com.sight.domain.book.BookCategory
 import java.time.Instant
 
 data class GetBookResult(
@@ -13,6 +14,7 @@ data class GetBookResult(
     val availableCount: Int,
     val isbn: String,
     val description: String,
+    val category: BookCategory,
     val itemList: List<GetBookItemResult>,
 )
 

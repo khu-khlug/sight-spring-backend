@@ -5,6 +5,7 @@ import com.sight.core.book.BookInfoItem
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.book.BookBorrowRecord
+import com.sight.domain.book.BookCategory
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.domain.member.Member
@@ -48,6 +49,7 @@ class BookServiceTest {
     private fun createBookInfo(
         id: String = "book1",
         isbn: String = "9780000000001",
+        category: BookCategory = BookCategory.OTHER,
     ) = BookInfo(
         id = id,
         isbn = isbn,
@@ -57,6 +59,7 @@ class BookServiceTest {
         publishedYear = 2024,
         coverImageUrl = "https://example.com/cover.jpg",
         description = "설명",
+        category = category,
     )
 
     private fun createBookItem(

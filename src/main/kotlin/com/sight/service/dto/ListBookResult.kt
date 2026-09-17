@@ -1,5 +1,7 @@
 package com.sight.service.dto
 
+import com.sight.domain.book.BookCategory
+
 data class ListBookResult(
     val bookId: String,
     val title: String,
@@ -9,4 +11,5 @@ data class ListBookResult(
     val publishedYear: Int,
     val totalCount: Int,
     val availableCount: Int,
+    val category: BookCategory,
 )

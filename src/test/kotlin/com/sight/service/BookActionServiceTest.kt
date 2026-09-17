@@ -9,6 +9,7 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.book.BookBorrowRecord
+import com.sight.domain.book.BookCategory
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.repository.BookBorrowRecordRepository
@@ -53,6 +54,7 @@ class BookActionServiceTest {
     private fun createBookInfo(
         id: String = "book1",
         isbn: String = "9780000000001",
+        category: BookCategory = BookCategory.OTHER,
     ) = BookInfo(
         id = id,
         isbn = isbn,
@@ -62,6 +64,7 @@ class BookActionServiceTest {
         publishedYear = 2024,
         coverImageUrl = "https://example.com/cover.jpg",
         description = "설명",
+        category = category,
     )
 
     private fun createBookItem(
@@ -94,7 +97,7 @@ class BookActionServiceTest {
 
         // when & then
         assertThrows<ForbiddenException> {
-            bookActionService.registerBook(isbn, blockedIp)
+            bookActionService.registerBook(isbn, null, blockedIp)
         }
     }
 
@@ -105,23 +108,36 @@ class BookActionServiceTest {
 
         // when & then
         assertThrows<BadRequestException> {
-            bookActionService.registerBook(isbn, allowedIp)
+            bookActionService.registerBook(isbn, null, allowedIp)
         }
     }
 
     @Test
-    fun `registerBook은 isbn이 DB에 이미 존재하면 기존 BookInfo에 BookItem을 추가하고 bookId를 반환한다`() {
+    fun `registerBook은 isbn이 DB에 이미 존재하면 category가 없어도 기존 BookInfo에 BookItem을 추가하고 bookId를 반환한다`() {
         // given
         val isbn = "9780000000001"
         val bookInfo = createBookInfo(isbn = isbn)
         given(bookInfoRepository.findByIsbn(isbn)).willReturn(bookInfo)
 
         // when
-        val result = bookActionService.registerBook(isbn, allowedIp)
+        val result = bookActionService.registerBook(isbn, null, allowedIp)
 
         // then
         assertEquals("book1", result)
         verify(bookItemRepository).save(any())
+    }
+
+    @Test
+    fun `registerBook은 isbn이 DB에 있을 때 category가 널이어야 한다`() {
+        // given
+        val isbn = "9780000000001"
+        val bookInfo = createBookInfo(isbn = isbn)
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(bookInfo)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.registerBook(isbn, "OTHER", allowedIp)
+        }
     }
 
     @Test
@@ -132,7 +148,7 @@ class BookActionServiceTest {
         given(bookInfoClient.searchByIsbn(isbn)).willReturn(createBookInfoItem())
 
         // when
-        val result = bookActionService.registerBook(isbn, allowedIp)
+        val result = bookActionService.registerBook(isbn, "OTHER", allowedIp)
 
         // then
         verify(bookInfoRepository).save(any())
@@ -149,8 +165,74 @@ class BookActionServiceTest {
 
         // when & then
         assertThrows<InternalServerErrorException> {
-            bookActionService.registerBook(isbn, allowedIp)
+            bookActionService.registerBook(isbn, "OTHER", allowedIp)
         }
+    }
+
+    @Test
+    fun `registerBook은 isbn이 DB에 없고 category도 없으면 에러가 발생한다`() {
+        // given
+        val isbn = "9780000000001"
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.registerBook(isbn, null, allowedIp)
+        }
+    }
+
+    @Test
+    fun `registerBook은 isbn이 DB에 없고 category가 유효하지 않은 값이면 에러가 발생한다`() {
+        // given
+        val isbn = "9780000000001"
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+
+        // when & then
+        assertThrows<BadRequestException> {
+            bookActionService.registerBook(isbn, "NOT_A_REAL_CATEGORY", allowedIp)
+        }
+    }
+
+    @Test
+    fun `updateBook은 존재하지 않는 bookId로 요청하면 에러가 발생한다`() {
+        given(bookInfoRepository.findById("nonexistent")).willReturn(Optional.empty())
+
+        assertThrows<NotFoundException> {
+            bookActionService.updateBook(
+                bookId = "nonexistent",
+                title = "새 제목",
+                author = "새 저자",
+                publisher = "새 출판사",
+                publishedYear = 2020,
+                coverImageUrl = "https://example.com/new.jpg",
+                description = "새 설명",
+                category = BookCategory.MATH,
+            )
+        }
+    }
+
+    @Test
+    fun `updateBook은 요청이 적절하면 도서 정보를 갱신한다`() {
+        // given
+        val bookInfo = createBookInfo()
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(bookInfo))
+
+        // when
+        bookActionService.updateBook(
+            bookId = "book1",
+            title = "새 제목",
+            author = "새 저자",
+            publisher = "새 출판사",
+            publishedYear = 2020,
+            coverImageUrl = "https://example.com/new.jpg",
+            description = "새 설명",
+            category = BookCategory.MATH,
+        )
+
+        // then
+        assertEquals("새 제목", bookInfo.title)
+        assertEquals(BookCategory.MATH, bookInfo.category)
+        verify(bookInfoRepository).save(bookInfo)
     }
 
     @Test

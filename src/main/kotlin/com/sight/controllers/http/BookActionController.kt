@@ -1,15 +1,19 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.RegisterBookResponse
+import com.sight.controllers.http.dto.UpdateBookRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.BookActionService
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -23,9 +27,10 @@ class BookActionController(
     @PostMapping("/book/register")
     fun registerBook(
         @RequestParam isbn: String,
+        @RequestParam(required = false) category: String?,
         request: HttpServletRequest,
     ): RegisterBookResponse {
-        val bookId = bookActionService.registerBook(isbn, request.clientIp)
+        val bookId = bookActionService.registerBook(isbn, category, request.clientIp)
         return RegisterBookResponse(bookId = bookId)
     }
 
@@ -36,6 +41,25 @@ class BookActionController(
         @PathVariable bookId: String,
     ) {
         bookActionService.deleteBook(bookId)
+    }
+
+    @Auth([UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PutMapping("/book/{bookId}")
+    fun updateBook(
+        @PathVariable bookId: String,
+        @Valid @RequestBody request: UpdateBookRequest,
+    ) {
+        bookActionService.updateBook(
+            bookId = bookId,
+            title = request.title,
+            author = request.author,
+            publisher = request.publisher,
+            publishedYear = request.publishedYear!!,
+            coverImageUrl = request.coverImageUrl,
+            description = request.description,
+            category = request.category!!,
+        )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])

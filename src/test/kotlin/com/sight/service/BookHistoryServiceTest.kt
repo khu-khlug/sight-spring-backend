@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.sight.domain.book.BookBorrowRecord
+import com.sight.domain.book.BookCategory
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.domain.member.Member
@@ -45,6 +46,7 @@ class BookHistoryServiceTest {
             publishedYear = 2024,
             coverImageUrl = "https://example.com/cover.jpg",
             description = "설명",
+            category = BookCategory.OTHER,
         )
 
     private fun createBookItem(

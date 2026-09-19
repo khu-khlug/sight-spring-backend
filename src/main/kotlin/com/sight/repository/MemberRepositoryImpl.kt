@@ -105,8 +105,8 @@ class MemberRepositoryImpl(
      * - 이번 학기 인증 기준일 이전에 마지막으로 인증한 경우
      *
      * 인증 기준일:
-     * - 1학기: 당해 2월 20일 00:00 KST
-     * - 2학기: 당해 8월 20일 00:00 KST
+     * - 1학기: 당해 3월 2일 00:00 KST
+     * - 2학기: 당해 9월 1일 00:00 KST
      */
     private fun unauthorizedCondition(): BooleanExpression {
         val today = LocalDate.now(kst)
@@ -114,9 +114,9 @@ class MemberRepositoryImpl(
 
         val authThreshold: Instant =
             if (thisTerm.semester == 1) {
-                LocalDate.of(thisTerm.year, 2, 20).atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.ofHours(9))
+                LocalDate.of(thisTerm.year, 3, 2).atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.ofHours(9))
             } else {
-                LocalDate.of(thisTerm.year, 8, 20).atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.ofHours(9))
+                LocalDate.of(thisTerm.year, 9, 1).atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.ofHours(9))
             }
 
         return member.studentStatus

@@ -91,44 +91,42 @@ class MemberExtensionsTest {
     }
 
     @Test
-    fun `needAuth - 1학기 개강 전 사전 인증(2월 20일 이후)도 1학기 인증으로 인정한다`() {
+    fun `needAuth - 3월 2일 인증은 1학기 인증으로 인정한다`() {
         mockToday(LocalDate.of(2025, 5, 15)) // 2025년 1학기
-        // lastAuth: 2025-02-25 → authMmdd=225, in 220..819 → 2025년 1학기 인증
-        // 개강(3월 1일) 이전이지만 1학기 인증으로 인정 → 재인증 불필요
-        val lastAuth = localDateToInstant(LocalDate.of(2025, 2, 25))
+        // lastAuth: 2025-03-02 → authMmdd=302, in 302..831 → 2025년 1학기 인증
+        val lastAuth = localDateToInstant(LocalDate.of(2025, 3, 2))
         val member = createMember(khuisauthAt = lastAuth)
 
         assertFalse(member.needAuth())
     }
 
     @Test
-    fun `needAuth - 2월 19일 이전 인증은 직전 연도 2학기 인증으로 처리되어 1학기 기준 재인증이 필요하다`() {
+    fun `needAuth - 3월 1일 이전 인증은 직전 연도 2학기 인증으로 처리되어 1학기 기준 재인증이 필요하다`() {
         mockToday(LocalDate.of(2025, 5, 15)) // 2025년 1학기
-        // lastAuth: 2025-02-10 → authMmdd=210, < 220 → lastAuthYear=2024(직전 연도), lastAuthSemester=2
+        // lastAuth: 2025-03-01 → authMmdd=301, < 302 → lastAuthYear=2024(직전 연도), lastAuthSemester=2
         // 2024년 2학기 인증이므로 2025년 1학기 기준으로는 재인증 필요
-        val lastAuth = localDateToInstant(LocalDate.of(2025, 2, 10))
+        val lastAuth = localDateToInstant(LocalDate.of(2025, 3, 1))
         val member = createMember(khuisauthAt = lastAuth)
 
         assertTrue(member.needAuth())
     }
 
     @Test
-    fun `needAuth - 2학기 개강 전 사전 인증(8월 20일 이후)도 2학기 인증으로 인정한다`() {
+    fun `needAuth - 9월 1일 인증은 2학기 인증으로 인정한다`() {
         mockToday(LocalDate.of(2025, 11, 15)) // 2025년 2학기
-        // lastAuth: 2025-08-25 → authMmdd=825, not in 220..819 → 2025년 2학기 인증
-        // 개강(9월 1일) 이전이지만 2학기 인증으로 인정 → 재인증 불필요
-        val lastAuth = localDateToInstant(LocalDate.of(2025, 8, 25))
+        // lastAuth: 2025-09-01 → authMmdd=901, not in 302..831 → 2025년 2학기 인증
+        val lastAuth = localDateToInstant(LocalDate.of(2025, 9, 1))
         val member = createMember(khuisauthAt = lastAuth)
 
         assertFalse(member.needAuth())
     }
 
     @Test
-    fun `needAuth - 8월 19일 이전 인증은 1학기 인증으로 처리되어 2학기 기준 재인증이 필요하다`() {
+    fun `needAuth - 8월 31일 이전 인증은 1학기 인증으로 처리되어 2학기 기준 재인증이 필요하다`() {
         mockToday(LocalDate.of(2025, 11, 15)) // 2025년 2학기
-        // lastAuth: 2025-08-19 → authMmdd=819, in 220..819 → 2025년 1학기 인증
+        // lastAuth: 2025-08-31 → authMmdd=831, in 302..831 → 2025년 1학기 인증
         // 현재 2025년 2학기이므로 재인증 필요
-        val lastAuth = localDateToInstant(LocalDate.of(2025, 8, 19))
+        val lastAuth = localDateToInstant(LocalDate.of(2025, 8, 31))
         val member = createMember(khuisauthAt = lastAuth)
 
         assertTrue(member.needAuth())

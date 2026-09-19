@@ -33,13 +33,11 @@ fun Member.needAuth(): Boolean {
     val authDate = khuisauthAt.atZone(KST).toLocalDate()
     val authMmdd = authDate.monthValue * 100 + authDate.dayOfMonth
 
-    // 인증일의 학사 연도 기준: 2월 20일부터 새 학년 1학기 인증 유효 기간으로 간주
-    // (개강 전 약 1~2주 정도의 사전 인증 기간을 허용)
-    val lastAuthYear = if (authMmdd < 220) authDate.year - 1 else authDate.year
+    // 인증일의 학사 연도 기준: 3월 2일부터 새 학년 1학기 인증 유효 기간으로 간주
+    val lastAuthYear = if (authMmdd < 302) authDate.year - 1 else authDate.year
 
-    // 인증일의 학기 구분: 2월 20일 ~ 8월 19일은 1학기 인증, 그 외는 2학기 인증
-    // (2학기 개강 전 사전 인증 기간을 마찬가지로 허용)
-    val lastAuthSemester = if (authMmdd in 220..819) 1 else 2
+    // 인증일의 학기 구분: 3월 2일 ~ 8월 31일은 1학기 인증, 그 외는 2학기 인증
+    val lastAuthSemester = if (authMmdd in 302..831) 1 else 2
 
     // 마지막 인증 학기가 현재 학기 이상이면 이번 학기 인증을 완료한 것으로 판단
     val authedInThisSemester =

@@ -39,11 +39,11 @@ class Data4LibraryBookClient(
         if (book.bookname.isBlank()) return null
         return BookInfoItem(
             title = book.bookname,
-            author = book.authors,
-            publisher = book.publisher,
-            publishedYear = book.publicationYear.toIntOrNull() ?: 0,
-            coverImageUrl = book.bookImageURL,
-            description = book.description,
+            author = book.authors.orNullIfBlank(),
+            publisher = book.publisher.orNullIfBlank(),
+            publishedYear = book.publicationYear.toIntOrNull()?.toPublishedYearOrNull(),
+            coverImageUrl = book.bookImageURL.orNullIfBlank(),
+            description = book.description.orNullIfBlank(),
         )
     }
 }

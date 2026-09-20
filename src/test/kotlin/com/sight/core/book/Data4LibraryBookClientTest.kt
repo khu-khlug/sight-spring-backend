@@ -77,16 +77,56 @@ class Data4LibraryBookClientTest {
     }
 
     @Test
-    fun `searchByIsbn은 publication_year가 숫자가 아니면 publishedYear를 0으로 반환한다`() {
+    fun `searchByIsbn은 publication_year가 숫자가 아니면 publishedYear를 null로 반환한다`() {
+        // given
+        stubResponse(bookWithYear(""))
+
+        // when
+        val result = client.searchByIsbn("9780000000001")
+
+        // then
+        assertNull(result?.publishedYear)
+    }
+
+    @Test
+    fun `searchByIsbn은 publication_year가 1900 미만이거나 3000 초과이면 publishedYear를 null로 반환한다`() {
+        listOf("1899", "3001", "0").forEach { year ->
+            // given
+            stubResponse(bookWithYear(year))
+
+            // when
+            val result = client.searchByIsbn("9780000000001")
+
+            // then
+            assertNull(result?.publishedYear, "year=$year")
+        }
+    }
+
+    @Test
+    fun `searchByIsbn은 publication_year가 1900 이상 3000 이하이면 그대로 반환한다`() {
+        listOf(1900, 3000).forEach { year ->
+            // given
+            stubResponse(bookWithYear(year.toString()))
+
+            // when
+            val result = client.searchByIsbn("9780000000001")
+
+            // then
+            assertEquals(year, result?.publishedYear)
+        }
+    }
+
+    @Test
+    fun `searchByIsbn은 저자 출판사 표지 설명이 빈 문자열이거나 공백뿐이면 null로 반환한다`() {
         // given
         stubResponse(
             Data4LibraryBookItem(
                 bookname = "테스트 도서",
-                authors = "저자",
-                publisher = "출판사",
-                publicationYear = "",
-                bookImageURL = "https://example.com/cover.jpg",
-                description = "설명",
+                authors = "",
+                publisher = "   ",
+                publicationYear = "2024",
+                bookImageURL = "",
+                description = " ",
             ),
         )
 
@@ -94,8 +134,22 @@ class Data4LibraryBookClientTest {
         val result = client.searchByIsbn("9780000000001")
 
         // then
-        assertEquals(0, result?.publishedYear)
+        assertEquals("테스트 도서", result?.title)
+        assertNull(result?.author)
+        assertNull(result?.publisher)
+        assertNull(result?.coverImageUrl)
+        assertNull(result?.description)
     }
+
+    private fun bookWithYear(year: String) =
+        Data4LibraryBookItem(
+            bookname = "테스트 도서",
+            authors = "저자",
+            publisher = "출판사",
+            publicationYear = year,
+            bookImageURL = "https://example.com/cover.jpg",
+            description = "설명",
+        )
 
     @Test
     fun `searchByIsbn은 검색 결과가 없으면 null을 반환한다`() {

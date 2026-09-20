@@ -1,5 +1,6 @@
 package com.sight.controllers.http.dto
 
+import com.sight.domain.book.BookCategory
 import java.time.Instant
 
 data class GetBookResponse(
@@ -13,6 +14,7 @@ data class GetBookResponse(
     val availableCount: Int,
     val isbn: String,
     val description: String,
+    val category: BookCategory,
     val itemList: List<GetBookItemResponse>,
 )
 

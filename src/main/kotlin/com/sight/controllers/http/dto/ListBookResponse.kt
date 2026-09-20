@@ -1,5 +1,7 @@
 package com.sight.controllers.http.dto
 
+import com.sight.domain.book.BookCategory
+
 data class ListBooksResponse(
     val bookList: List<ListBookResponse>,
 )
@@ -13,4 +15,5 @@ data class ListBookResponse(
     val publishedYear: Int,
     val totalCount: Int,
     val availableCount: Int,
+    val category: BookCategory,
 )

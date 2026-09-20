@@ -47,6 +47,7 @@ class BookController(
                         publishedYear = result.publishedYear,
                         totalCount = result.totalCount,
                         availableCount = result.availableCount,
+                        category = result.category,
                     )
                 },
         )
@@ -98,6 +99,7 @@ class BookController(
             availableCount = availableCount,
             isbn = isbn,
             description = description,
+            category = category,
             itemList =
                 itemList.map { item ->
                     GetBookItemResponse(

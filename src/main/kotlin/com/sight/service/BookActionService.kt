@@ -1,14 +1,15 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.book.BookInfoClient
 import com.sight.core.config.ConfigKey
 import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
-import com.sight.core.naver.NaverBookClient
 import com.sight.domain.book.BookBorrowRecord
+import com.sight.domain.book.BookCategory
 import com.sight.domain.book.BookInfo
 import com.sight.domain.book.BookItem
 import com.sight.repository.BookBorrowRecordRepository
@@ -23,12 +24,13 @@ class BookActionService(
     private val bookInfoRepository: BookInfoRepository,
     private val bookItemRepository: BookItemRepository,
     private val bookBorrowRecordRepository: BookBorrowRecordRepository,
-    private val naverBookClient: NaverBookClient,
+    private val bookInfoClient: BookInfoClient,
     private val systemConfigRegistry: SystemConfigRegistry,
 ) {
     @Transactional
     fun registerBook(
         isbn: String,
+        category: String?,
         clientIp: String,
     ): String {
         if (!isAllowedIp(clientIp)) {
@@ -41,21 +43,29 @@ class BookActionService(
         val existingBookInfo = bookInfoRepository.findByIsbn(isbn)
         val bookInfoId =
             if (existingBookInfo != null) {
+                if (category != null) {
+                    throw BadRequestException("이미 등록된 도서는 카테고리를 지정할 수 없습니다")
+                }
                 existingBookInfo.id
             } else {
-                val naverItem =
-                    naverBookClient.searchByIsbn(isbn)
+                val parsedCategory =
+                    category?.let { value ->
+                        runCatching { BookCategory.valueOf(value) }.getOrNull()
+                    } ?: throw BadRequestException("유효한 카테고리를 지정해야 합니다")
+                val bookItem =
+                    bookInfoClient.searchByIsbn(isbn)
                         ?: throw InternalServerErrorException("외부 도서 정보를 조회할 수 없습니다")
                 val newBookInfo =
                     BookInfo(
                         id = UlidCreator.getUlid().toString(),
                         isbn = isbn,
-                        title = naverItem.title,
-                        author = naverItem.author,
-                        publisher = naverItem.publisher,
-                        publishedYear = naverItem.pubdate.take(4).toIntOrNull() ?: 0,
-                        coverImageUrl = naverItem.image,
-                        description = naverItem.description,
+                        title = bookItem.title,
+                        author = bookItem.author,
+                        publisher = bookItem.publisher,
+                        publishedYear = bookItem.publishedYear,
+                        coverImageUrl = bookItem.coverImageUrl,
+                        description = bookItem.description,
+                        category = parsedCategory,
                     )
                 bookInfoRepository.save(newBookInfo)
                 newBookInfo.id
@@ -69,6 +79,33 @@ class BookActionService(
         bookItemRepository.save(newItem)
 
         return bookInfoId
+    }
+
+    @Transactional
+    fun updateBook(
+        bookId: String,
+        title: String,
+        author: String,
+        publisher: String,
+        publishedYear: Int,
+        coverImageUrl: String,
+        description: String,
+        category: BookCategory,
+    ) {
+        val bookInfo =
+            bookInfoRepository.findById(bookId).orElseThrow {
+                NotFoundException("도서를 찾을 수 없습니다")
+            }
+        bookInfo.update(
+            title = title,
+            author = author,
+            publisher = publisher,
+            publishedYear = publishedYear,
+            coverImageUrl = coverImageUrl,
+            description = description,
+            category = category,
+        )
+        bookInfoRepository.save(bookInfo)
     }
 
     @Transactional

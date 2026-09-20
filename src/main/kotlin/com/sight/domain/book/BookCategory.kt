@@ -1,0 +1,16 @@
+package com.sight.domain.book
+
+enum class BookCategory {
+    LANGUAGE_FRAMEWORK,
+    LIBERAL_ARTS,
+    PRACTICAL,
+    APP,
+    SOFTWARE_ENGINEERING,
+    COMPUTER_SCIENCE,
+    AI_DATA_SCIENCE,
+    SECURITY_HACKING,
+    MATH,
+    WEB_NETWORK,
+    HARDWARE_SYSTEM_PROGRAMMING,
+    OTHER,
+}

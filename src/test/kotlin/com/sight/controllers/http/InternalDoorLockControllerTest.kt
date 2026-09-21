@@ -1,10 +1,13 @@
 package com.sight.controllers.http
 
+import com.sight.core.exception.BadRequestException
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.service.DoorLockMemberService
+import com.sight.service.RoomService
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
@@ -22,6 +25,9 @@ class InternalDoorLockControllerTest {
 
     @MockBean
     private lateinit var doorLockMemberService: DoorLockMemberService
+
+    @MockBean
+    private lateinit var roomService: RoomService
 
     private fun member(
         id: Long,
@@ -77,5 +83,22 @@ class InternalDoorLockControllerTest {
             .andExpect(jsonPath("$.count").value(0))
             .andExpect(jsonPath("$.members").isArray)
             .andExpect(jsonPath("$.members").isEmpty)
+    }
+
+    @Test
+    fun `방별 오늘 방문자 수를 반환한다`() {
+        given(roomService.getDailyVisitCount(eq(406))).willReturn(3L)
+
+        mockMvc.perform(get("/internal/door-lock/daily-visit-count").param("room", "406"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.count").value(3))
+    }
+
+    @Test
+    fun `유효하지 않은 방 번호로 조회하면 400을 반환한다`() {
+        given(roomService.getDailyVisitCount(eq(999))).willThrow(BadRequestException("유효하지 않은 방 번호입니다"))
+
+        mockMvc.perform(get("/internal/door-lock/daily-visit-count").param("room", "999"))
+            .andExpect(status().isBadRequest)
     }
 }

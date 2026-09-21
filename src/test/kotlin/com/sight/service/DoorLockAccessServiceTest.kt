@@ -14,13 +14,15 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 
 class DoorLockAccessServiceTest {
     private val memberRepository: MemberRepository = mock()
+    private val roomService: RoomService = mock()
     private val pointService: PointService = mock()
-    private val service = DoorLockAccessService(memberRepository, pointService)
+    private val service = DoorLockAccessService(memberRepository, roomService, pointService)
 
     @Test
     fun `오늘 첫 출입이면 ExPoint를 적립하고 회원 이름을 반환한다`() {
@@ -63,16 +65,37 @@ class DoorLockAccessServiceTest {
     }
 
     @Test
-    fun `학번이나 방 번호가 양수가 아니면 BadRequestException을 던진다`() {
+    fun `학번이 양수가 아니면 BadRequestException을 던진다`() {
         assertThrows<BadRequestException> {
             service.createDoorLockAccess(0L, 406)
-        }
-        assertThrows<BadRequestException> {
-            service.createDoorLockAccess(2026000000L, 0)
         }
 
         verify(memberRepository, never()).findByNumber(any())
         verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `방 번호가 유효한 동방 번호가 아니면 BadRequestException을 던진다`() {
+        assertThrows<BadRequestException> {
+            service.createDoorLockAccess(2026000000L, 0)
+        }
+        assertThrows<BadRequestException> {
+            service.createDoorLockAccess(2026000000L, 999)
+        }
+
+        verify(memberRepository, never()).findByNumber(any())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `출입 처리 후 roomService에 방문 기록을 위임한다`() {
+        val member = member(lastEnter = LocalDateTime.of(2026, 5, 30, 23, 0))
+        val number = member.number!!
+        given(memberRepository.findByNumber(number)).willReturn(member)
+
+        service.createDoorLockAccess(number, 406, LocalDateTime.of(2026, 5, 31, 10, 0))
+
+        verify(roomService).upsertDailyVisitLog(406, member.id, LocalDate.of(2026, 5, 31))
     }
 
     @Test

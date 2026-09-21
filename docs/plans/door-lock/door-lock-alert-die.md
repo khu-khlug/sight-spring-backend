@@ -1,7 +1,7 @@
 # 도어락 죽음 디스코드 알림 API
 
 동방 도어락 라즈베리파이에서 로컬 데몬이 응답하지 않을 때 디스코드로 운영진에게 연락하기 위한 API
-Discord 웹훅을 통해 운영진 채널에 알림을 전송합니다. 웹훅 URL은 `khlug.door-lock.webhook-url` 설정 키를 별도로 사용합니다.
+Discord 웹훅을 통해 운영진 채널에 알림을 전송합니다. 웹훅 URL은 `discord.webhook.door-lock-alert-url` 설정 키를 별도로 사용합니다.
 
 권한: SYSTEM
 
@@ -23,7 +23,9 @@ POST /internal/door-lock/alert-die
 
 ### 요청 바디
 
-(해당 없음)
+| 이름         | 타입 | 설명                 |
+| :----------- | :--: | :------------------- |
+| `roomNumber` | 숫자 | 데몬이 죽은 방 번호 |
 
 ### 응답 코드 및 응답 바디
 
@@ -37,7 +39,8 @@ POST /internal/door-lock/alert-die
 
 ### 테스트 케이스
 
-1. `x-api-key` 유효 → 204, Discord 웹훅으로 알림 전송
-   - 알림 내용 예시: "🔴 도어락 데몬 응답 없음 — 라즈베리파이 또는 Flask 데몬 상태를 확인하세요."
+1. `x-api-key` 유효, `roomNumber` 유효 → 204, Discord 웹훅으로 알림 전송
+   - 알림 내용 예시: "405호 🔴 도어락 데몬 응답 없음 — 라즈베리파이 또는 Flask 데몬 상태를 확인하세요."
 2. `x-api-key` 불일치 → 401
-3. `khlug.door-lock.webhook-url` 미설정 → 204 (로그 경고만 남기고 클라이언트 에러 반환 안 함)
+3. `roomNumber`가 동아리방이 아니면 → 400
+4. `discord.webhook.door-lock-alert-url` 미설정 → 204 (로그 경고만 남기고 클라이언트 에러 반환 안 함)

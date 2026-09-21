@@ -1,5 +1,7 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
@@ -21,7 +23,7 @@ class DoorLockAlertServiceTest {
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willReturn(ResponseEntity.ok("success"))
 
-        service.alertDie()
+        service.alertDie(roomNumber = 405)
 
         verify(restTemplate).postForEntity(
             eq(webhookUrl),
@@ -34,7 +36,7 @@ class DoorLockAlertServiceTest {
     fun `alertDie는 웹훅 URL이 비어있으면 전송하지 않는다`() {
         val service = DoorLockAlertService("", restTemplate)
 
-        service.alertDie()
+        service.alertDie(roomNumber = 405)
 
         verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
     }
@@ -45,6 +47,17 @@ class DoorLockAlertServiceTest {
         given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
             .willThrow(RuntimeException("Webhook failed"))
 
-        service.alertDie()
+        service.alertDie(roomNumber = 405)
+    }
+
+    @Test
+    fun `alertDie는 유효하지 않은 방 번호면 예외를 던진다`() {
+        val service = DoorLockAlertService("https://discord.com/api/webhooks/door-lock", restTemplate)
+
+        assertThrows(BadRequestException::class.java) {
+            service.alertDie(roomNumber = 999)
+        }
+
+        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
     }
 }

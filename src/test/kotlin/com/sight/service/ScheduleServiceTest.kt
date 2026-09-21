@@ -1049,11 +1049,41 @@ class ScheduleServiceTest {
         verify(bigSeminarRepository).deleteByScheduleId(1L)
     }
 
+    @Test
+    fun `listActiveSchedules returns active attendance schedules from repository`() {
+        val now = LocalDateTime.now(kst)
+        val activeSchedule =
+            scheduleOf(
+                id = 1L,
+                scheduledAt = now.minusHours(1),
+                endAt = now.plusHours(1),
+                checkCode = "1234",
+            )
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(listOf(activeSchedule))
+
+        val result = scheduleService.listActiveSchedules()
+
+        assertEquals(listOf(activeSchedule), result)
+        verify(scheduleRepository).findAttendanceActive(any(), any())
+    }
+
+    @Test
+    fun `listActiveSchedules returns empty list when no active attendance schedules exist`() {
+        given(scheduleRepository.findAttendanceActive(any(), any())).willReturn(emptyList())
+
+        val result = scheduleService.listActiveSchedules()
+
+        assertTrue(result.isEmpty())
+        verify(scheduleRepository).findAttendanceActive(any(), any())
+    }
+
     private fun scheduleOf(
         id: Long = 1L,
         category: ScheduleCategory = ScheduleCategory.CLUB,
         author: Long = 10L,
         checkCode: String? = null,
+        scheduledAt: LocalDateTime = LocalDateTime.of(2026, 5, 18, 14, 0),
+        endAt: LocalDateTime = LocalDateTime.of(2026, 5, 18, 16, 0),
     ): Schedule {
         return Schedule(
             id = id,
@@ -1061,10 +1091,288 @@ class ScheduleServiceTest {
             title = "일정",
             author = author,
             state = ScheduleState.PUBLIC,
-            scheduledAt = LocalDateTime.of(2026, 5, 18, 14, 0),
-            endAt = LocalDateTime.of(2026, 5, 18, 16, 0),
+            scheduledAt = scheduledAt,
+            endAt = endAt,
             checkCode = checkCode,
         )
+    }
+
+    @Test
+    fun `addScheduleAttendances는 운영진이 여러 사용자를 출석 처리하고 ExPoint를 적립한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val schedule = attendanceSchedule(expoint = 10)
+        val userIds = listOf(10L, 20L, 30L)
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        userIds.forEach { userId ->
+            given(memberRepository.existsById(userId)).willReturn(true)
+        }
+        given(scheduleMemberApplyRepository.findByMemberIdInAndScheduleId(userIds, schedule.id)).willReturn(emptyList())
+
+        scheduleService.addScheduleAttendances(
+            requester = requester,
+            scheduleId = schedule.id,
+            userIds = userIds,
+        )
+
+        verify(scheduleMemberApplyRepository).saveAll(any<Iterable<ScheduleMemberApply>>())
+        userIds.forEach { userId ->
+            verify(pointService).givePoint(userId, schedule.expoint, "${schedule.title} 출석 (관리자 추가)")
+        }
+    }
+
+    @Test
+    fun `addScheduleAttendances는 userIds가 빈 리스트면 BadRequestException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+
+        assertThrows<BadRequestException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = 100L,
+                userIds = emptyList(),
+            )
+        }
+
+        verify(scheduleRepository, never()).findActiveById(any())
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `addScheduleAttendances는 중복된 userId가 있으면 BadRequestException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+
+        assertThrows<BadRequestException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = 100L,
+                userIds = listOf(10L, 10L),
+            )
+        }
+
+        verify(scheduleRepository, never()).findActiveById(any())
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `addScheduleAttendances는 이미 출석 처리된 사용자가 포함되면 ConflictException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val schedule = attendanceSchedule()
+        val userIds = listOf(10L, 20L)
+        val existingAttendance =
+            ScheduleMemberApply(
+                memberId = 20L,
+                scheduleId = schedule.id,
+                attendedAt = LocalDateTime.now().minusMinutes(10),
+            )
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        userIds.forEach { userId ->
+            given(memberRepository.existsById(userId)).willReturn(true)
+        }
+        given(scheduleMemberApplyRepository.findByMemberIdInAndScheduleId(userIds, schedule.id))
+            .willReturn(listOf(existingAttendance))
+
+        assertThrows<ConflictException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = schedule.id,
+                userIds = userIds,
+            )
+        }
+
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `addScheduleAttendances는 존재하지 않는 일정이면 NotFoundException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val scheduleId = 999L
+        given(scheduleRepository.findActiveById(scheduleId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = scheduleId,
+                userIds = listOf(10L),
+            )
+        }
+
+        verify(memberRepository, never()).existsById(any())
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `addScheduleAttendances는 존재하지 않는 사용자가 포함되면 NotFoundException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val schedule = attendanceSchedule()
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        given(memberRepository.existsById(10L)).willReturn(true)
+        given(memberRepository.existsById(999L)).willReturn(false)
+
+        assertThrows<NotFoundException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = schedule.id,
+                userIds = listOf(10L, 999L),
+            )
+        }
+
+        verify(scheduleMemberApplyRepository, never()).findByMemberIdInAndScheduleId(any(), any())
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `addScheduleAttendances는 MANAGER가 아니면 ForbiddenException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.USER)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.addScheduleAttendances(
+                requester = requester,
+                scheduleId = 100L,
+                userIds = listOf(10L),
+            )
+        }
+
+        verify(scheduleRepository, never()).findActiveById(any())
+        verify(scheduleMemberApplyRepository, never()).saveAll(any<Iterable<ScheduleMemberApply>>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 출석 기록을 삭제하고 ExPoint를 회수한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val userId = 10L
+        val schedule = attendanceSchedule(expoint = 15)
+        val attendance =
+            ScheduleMemberApply(
+                memberId = userId,
+                scheduleId = schedule.id,
+                attendedAt = LocalDateTime.now().minusMinutes(10),
+            )
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByMemberIdAndScheduleId(userId, schedule.id)).willReturn(attendance)
+
+        scheduleService.removeScheduleAttendance(
+            requester = requester,
+            scheduleId = schedule.id,
+            userId = userId,
+        )
+
+        verify(scheduleMemberApplyRepository).delete(attendance)
+        verify(pointService).givePoint(userId, -15, "${schedule.title} 출석 취소")
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 ExPoint 회수를 음수 적립으로 기록한다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val userId = 10L
+        val schedule = attendanceSchedule(expoint = 7)
+        val attendance =
+            ScheduleMemberApply(
+                memberId = userId,
+                scheduleId = schedule.id,
+                attendedAt = LocalDateTime.now().minusMinutes(10),
+            )
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByMemberIdAndScheduleId(userId, schedule.id)).willReturn(attendance)
+
+        scheduleService.removeScheduleAttendance(
+            requester = requester,
+            scheduleId = schedule.id,
+            userId = userId,
+        )
+
+        verify(pointService).givePoint(userId, -schedule.expoint, "${schedule.title} 출석 취소")
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 출석한 적이 없으면 NotFoundException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val userId = 10L
+        val schedule = attendanceSchedule()
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByMemberIdAndScheduleId(userId, schedule.id)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            scheduleService.removeScheduleAttendance(
+                requester = requester,
+                scheduleId = schedule.id,
+                userId = userId,
+            )
+        }
+
+        verify(scheduleMemberApplyRepository, never()).delete(any<ScheduleMemberApply>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 MANAGER가 아니면 ForbiddenException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.USER)
+
+        assertThrows<ForbiddenException> {
+            scheduleService.removeScheduleAttendance(
+                requester = requester,
+                scheduleId = 100L,
+                userId = 10L,
+            )
+        }
+
+        verify(scheduleRepository, never()).findActiveById(any())
+        verify(scheduleMemberApplyRepository, never()).delete(any<ScheduleMemberApply>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 일정이 없으면 NotFoundException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val scheduleId = 999L
+        given(scheduleRepository.findActiveById(scheduleId)).willReturn(null)
+
+        assertThrows<NotFoundException> {
+            scheduleService.removeScheduleAttendance(
+                requester = requester,
+                scheduleId = scheduleId,
+                userId = 10L,
+            )
+        }
+
+        verify(scheduleMemberApplyRepository, never()).findByMemberIdAndScheduleId(any(), any())
+        verify(scheduleMemberApplyRepository, never()).delete(any<ScheduleMemberApply>())
+        verify(pointService, never()).givePoint(any(), any(), any())
+    }
+
+    @Test
+    fun `removeScheduleAttendance는 같은 출석 기록을 두 번 삭제하면 두 번째는 NotFoundException을 던진다`() {
+        val requester = Requester(userId = 1L, role = UserRole.MANAGER)
+        val userId = 10L
+        val schedule = attendanceSchedule()
+        val attendance =
+            ScheduleMemberApply(
+                memberId = userId,
+                scheduleId = schedule.id,
+                attendedAt = LocalDateTime.now().minusMinutes(10),
+            )
+        given(scheduleRepository.findActiveById(schedule.id)).willReturn(schedule)
+        given(scheduleMemberApplyRepository.findByMemberIdAndScheduleId(userId, schedule.id)).willReturn(attendance, null)
+
+        scheduleService.removeScheduleAttendance(
+            requester = requester,
+            scheduleId = schedule.id,
+            userId = userId,
+        )
+        assertThrows<NotFoundException> {
+            scheduleService.removeScheduleAttendance(
+                requester = requester,
+                scheduleId = schedule.id,
+                userId = userId,
+            )
+        }
+
+        verify(scheduleMemberApplyRepository).delete(attendance)
+        verify(pointService).givePoint(userId, -schedule.expoint, "${schedule.title} 출석 취소")
     }
 
     private fun attendanceSchedule(

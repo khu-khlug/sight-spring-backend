@@ -197,7 +197,7 @@ class ScheduleServiceTest {
         val (resultSchedule, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
 
         assertEquals(1L, resultSchedule.id)
-        assertEquals("khlug_user", authorName)
+        assertEquals("홍길동", authorName)
         assertEquals("코틀린 스터디", groupTitle)
     }
 
@@ -230,7 +230,7 @@ class ScheduleServiceTest {
 
         val (_, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
 
-        assertEquals("khlug_user", authorName)
+        assertEquals("홍길동", authorName)
         assertNull(groupTitle)
         verify(groupRepository, never()).findById(any())
     }

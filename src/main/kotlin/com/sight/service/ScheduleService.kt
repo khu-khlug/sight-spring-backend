@@ -62,6 +62,14 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
+    fun listAttendanceHistory(year: Int?): List<Schedule> {
+        val targetYear = year ?: LocalDateTime.now(KST).year
+        val yearStart = LocalDateTime.of(targetYear, 1, 1, 0, 0, 0)
+        val yearEnd = LocalDateTime.of(targetYear + 1, 1, 1, 0, 0, 0)
+        return scheduleRepository.findAttendanceHistoryByYear(yearStart, yearEnd)
+    }
+
+    @Transactional(readOnly = true)
     fun getScheduleById(id: Long): Schedule {
         return scheduleRepository.findActiveById(id)
             ?: throw NotFoundException("존재하지 않는 일정입니다.")
@@ -72,7 +80,7 @@ class ScheduleService(
         val schedule =
             scheduleRepository.findActiveById(id)
                 ?: throw NotFoundException("존재하지 않는 일정입니다.")
-        val authorName = memberRepository.findById(schedule.author).map { it.name }.orElse(null)
+        val authorName = memberRepository.findById(schedule.author).map { it.realname }.orElse(null)
         val groupTitle = schedule.groupId?.let { groupRepository.findById(it).map { g -> g.title }.orElse(null) }
         return Triple(schedule, authorName ?: "알 수 없음", groupTitle)
     }

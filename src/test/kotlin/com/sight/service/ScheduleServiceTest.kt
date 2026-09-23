@@ -137,6 +137,42 @@ class ScheduleServiceTest {
     }
 
     @Test
+    fun `listAttendanceHistory는 지정한 연도의 시작과 끝을 findAttendanceHistoryByYear에 전달한다`() {
+        given(scheduleRepository.findAttendanceHistoryByYear(any(), any())).willReturn(emptyList())
+
+        scheduleService.listAttendanceHistory(2026)
+
+        verify(scheduleRepository).findAttendanceHistoryByYear(
+            LocalDateTime.of(2026, 1, 1, 0, 0),
+            LocalDateTime.of(2027, 1, 1, 0, 0),
+        )
+    }
+
+    @Test
+    fun `listAttendanceHistory는 year가 null이면 현재 연도를 사용한다`() {
+        given(scheduleRepository.findAttendanceHistoryByYear(any(), any())).willReturn(emptyList())
+        val currentYear = LocalDateTime.now(kst).year
+
+        scheduleService.listAttendanceHistory(null)
+
+        verify(scheduleRepository).findAttendanceHistoryByYear(
+            LocalDateTime.of(currentYear, 1, 1, 0, 0),
+            LocalDateTime.of(currentYear + 1, 1, 1, 0, 0),
+        )
+    }
+
+    @Test
+    fun `listAttendanceHistory는 저장소가 반환한 일정 목록을 그대로 반환한다`() {
+        val schedules = listOf(scheduleOf(id = 1L, checkCode = "1234"))
+        given(scheduleRepository.findAttendanceHistoryByYear(any(), any())).willReturn(schedules)
+
+        val result = scheduleService.listAttendanceHistory(2026)
+
+        assertEquals(1, result.size)
+        assertEquals("1234", result[0].checkCode)
+    }
+
+    @Test
     fun `getScheduleById는 존재하는 일정을 반환한다`() {
         val schedule = scheduleOf(id = 1L, category = ScheduleCategory.CLUB)
         given(scheduleRepository.findActiveById(1L)).willReturn(schedule)
@@ -197,7 +233,7 @@ class ScheduleServiceTest {
         val (resultSchedule, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
 
         assertEquals(1L, resultSchedule.id)
-        assertEquals("khlug_user", authorName)
+        assertEquals("홍길동", authorName)
         assertEquals("코틀린 스터디", groupTitle)
     }
 
@@ -230,7 +266,7 @@ class ScheduleServiceTest {
 
         val (_, authorName, groupTitle) = scheduleService.getScheduleWithDetails(1L)
 
-        assertEquals("khlug_user", authorName)
+        assertEquals("홍길동", authorName)
         assertNull(groupTitle)
         verify(groupRepository, never()).findById(any())
     }

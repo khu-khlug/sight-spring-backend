@@ -45,6 +45,17 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
     ): List<Schedule>
 
     @Query(
+        "SELECT s FROM Schedule s " +
+            "WHERE s.scheduledAt >= :yearStart AND s.scheduledAt < :yearEnd " +
+            "AND s.checkCode IS NOT NULL AND s.state = 'public' " +
+            "ORDER BY s.scheduledAt DESC",
+    )
+    fun findAttendanceHistoryByYear(
+        @Param("yearStart") yearStart: LocalDateTime,
+        @Param("yearEnd") yearEnd: LocalDateTime,
+    ): List<Schedule>
+
+    @Query(
         "SELECT COUNT(s) FROM Schedule s " +
             "WHERE s.location = :location AND s.state = 'public' " +
             "AND s.scheduledAt < :endAt AND s.endAt > :scheduledAt",

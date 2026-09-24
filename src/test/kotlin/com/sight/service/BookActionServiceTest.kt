@@ -157,6 +157,34 @@ class BookActionServiceTest {
     }
 
     @Test
+    fun `registerBook은 외부 정보에 값이 없는 필드가 있어도 빈 문자열과 0으로 채워 저장한다`() {
+        // given
+        val isbn = "9780000000001"
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+        given(bookInfoClient.searchByIsbn(isbn)).willReturn(
+            BookInfoItem(
+                title = "테스트 도서",
+                author = null,
+                publisher = null,
+                publishedYear = null,
+                coverImageUrl = null,
+                description = null,
+            ),
+        )
+
+        // when
+        bookActionService.registerBook(isbn, "OTHER", allowedIp)
+
+        // then
+        verify(bookInfoRepository).save(
+            org.mockito.kotlin.argThat<BookInfo> {
+                title == "테스트 도서" && author == "" && publisher == "" && publishedYear == 0 &&
+                    coverImageUrl == "" && description == ""
+            },
+        )
+    }
+
+    @Test
     fun `registerBook은 isbn이 DB에 없고 외부 조회가 불가능하면 에러가 발생한다`() {
         // given
         val isbn = "9780000000001"

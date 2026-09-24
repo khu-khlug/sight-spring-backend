@@ -60,11 +60,12 @@ class BookActionService(
                         id = UlidCreator.getUlid().toString(),
                         isbn = isbn,
                         title = bookItem.title,
-                        author = bookItem.author,
-                        publisher = bookItem.publisher,
-                        publishedYear = bookItem.publishedYear,
-                        coverImageUrl = bookItem.coverImageUrl,
-                        description = bookItem.description,
+                        // book_info 컬럼은 NOT NULL이라 외부 정보가 없으면 ""/0으로 저장한다(조회 시 null로 변환).
+                        author = bookItem.author ?: "",
+                        publisher = bookItem.publisher ?: "",
+                        publishedYear = bookItem.publishedYear ?: 0,
+                        coverImageUrl = bookItem.coverImageUrl ?: "",
+                        description = bookItem.description ?: "",
                         category = parsedCategory,
                     )
                 bookInfoRepository.save(newBookInfo)

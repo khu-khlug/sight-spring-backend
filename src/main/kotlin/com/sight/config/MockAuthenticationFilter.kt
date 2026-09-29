@@ -19,6 +19,8 @@ class MockAuthenticationFilter : OncePerRequestFilter(), AuthenticationFilter {
     private val mockUserId = 1L
     private val mockUserRole = UserRole.MANAGER
 
+    override fun shouldNotFilterAsyncDispatch(): Boolean = false
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,

@@ -1,63 +1,45 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.service.discord.DiscordWebhookAdapter
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.eq
-import org.mockito.kotlin.given
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
-import org.springframework.http.HttpEntity
-import org.springframework.http.ResponseEntity
-import org.springframework.web.client.RestTemplate
+import org.mockito.kotlin.whenever
 
 class DoorLockAlertServiceTest {
-    private val restTemplate: RestTemplate = mock()
+    private val discordWebhookAdapter: DiscordWebhookAdapter = mock()
+    private val service = DoorLockAlertService(discordWebhookAdapter)
 
     @Test
     fun `alertDie는 디스코드 웹훅으로 알림을 전송한다`() {
-        val webhookUrl = "https://discord.com/api/webhooks/door-lock"
-        val service = DoorLockAlertService(webhookUrl, restTemplate)
-        given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
-            .willReturn(ResponseEntity.ok("success"))
+        runBlocking { service.alertDie(roomNumber = 405) }
 
-        service.alertDie(roomNumber = 405)
-
-        verify(restTemplate).postForEntity(
-            eq(webhookUrl),
-            any<HttpEntity<*>>(),
-            eq(String::class.java),
-        )
-    }
-
-    @Test
-    fun `alertDie는 웹훅 URL이 비어있으면 전송하지 않는다`() {
-        val service = DoorLockAlertService("", restTemplate)
-
-        service.alertDie(roomNumber = 405)
-
-        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
+        runBlocking { verify(discordWebhookAdapter).sendDoorLockAlert(any()) }
     }
 
     @Test
     fun `alertDie는 웹훅 전송 실패시 예외를 던지지 않는다`() {
-        val service = DoorLockAlertService("https://discord.com/api/webhooks/door-lock", restTemplate)
-        given(restTemplate.postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java)))
-            .willThrow(RuntimeException("Webhook failed"))
+        runBlocking {
+            doThrow(RuntimeException("Webhook failed"))
+                .whenever(discordWebhookAdapter)
+                .sendDoorLockAlert(any())
+        }
 
-        service.alertDie(roomNumber = 405)
+        runBlocking { service.alertDie(roomNumber = 405) }
     }
 
     @Test
     fun `alertDie는 유효하지 않은 방 번호면 예외를 던진다`() {
-        val service = DoorLockAlertService("https://discord.com/api/webhooks/door-lock", restTemplate)
-
         assertThrows(BadRequestException::class.java) {
-            service.alertDie(roomNumber = 999)
+            runBlocking { service.alertDie(roomNumber = 999) }
         }
 
-        verify(restTemplate, never()).postForEntity(any<String>(), any<HttpEntity<*>>(), eq(String::class.java))
+        runBlocking { verify(discordWebhookAdapter, never()).sendDoorLockAlert(any()) }
     }
 }

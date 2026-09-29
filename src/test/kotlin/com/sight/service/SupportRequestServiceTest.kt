@@ -24,6 +24,7 @@ import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -93,44 +94,46 @@ class SupportRequestServiceTest {
             "서버 공간 지원 신청이 등록되었습니다.",
             "/support/${result.supportRequest.id}",
         )
-        verify(discordWebhookAdapter).sendSystemAlert(
-            mapOf(
-                "embeds" to
-                    listOf(
-                        mapOf(
-                            "title" to "✏️ 새 지원 신청이 왔어요!",
-                            "description" to "**서버 공간**",
-                            "color" to 0x3498DB,
-                            "fields" to
-                                listOf(
-                                    mapOf(
-                                        "name" to "카테고리",
-                                        "value" to "서버 공간",
+        runBlocking {
+            verify(discordWebhookAdapter).sendSystemAlert(
+                mapOf(
+                    "embeds" to
+                        listOf(
+                            mapOf(
+                                "title" to "✏️ 새 지원 신청이 왔어요!",
+                                "description" to "**서버 공간**",
+                                "color" to 0x3498DB,
+                                "fields" to
+                                    listOf(
+                                        mapOf(
+                                            "name" to "카테고리",
+                                            "value" to "서버 공간",
+                                        ),
+                                        mapOf(
+                                            "name" to "신청자",
+                                            "value" to "신청자",
+                                        ),
                                     ),
-                                    mapOf(
-                                        "name" to "신청자",
-                                        "value" to "신청자",
-                                    ),
-                                ),
+                            ),
                         ),
-                    ),
-                "components" to
-                    listOf(
-                        mapOf(
-                            "type" to 1,
-                            "components" to
-                                listOf(
-                                    mapOf(
-                                        "type" to 2,
-                                        "style" to 5,
-                                        "label" to "지원 신청 확인",
-                                        "url" to "https://app.example.com/support/${result.supportRequest.id}",
+                    "components" to
+                        listOf(
+                            mapOf(
+                                "type" to 1,
+                                "components" to
+                                    listOf(
+                                        mapOf(
+                                            "type" to 2,
+                                            "style" to 5,
+                                            "label" to "지원 신청 확인",
+                                            "url" to "https://app.example.com/support/${result.supportRequest.id}",
+                                        ),
                                     ),
-                                ),
+                            ),
                         ),
-                    ),
-            ),
-        )
+                ),
+            )
+        }
     }
 
     @Test
@@ -276,9 +279,11 @@ class SupportRequestServiceTest {
         given(supportRequestRepository.save(any<SupportRequest>())).willAnswer { it.arguments[0] }
         given(notificationService.createNotificationForManagers(any(), any(), any(), anyOrNull()))
             .willReturn(emptyList())
-        org.mockito.kotlin.doThrow(RuntimeException("Discord timeout"))
-            .`when`(discordWebhookAdapter)
-            .sendSystemAlert(any())
+        runBlocking {
+            org.mockito.kotlin.doThrow(RuntimeException("Discord timeout"))
+                .`when`(discordWebhookAdapter)
+                .sendSystemAlert(any())
+        }
 
         val result = supportRequestService.createSupportRequest(10L, null, SupportRequestCategory.OTHER, "제목", "내용")
 

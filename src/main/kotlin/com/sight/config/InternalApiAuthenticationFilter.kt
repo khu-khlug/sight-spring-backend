@@ -17,6 +17,8 @@ import java.util.Objects
 class InternalApiAuthenticationFilter(
     @Value("\${internal.api-key:}") private val internalApiKey: String,
 ) : OncePerRequestFilter(), AuthenticationFilter {
+    override fun shouldNotFilterAsyncDispatch(): Boolean = false
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,

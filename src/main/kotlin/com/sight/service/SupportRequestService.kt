@@ -18,6 +18,7 @@ import com.sight.repository.SupportRequestCommentRepository
 import com.sight.repository.SupportRequestRepository
 import com.sight.service.discord.DiscordMessageSender
 import com.sight.service.discord.DiscordWebhookAdapter
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -250,44 +251,46 @@ class SupportRequestService(
         requester: Member,
     ) {
         runCatching {
-            discordWebhookAdapter.sendSystemAlert(
-                mapOf(
-                    "embeds" to
-                        listOf(
-                            mapOf(
-                                "title" to "✏️ 새 지원 신청이 왔어요!",
-                                "description" to "**${supportRequest.title}**",
-                                "color" to 0x3498DB,
-                                "fields" to
-                                    listOf(
-                                        mapOf(
-                                            "name" to "카테고리",
-                                            "value" to supportRequest.category.displayName(),
+            runBlocking {
+                discordWebhookAdapter.sendSystemAlert(
+                    mapOf(
+                        "embeds" to
+                            listOf(
+                                mapOf(
+                                    "title" to "✏️ 새 지원 신청이 왔어요!",
+                                    "description" to "**${supportRequest.title}**",
+                                    "color" to 0x3498DB,
+                                    "fields" to
+                                        listOf(
+                                            mapOf(
+                                                "name" to "카테고리",
+                                                "value" to supportRequest.category.displayName(),
+                                            ),
+                                            mapOf(
+                                                "name" to "신청자",
+                                                "value" to requester.realname,
+                                            ),
                                         ),
-                                        mapOf(
-                                            "name" to "신청자",
-                                            "value" to requester.realname,
-                                        ),
-                                    ),
+                                ),
                             ),
-                        ),
-                    "components" to
-                        listOf(
-                            mapOf(
-                                "type" to 1,
-                                "components" to
-                                    listOf(
-                                        mapOf(
-                                            "type" to 2,
-                                            "style" to 5,
-                                            "label" to "지원 신청 확인",
-                                            "url" to "${appUrl.trimEnd('/')}/support/${supportRequest.id}",
+                        "components" to
+                            listOf(
+                                mapOf(
+                                    "type" to 1,
+                                    "components" to
+                                        listOf(
+                                            mapOf(
+                                                "type" to 2,
+                                                "style" to 5,
+                                                "label" to "지원 신청 확인",
+                                                "url" to "${appUrl.trimEnd('/')}/support/${supportRequest.id}",
+                                            ),
                                         ),
-                                    ),
+                                ),
                             ),
-                        ),
-                ),
-            )
+                    ),
+                )
+            }
         }.onFailure { error ->
             logger.error("Discord 전송 실패: supportRequestId={}, target=SYSTEM_ALERT_WEBHOOK", supportRequest.id, error)
         }

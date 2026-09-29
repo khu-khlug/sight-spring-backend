@@ -12,7 +12,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
+import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.reactive.function.client.WebClient
+import reactor.netty.http.client.HttpClient
+import reactor.netty.resources.ConnectionProvider
+import java.time.Duration
 
 @Configuration
 class DiscordConfig {
@@ -52,6 +57,22 @@ class DiscordConfig {
         val factory = HttpComponentsClientHttpRequestFactory(httpClient)
 
         return RestTemplate(factory)
+    }
+
+    @Bean
+    fun discordWebClient(): WebClient {
+        val connectionProvider =
+            ConnectionProvider.builder("discord-webclient-pool")
+                .maxConnections(100)
+                .maxIdleTime(Duration.ofSeconds(30))
+                .build()
+        val httpClient =
+            HttpClient.create(connectionProvider)
+                .responseTimeout(Duration.ofMillis(timeout.toLong()))
+
+        return WebClient.builder()
+            .clientConnector(ReactorClientHttpConnector(httpClient))
+            .build()
     }
 
     fun getBaseUrl(): String = baseUrl

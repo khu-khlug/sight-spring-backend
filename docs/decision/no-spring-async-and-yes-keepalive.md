@@ -82,6 +82,5 @@ Discord 도어락 알림 API(`/internal/door-lock/alert-die`)를 `suspend fun` +
 
 ## 참고
 
-- 파일 중계 벤치마크에 쓰인 임시 컨트롤러(`BenchFileRelayController`)와 모의 파일 서버 스크립트는 검증 목적으로만 만들었으며 저장소에는 포함하지 않았다.
-- Discord 웹훅 벤치마크에 쓰인 모의 서버·k6 스크립트는 `bench/`에 남겨뒀다.
-- Discord 웹훅 전송 경로(`DoorLockAlertService`, `SupportRequestService`)는 이 저장소 히스토리에서 sync+keep-alive → async+keep-alive → async(풀링 제거) 순서로 실제 코드를 바꿔가며 벤치마크했고, 최종적으로는 **동기 + keep-alive** 상태로 되돌려 확정했다. 각 단계의 코드는 커밋으로 남아 있어 체크아웃해서 재현할 수 있다.
+- 파일 중계 벤치마크에 쓰인 임시 컨트롤러(`BenchFileRelayController`)와 모의 파일 서버 스크립트, Discord 웹훅 벤치마크에 쓰인 모의 서버·k6 스크립트(`bench/`) 모두 검증 목적으로만 만들었으며 최종 상태의 저장소에는 포함하지 않았다.
+- Discord 웹훅 전송 경로(`DoorLockAlertService`, `SupportRequestService`)는 이 저장소 히스토리에서 sync+keep-alive → async+keep-alive → async(풀링 제거) 순서로 실제 코드와 벤치마크 스크립트를 바꿔가며 검증했고, 최종적으로는 **동기 + keep-alive** 상태로 되돌려 확정했다. 각 단계의 코드는 커밋으로 남아 있어 체크아웃해서 재현할 수 있다.

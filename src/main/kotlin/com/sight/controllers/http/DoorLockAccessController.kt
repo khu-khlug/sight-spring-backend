@@ -35,7 +35,7 @@ class DoorLockAccessController(
     @Auth([UserRole.SYSTEM])
     @PostMapping("/internal/door-lock/alert-die")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    suspend fun alertDoorLockDie(
+    fun alertDoorLockDie(
         @Valid @RequestBody request: AlertDoorLockDieRequest,
     ) {
         doorLockAlertService.alertDie(roomNumber = request.roomNumber!!)

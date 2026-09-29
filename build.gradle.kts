@@ -36,10 +36,9 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("net.dv8tion:JDA:5.0.0")
     implementation("com.github.f4b6a3:ulid-creator:5.2.3")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

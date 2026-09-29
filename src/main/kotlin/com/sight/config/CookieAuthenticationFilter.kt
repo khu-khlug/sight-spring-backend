@@ -17,8 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter
 class CookieAuthenticationFilter(
     private val authService: AuthService,
 ) : OncePerRequestFilter(), AuthenticationFilter {
-    override fun shouldNotFilterAsyncDispatch(): Boolean = false
-
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,

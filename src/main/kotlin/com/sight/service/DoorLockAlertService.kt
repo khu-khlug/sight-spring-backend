@@ -2,24 +2,46 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.room.CLUB_ROOM_LOCATIONS
-import com.sight.service.discord.DiscordWebhookAdapter
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Service
+import org.springframework.web.client.RestTemplate
 
 @Service
 class DoorLockAlertService(
-    private val discordWebhookAdapter: DiscordWebhookAdapter,
+    @param:Value("\${discord.webhook.door-lock-alert-url:}")
+    private val webhookUrl: String,
+    @param:Qualifier("discordRestTemplate")
+    private val restTemplate: RestTemplate,
 ) {
     private val logger = LoggerFactory.getLogger(DoorLockAlertService::class.java)
 
-    suspend fun alertDie(roomNumber: Int) {
+    fun alertDie(roomNumber: Int) {
         if (roomNumber !in CLUB_ROOM_LOCATIONS) {
             throw BadRequestException("유효하지 않은 방 번호입니다")
         }
 
+        if (webhookUrl.isBlank()) {
+            logger.warn("도어락 알림 웹훅 URL이 설정되지 않았습니다")
+            return
+        }
+
         try {
+            val headers =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
             val payload = mapOf("content" to "${roomNumber}호 $ALERT_MESSAGE")
-            discordWebhookAdapter.sendDoorLockAlert(payload)
+
+            restTemplate.postForEntity(
+                webhookUrl,
+                HttpEntity(payload, headers),
+                String::class.java,
+            )
         } catch (e: Exception) {
             logger.error("도어락 데몬 응답 없음 알림 전송 실패", e)
         }

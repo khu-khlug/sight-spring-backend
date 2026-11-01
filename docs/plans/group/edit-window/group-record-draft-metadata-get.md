@@ -44,5 +44,19 @@ USER and 그룹원
 | `draft.isNewRecord` | 불리언 | 새 기록 작성 중이면 true, 기존 기록 수정 중이면 false |
 | `draft.cardId` | 문자열 | 작성 중인 기록이 속한 카드 아이디 |
 | `draft.cardTitle` | 문자열 | 카드명 |
-| `draft.recordId` | 문자열 \| null | 수정 중인 기록 아이디. `isNewRecord`가 true이면 null |
+| `draft.recordId` | 숫자(Long) \| null | 수정 중인 기록 아이디. `isNewRecord`가 true이면 null |
 | `draft.updatedAt` | 문자열 | 마지막 저장 일시 (ISO 8601 UTC, `Z` 접미사) |
+
+## 테스트 케이스
+
+1. 그룹원은 이 그룹의 본인 임시저장 정보를 조회할 수 있다
+   - 200 응답과 함께 `draft` 메타데이터를 반환한다. 본문과 첨부 파일은 포함하지 않는다
+   - 카드 아이디는 문자열, 기록 아이디는 숫자(Long), `updatedAt`은 UTC ISO 8601 `Z` 형식이다
+2. 새 기록과 기존 기록 수정을 구분해 반환한다
+   - 새 기록 작성 중이면 `isNewRecord: true`·`recordId: null`, 기존 기록 수정 중이면 false와 그 기록 아이디를 반환한다
+3. 임시저장이 없거나 다른 그룹 것이면 `draft`가 null이다
+   - 404가 아니라 200 응답과 `draft: null`을 반환한다. 다른 그룹·다른 회원의 정보는 노출하지 않는다
+4. 그룹 상태와 관계없이 조회할 수 있다
+   - 중단·종료 그룹에서도 200 응답을 반환한다
+5. 그룹원만 조회할 수 있다
+   - 그룹원이 아니면 403, 인증되지 않으면 401, 그룹이 없으면 404 에러를 반환한다

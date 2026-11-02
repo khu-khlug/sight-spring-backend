@@ -32,6 +32,7 @@ USER and 그룹원
 | `type` | `TIPTAP` |
 | `isDeleted` | false |
 | `isInPortfolio` | true |
+| `isInUserArchive` | false (작성자도 보관하지 않은 상태로 시작) |
 
 ## 저장 처리
 
@@ -99,7 +100,7 @@ USER and 그룹원
 
 1. 그룹원은 카드에 기록을 작성할 수 있다
    - 본문과 `files`를 보내면 201 응답과 함께 생성된 기록과 `uploads`를 반환한다
-   - 작성자는 요청자, `type`은 `TIPTAP`, `isDeleted`는 false, `isInPortfolio`는 true다
+   - 작성자는 요청자, `type`은 `TIPTAP`, `isDeleted`는 false, `isInPortfolio`는 true, `isInUserArchive`는 false다
    - 카드·그룹의 기록 수를 1 늘리고, 요청자에게 +2 exp를 지급한다
    - 그룹원 전체에게 기록 작성 알림을 보내고, 기록 작성 로그를 남기고 최근 활동 일시를 갱신한다
 2. 본문은 비어 있지 않은 UTF-8 1 MiB 이하 문자열이다

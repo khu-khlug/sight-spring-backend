@@ -10,9 +10,7 @@
 | 입력 | `Accept` | `application/vnd.github+json` |
 | 입력 | `X-GitHub-Api-Version` | 백엔드가 사용하는 GitHub API 버전 |
 | 입력 | `If-None-Match` | 동일 요청 조건으로 저장한 ETag가 있을 때 원문 값 |
-| 입력 | `If-Modified-Since` | ETag가 없고 Last-Modified가 있을 때 저장된 값 |
 | 출력 | `ETag` | 해당 응답의 검증자. 제공되는 경우 보관 |
-| 출력 | `Last-Modified` | 최종 변경 시각. 제공되는 경우 보관 |
 | 출력 | `Link` | 페이지가 있는 API의 다음 페이지 등 링크 |
 | 출력 | `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-RateLimit-Used`, `X-RateLimit-Resource` | GitHub 호출 한도 정보 |
 | 출력 | `Retry-After` | 재시도 대기 시간. 제공되는 경우 사용 |

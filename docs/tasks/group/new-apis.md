@@ -93,10 +93,10 @@
 | `PUT /groups/:groupId/status/stop` | [그룹 활동 중단](../../plans/group/setting/group-status-stop.md) |
 | `PUT /groups/:groupId/status/progress` | [그룹 활동 재진행](../../plans/group/setting/group-status-progress.md) |
 | `PATCH /groups/user-preference` | [GitHub API 개인 사용량 사용 설정](../../plans/group/setting/user-github-preference-update.md) |
+| `GET /groups/user-preference` | [GitHub API 개인 사용량 설정 조회](../../plans/group/setting/user-github-preference-get.md) |
 
 ## 설계 문서가 아직 없는 API
 
 | 대상 | 제공할 데이터 |
 | :-- | :-- |
 | 접수 중인 세미나 조회 | 활동보고를 제출할 수 있는 세미나와 접수 기간 |
-| GitHub API 개인 사용량 설정 조회 | 요청자에게 저장된 개인 사용량 설정 |

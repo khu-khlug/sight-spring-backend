@@ -70,7 +70,11 @@ class GroupList(
     }
 
     // 보낸 항목만 바꾼다. 실제로 바뀌었으면 true를 반환한다.
-    fun update(title: String?, description: String?, at: Instant): Boolean {
+    fun update(
+        title: String?,
+        description: String?,
+        at: Instant,
+    ): Boolean {
         require(title != null || description != null) { "수정할 항목이 필요합니다." }
         val newTitle = title?.let { normalizeTitle(it) } ?: this.title
         val newDescription = description ?: this.description

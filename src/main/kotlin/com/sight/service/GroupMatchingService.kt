@@ -5,10 +5,9 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupVisibility
 import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.GroupMatchingAnswerOption
@@ -31,10 +30,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.Month
 import java.time.ZoneId
-import kotlin.random.Random
 
 @Service
 class GroupMatchingService(
@@ -220,9 +216,10 @@ class GroupMatchingService(
         groupId: Long,
         answerId: String,
     ) {
-        groupRepository.findById(groupId).orElseThrow {
-            NotFoundException("그룹을 찾을 수 없습니다")
-        }
+        val group =
+            groupRepository.findById(groupId).orElseThrow {
+                NotFoundException("그룹을 찾을 수 없습니다")
+            }
         val answer =
             groupMatchingAnswerRepository.findById(answerId).orElseThrow {
                 NotFoundException("답변을 찾을 수 없습니다")
@@ -232,7 +229,9 @@ class GroupMatchingService(
             throw BadRequestException("이미 그룹에 속한 멤버입니다")
         }
 
-        groupMemberRepository.save(groupId, answer.userId)
+        groupMemberRepository.save(groupId, answer.userId, Instant.now())
+        group.increaseMemberCount()
+        groupRepository.save(group)
 
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(
@@ -298,45 +297,27 @@ class GroupMatchingService(
                 GroupMatchingType.PRACTICAL_PROJECT -> GroupCategory.PROJECT
             }
 
+        val now = Instant.now()
         val newGroup =
             Group(
-                id = createNewGroupId(),
                 title = title,
-                author = leaderUserId,
-                master = leaderUserId,
-                state = GroupState.PROGRESS,
-                allowJoin = true,
+                description = null,
                 category = groupCategory,
-                grade = GroupAccessGrade.MEMBER,
-                countMember = answerIds.size.toLong(),
+                interests = null,
+                techStack = null,
+                repositoryUrls = null,
+                allowJoin = true,
+                visibility = GroupVisibility.MEMBER_ONLY,
+                authorMemberId = leaderUserId,
+                createdAt = now,
             )
-        groupRepository.save(newGroup)
+        repeat(userIds.size) { newGroup.increaseMemberCount() }
+        val savedGroup = groupRepository.save(newGroup)
 
-        val newGroupMembers = userIds.map { GroupMember(newGroup.id, it) }
+        val newGroupMembers = userIds.map { GroupMember(groupId = savedGroup.id, memberId = it, joinedAt = now) }
         groupMemberRepository.saveAll(newGroupMembers)
 
-        return newGroup.id
-    }
-
-    private fun createNewGroupId(): Long {
-        val minimumId = 1000000
-
-        val millisUntil20250101 =
-            LocalDateTime.of(
-                2025,
-                Month.JANUARY,
-                1,
-                0,
-                0,
-                0,
-            ).atZone(KST).toInstant().toEpochMilli()
-        val currentTimestamp = System.currentTimeMillis()
-
-        val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60 / 60
-
-        val randomPart = Random(currentTimestamp).nextLong(0L, 1000L)
-
-        return minimumId + timePart * 1000 + randomPart
+        return savedGroup.id
     }
 
     @Transactional

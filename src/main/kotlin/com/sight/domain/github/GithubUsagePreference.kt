@@ -56,7 +56,10 @@ class GithubUsagePreference(
     }
 
     // 사용 여부를 바꾼다. 같은 값이면 false를 반환한다.
-    fun changeUsage(usePersonalGithubUsage: Boolean, at: Instant): Boolean {
+    fun changeUsage(
+        usePersonalGithubUsage: Boolean,
+        at: Instant,
+    ): Boolean {
         if (this.usePersonalGithubUsage == usePersonalGithubUsage) return false
         if (usePersonalGithubUsage) {
             require(canEnable(at)) { "개인 사용량을 끈 뒤 7일이 지나야 다시 켤 수 있습니다." }

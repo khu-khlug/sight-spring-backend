@@ -84,7 +84,11 @@ class GroupRecord(
     fun isAuthor(memberId: Long): Boolean = authorMemberId == memberId
 
     // 본문을 바꾼다. 첨부 연결 목록이 바뀌었는지는 호출한 쪽이 알려 주며, 둘 중 하나라도 바뀌면 수정 일시를 갱신한다.
-    fun edit(content: String, isFileLinksChanged: Boolean, at: Instant): Boolean {
+    fun edit(
+        content: String,
+        isFileLinksChanged: Boolean,
+        at: Instant,
+    ): Boolean {
         require(type == GroupRecordType.TIPTAP) { "레거시 기록은 수정할 수 없습니다." }
         require(!isDeleted) { "삭제된 기록입니다." }
         validateContent(content)

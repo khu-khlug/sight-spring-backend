@@ -4,6 +4,7 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.file.FileUpload
+import com.sight.domain.file.testFileUpload
 import com.sight.repository.FileUploadRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -12,6 +13,7 @@ import org.mockito.kotlin.argThat
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import java.time.Instant
 import java.util.Optional
 import kotlin.test.assertFailsWith
 
@@ -20,13 +22,7 @@ class FileUploadServiceTest {
     private val storageService = mock<StorageService>()
     private lateinit var service: FileUploadService
 
-    private val baseFileUpload =
-        FileUpload(
-            id = "file-1",
-            fileKey = "key-1",
-            memberId = 10L,
-            apiPath = "/groups/1/activity-report/upload-link",
-        )
+    private val baseFileUpload = testFileUpload()
 
     @BeforeEach
     fun setUp() {
@@ -40,9 +36,18 @@ class FileUploadServiceTest {
 
     @Test
     fun `createUploadLink는 FileUpload를 저장하고 url, fileKey, fileUploadId를 반환한다`() {
-        val result = service.createUploadLink(memberId = 10L, apiPath = "/groups/1/activity-report/upload-link")
+        val result =
+            service.createUploadLink(
+                memberId = 10L,
+                apiPath = "/groups/1/activity-report/upload-link",
+                groupId = 1L,
+            )
 
-        verify(fileUploadRepository).save(argThat { memberId == 10L && apiPath == "/groups/1/activity-report/upload-link" })
+        verify(fileUploadRepository).save(
+            argThat {
+                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link" && groupId == 1L
+            },
+        )
         assert(result.url == "https://upload.example.com")
         assert(result.fileUploadId == "file-1")
     }
@@ -79,7 +84,7 @@ class FileUploadServiceTest {
     @Test
     fun `validateFileUpload는 apiPath가 불일치하면 422를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(baseFileUpload.copy(apiPath = "/other/path")),
+            Optional.of(testFileUpload(apiPath = "/other/path")),
         )
 
         assertFailsWith<UnprocessableEntityException> {
@@ -92,9 +97,9 @@ class FileUploadServiceTest {
     }
 
     @Test
-    fun `validateFileUpload는 memberId가 불일치하면 403을 반환한다`() {
+    fun `validateFileUpload는 발급자가 불일치하면 403을 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(baseFileUpload.copy(memberId = 99L)),
+            Optional.of(testFileUpload(uploaderMemberId = 99L)),
         )
 
         assertFailsWith<ForbiddenException> {
@@ -107,9 +112,24 @@ class FileUploadServiceTest {
     }
 
     @Test
-    fun `validateFileUpload는 isUsed가 true이면 422를 반환한다`() {
+    fun `validateFileUpload는 이미 업로드 완료된 파일이면 422를 반환한다`() {
         given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(baseFileUpload.copy(isUsed = true)),
+            Optional.of(testFileUpload(isUploaded = true)),
+        )
+
+        assertFailsWith<UnprocessableEntityException> {
+            service.validateFileUpload(
+                fileUploadId = "file-1",
+                memberId = 10L,
+                apiPath = "/groups/1/activity-report/upload-link",
+            )
+        }
+    }
+
+    @Test
+    fun `validateFileUpload는 삭제 표시된 파일이면 422를 반환한다`() {
+        given(fileUploadRepository.findById("file-1")).willReturn(
+            Optional.of(testFileUpload(deletedAt = Instant.parse("2025-01-02T00:00:00Z"))),
         )
 
         assertFailsWith<UnprocessableEntityException> {

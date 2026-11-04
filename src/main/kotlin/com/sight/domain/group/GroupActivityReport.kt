@@ -66,13 +66,18 @@ class GroupActivityReport(
     }
 
     // 보낸 항목만 바꾼다. 알림 종류를 정하도록 실제로 바뀐 항목을 구분해 반환한다.
-    fun change(isPresentation: Boolean?, reportFileUploadId: String?, at: Instant): ChangeResult {
+    fun change(
+        isPresentation: Boolean?,
+        reportFileUploadId: String?,
+        at: Instant,
+    ): ChangeResult {
         require(isPresentation != null || reportFileUploadId != null) { "수정할 항목이 필요합니다." }
         require(reportFileUploadId == null || reportFileUploadId.isNotBlank()) { "업로드 파일 식별자가 올바르지 않습니다." }
-        val result = ChangeResult(
-            isPresentationChanged = isPresentation != null && isPresentation != this.isPresentation,
-            isFileChanged = reportFileUploadId != null && reportFileUploadId != this.reportFileUploadId,
-        )
+        val result =
+            ChangeResult(
+                isPresentationChanged = isPresentation != null && isPresentation != this.isPresentation,
+                isFileChanged = reportFileUploadId != null && reportFileUploadId != this.reportFileUploadId,
+            )
         if (isPresentation != null) this.isPresentation = isPresentation
         if (reportFileUploadId != null) this.reportFileUploadId = reportFileUploadId
         if (result.isChanged) updatedAt = at

@@ -76,8 +76,11 @@ class GroupRecordDraft(
     fun belongsTo(groupId: Long): Boolean = this.groupId == groupId
 
     // 같은 그룹·카드·기록을 대상으로 하는지 여부. 다르면 기존 첨부 연결을 모두 해제해야 한다.
-    fun isSameTarget(groupId: Long, cardId: String, recordId: Long?): Boolean =
-        this.groupId == groupId && this.cardId == cardId && this.recordId == recordId
+    fun isSameTarget(
+        groupId: Long,
+        cardId: String,
+        recordId: Long?,
+    ): Boolean = this.groupId == groupId && this.cardId == cardId && this.recordId == recordId
 
     // 서버에 저장된 것보다 이른 시각의 내용인지 여부. 이르면 덮어쓰지 않는다.
     fun isNewerThan(updatedAt: Instant): Boolean = this.updatedAt.isAfter(updatedAt)
@@ -101,7 +104,11 @@ class GroupRecordDraft(
     }
 
     companion object {
-        private fun validateTarget(groupId: Long, cardId: String, recordId: Long?) {
+        private fun validateTarget(
+            groupId: Long,
+            cardId: String,
+            recordId: Long?,
+        ) {
             require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
             require(cardId.isNotBlank()) { "카드 식별자가 올바르지 않습니다." }
             require(recordId == null || recordId > 0) { "기록 식별자가 올바르지 않습니다." }

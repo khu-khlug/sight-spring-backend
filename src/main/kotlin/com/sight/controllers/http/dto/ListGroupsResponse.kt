@@ -1,7 +1,6 @@
 package com.sight.controllers.http.dto
 
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupState
 import java.time.LocalDateTime
 
 data class ListGroupsResponse(
@@ -18,7 +17,7 @@ data class GroupResponse(
     val id: Long,
     val category: GroupCategory,
     val title: String,
-    val state: GroupState,
+    val state: String,
     val countMember: Long,
     val allowJoin: Boolean,
     val createdAt: LocalDateTime,

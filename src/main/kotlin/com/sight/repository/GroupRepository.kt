@@ -17,8 +17,8 @@ interface GroupRepository : JpaRepository<Group, Long>, GroupRepositoryCustom {
             m.realname as memberRealName,
             m.number as memberNumber
         FROM khlug_group g
-        JOIN khlug_group_member gm ON g.id = gm.group
-        JOIN khlug_members m ON gm.member = m.id
+        JOIN khlug_group_member gm ON g.id = gm.group_id
+        JOIN khlug_members m ON gm.member_id = m.id
         WHERE g.id IN :groupIds
     """,
         nativeQuery = true,

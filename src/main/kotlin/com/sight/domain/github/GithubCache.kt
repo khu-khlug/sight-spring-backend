@@ -64,11 +64,12 @@ class GithubCache(
         validateEtag(etag)
     }
 
-    fun isExpired(at: Instant): Boolean = when (type) {
-        GithubCacheType.BRANCHES -> !at.isBefore(cachedAt.plus(Duration.ofMinutes(10)))
-        GithubCacheType.COMMITS -> !at.isBefore(cachedAt.plus(Duration.ofMinutes(1)))
-        GithubCacheType.FILE_TREE -> false
-    }
+    fun isExpired(at: Instant): Boolean =
+        when (type) {
+            GithubCacheType.BRANCHES -> !at.isBefore(cachedAt.plus(Duration.ofMinutes(10)))
+            GithubCacheType.COMMITS -> !at.isBefore(cachedAt.plus(Duration.ofMinutes(1)))
+            GithubCacheType.FILE_TREE -> false
+        }
 
     fun replaceContent(
         content: String,
@@ -91,7 +92,10 @@ class GithubCache(
     // 추가 커밋 페이지나 하위 트리 조회 결과를 기존 내용에 합친 전체 값을 받는다.
     // 기존 캐시와 같은 이력·트리임을 외부에서 확인한 뒤 호출한다. 추가 조회로 유효성을 확인했으므로 시각도 갱신한다.
     // 다른 이력이면 기존 내용을 합치지 말고 replaceContent로 새로 받은 내용만 저장한다.
-    fun supplementContent(content: String, at: Instant) {
+    fun supplementContent(
+        content: String,
+        at: Instant,
+    ) {
         require(type == GithubCacheType.COMMITS || type == GithubCacheType.FILE_TREE) {
             "커밋 또는 파일 트리 캐시만 내용을 보완할 수 있습니다."
         }

@@ -8,6 +8,7 @@ import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 data class UploadLinkResult(
     val url: String,
@@ -24,6 +25,7 @@ class FileUploadService(
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
+        groupId: Long?,
     ): UploadLinkResult {
         val fileKey = UlidCreator.getUlid().toString()
         val url = storageService.generateUploadUrl(fileKey)
@@ -32,8 +34,13 @@ class FileUploadService(
                 FileUpload(
                     id = UlidCreator.getUlid().toString(),
                     fileKey = fileKey,
-                    memberId = memberId,
+                    uploaderMemberId = memberId,
                     apiPath = apiPath,
+                    groupId = groupId,
+                    fileName = null,
+                    size = null,
+                    contentType = null,
+                    createdAt = Instant.now(),
                 ),
             )
         return UploadLinkResult(url = url, fileKey = fileKey, fileUploadId = fileUpload.id)
@@ -49,8 +56,9 @@ class FileUploadService(
             fileUploadRepository.findById(fileUploadId)
                 .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
         if (fileUpload.apiPath != apiPath) throw UnprocessableEntityException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
-        if (fileUpload.memberId != memberId) throw ForbiddenException("링크 발급자가 아닙니다.")
-        if (fileUpload.isUsed) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
+        if (!fileUpload.isIssuedBy(memberId)) throw ForbiddenException("링크 발급자가 아닙니다.")
+        if (fileUpload.isUploaded) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
+        if (fileUpload.isDeleted) throw UnprocessableEntityException("삭제 처리된 파일입니다.")
         if (!storageService.isFileExists(fileUpload.fileKey)) {
             throw NotFoundException("파일을 찾을 수 없습니다.")
         }
@@ -59,11 +67,17 @@ class FileUploadService(
 
     @Transactional
     fun markAsUsed(fileUpload: FileUpload) {
-        fileUploadRepository.save(fileUpload.copy(isUsed = true))
+        fileUpload.markUploaded()
+        fileUploadRepository.save(fileUpload)
     }
 
+    @Transactional(readOnly = true)
+    fun getFileUploadById(fileUploadId: String): FileUpload =
+        fileUploadRepository.findById(fileUploadId)
+            .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+
     @Transactional
-    fun deleteByFileKey(fileKey: String) {
-        fileUploadRepository.deleteByFileKey(fileKey)
+    fun deleteFileUpload(fileUploadId: String) {
+        fileUploadRepository.deleteById(fileUploadId)
     }
 }

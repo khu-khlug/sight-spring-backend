@@ -4,6 +4,7 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupDiscordChannel
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.GroupDiscordChannelRepository
@@ -12,6 +13,18 @@ import com.sight.repository.GroupRepository
 import com.sight.service.discord.DiscordApiAdapter
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+
+// 그룹 Discord 채널 API가 유지하는 응답 형식. 생성을 완료한 채널만 표현한다.
+data class GroupDiscordChannelInfo(
+    val id: String,
+    val groupId: Long,
+    val discordChannelId: String,
+    val createdAt: LocalDateTime,
+    val updatedAt: LocalDateTime,
+)
 
 @Service
 class GroupDiscordChannelService(
@@ -25,17 +38,17 @@ class GroupDiscordChannelService(
     fun createDiscordChannel(
         groupId: Long,
         requesterId: Long,
-    ): GroupDiscordChannel {
+    ): GroupDiscordChannelInfo {
         val group =
             groupRepository.findById(groupId).orElseThrow {
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.master != requesterId) {
+        if (!group.isLeader(requesterId)) {
             throw ForbiddenException("그룹장만 디스코드 채널을 생성할 수 있습니다")
         }
 
-        if (groupDiscordChannelRepository.existsByGroupId(groupId)) {
+        if (groupDiscordChannelRepository.findByGroupId(groupId) != null) {
             throw UnprocessableEntityException("이미 디스코드 채널이 존재합니다")
         }
 
@@ -43,19 +56,21 @@ class GroupDiscordChannelService(
             discordIntegrationRepository.findByUserId(requesterId)
                 ?: throw UnprocessableEntityException("요청자의 디스코드 연동 정보가 존재하지 않아 디스코드 채널을 만들 수 없습니다. 디스코드 연동을 먼저 진행해주세요.")
 
-        val channelName = generateChannelName(group.title)
-        val discordChannel = discordApiAdapter.createGroupPrivateTextChannel(channelName)
-
-        discordApiAdapter.addMemberToChannel(discordChannel.id, groupMasterDiscordIntegration.discordUserId)
-
         val groupDiscordChannel =
             GroupDiscordChannel(
                 id = UlidCreator.getUlid().toString(),
                 groupId = groupId,
-                discordChannelId = discordChannel.id,
+                createdAt = Instant.now(),
             )
 
-        return groupDiscordChannelRepository.save(groupDiscordChannel)
+        val channelName = generateChannelName(group.title)
+        val discordChannel = discordApiAdapter.createGroupPrivateTextChannel(channelName)
+        groupDiscordChannel.attachChannel(discordChannel.id)
+
+        discordApiAdapter.addMemberToChannel(discordChannel.id, groupMasterDiscordIntegration.discordUserId)
+        groupDiscordChannel.complete(Instant.now())
+
+        return groupDiscordChannelRepository.save(groupDiscordChannel).toInfo()
     }
 
     @Transactional
@@ -69,8 +84,8 @@ class GroupDiscordChannelService(
                 NotFoundException("그룹이 존재하지 않습니다")
             }
 
-        val groupDiscordChannel =
-            groupDiscordChannelRepository.findByGroupId(groupId)
+        val discordChannelId =
+            findCreatedDiscordChannel(groupId)?.discordChannelId
                 ?: throw NotFoundException("해당 그룹의 디스코드 채널이 아직 만들어지지 않았습니다. 디스코드 채널을 생성하고 다시 시도해주세요.")
 
         validateMemberAddPermission(group, memberId, requesterId)
@@ -83,15 +98,12 @@ class GroupDiscordChannelService(
             discordIntegrationRepository.findByUserId(memberId)
                 ?: throw UnprocessableEntityException("해당 멤버의 디스코드 연동 정보가 존재하지 않습니다")
 
-        discordApiAdapter.addMemberToChannel(
-            groupDiscordChannel.discordChannelId,
-            discordIntegration.discordUserId,
-        )
+        discordApiAdapter.addMemberToChannel(discordChannelId, discordIntegration.discordUserId)
     }
 
     @Transactional(readOnly = true)
-    fun getDiscordChannelByGroupId(groupId: Long): GroupDiscordChannel {
-        return groupDiscordChannelRepository.findByGroupId(groupId)
+    fun getDiscordChannelByGroupId(groupId: Long): GroupDiscordChannelInfo {
+        return findCreatedDiscordChannel(groupId)?.toInfo()
             ?: throw NotFoundException("해당 그룹의 디스코드 채널이 존재하지 않습니다")
     }
 
@@ -100,26 +112,27 @@ class GroupDiscordChannelService(
         groupId: Long,
         userId: Long,
     ): Boolean {
-        val groupDiscordChannel =
-            groupDiscordChannelRepository.findByGroupId(groupId)
+        val discordChannelId =
+            findCreatedDiscordChannel(groupId)?.discordChannelId
                 ?: throw NotFoundException("해당 그룹이 아직 디스코드 채널을 생성하지 않았습니다.")
 
         val discordIntegration =
             discordIntegrationRepository.findByUserId(userId)
                 ?: return false
 
-        return discordApiAdapter.isUserInChannel(
-            groupDiscordChannel.discordChannelId,
-            discordIntegration.discordUserId,
-        )
+        return discordApiAdapter.isUserInChannel(discordChannelId, discordIntegration.discordUserId)
     }
 
+    // 생성을 완료해 Discord 채널이 연결된 행만 사용한다.
+    private fun findCreatedDiscordChannel(groupId: Long): GroupDiscordChannel? =
+        groupDiscordChannelRepository.findByGroupId(groupId)?.takeIf { it.isCreated }
+
     private fun validateMemberAddPermission(
-        group: com.sight.domain.group.Group,
+        group: Group,
         memberId: Long,
         requesterId: Long,
     ) {
-        if (group.master == requesterId) {
+        if (group.isLeader(requesterId)) {
             return
         }
 
@@ -137,5 +150,16 @@ class GroupDiscordChannelService(
             .replace(Regex("[^a-z0-9가-힣\\s]"), "")
             .replace(Regex("\\s+"), "-")
             .take(100)
+    }
+
+    private fun GroupDiscordChannel.toInfo(): GroupDiscordChannelInfo {
+        val createdAt = LocalDateTime.ofInstant(this.createdAt, ZoneOffset.UTC)
+        return GroupDiscordChannelInfo(
+            id = id,
+            groupId = groupId,
+            discordChannelId = checkNotNull(discordChannelId) { "Discord 채널이 연결되지 않았습니다." },
+            createdAt = createdAt,
+            updatedAt = completedAt?.let { LocalDateTime.ofInstant(it, ZoneOffset.UTC) } ?: createdAt,
+        )
     }
 }

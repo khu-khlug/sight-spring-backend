@@ -69,7 +69,7 @@ USER and 열람권한
 | `isInPortfolio` | 불리언 | 카드의 포트폴리오 포함 여부. 그룹의 발행 상태와 구분 |
 | `assigneeUserId` | 숫자(Long) 또는 null | 담당 회원 아이디. 미지정 시 null |
 | `assigneeName` | 문자열 또는 null | 담당 회원 실명. 미지정 시 null |
-| `coverImageUrl` | 문자열 또는 null | 커버 이미지 주소. 커버가 없으면 null |
+| `coverImageUrl` | 문자열 또는 null | 업로드한 커버 이미지의 읽기 링크. 커버가 없으면 null |
 | `labels` | 문자열 배열 | [카드 레이블 변경](../card-window/group-card-labels-update.md)의 레이블 값 |
 | `isDisabled` | 불리언 | 비활성 여부. 삭제 여부와 구분 |
 | `createdAt` | 문자열 | 생성 일시. [그룹 공통 시각 표기](../global.md#그룹-api-시각-표기-utc)를 따름 |

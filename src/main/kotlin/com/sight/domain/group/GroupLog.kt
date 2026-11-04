@@ -13,9 +13,10 @@ import java.time.Instant
 
 // 그룹 활동 로그. 이름·제목 등은 발생 당시 값으로 저장하며 대상이 바뀌거나 삭제돼도 덮어쓰지 않는다.
 @Entity
+// 인덱스(group_id, created_at, id): 그룹 로그를 최신순으로 조회.
 @Table(
     name = "khlug_group_log",
-    indexes = [Index(columnList = "group_id, id")],
+    indexes = [Index(columnList = "group_id, created_at, id")],
 )
 class GroupLog(
     groupId: Long,

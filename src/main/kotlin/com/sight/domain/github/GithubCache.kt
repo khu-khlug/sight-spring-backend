@@ -11,6 +11,7 @@ import java.time.Duration
 import java.time.Instant
 
 @Entity
+// 인덱스 없음: 기본 키가 캐시 키이고, 오래된 캐시 교체는 최대 1,000행이라 전체 조회로 충분하다.
 @Table(name = "github_cache")
 class GithubCache(
     id: String,

@@ -8,6 +8,7 @@ import jakarta.persistence.UniqueConstraint
 import java.time.Instant
 
 @Entity
+// 유니크(group_id, seminar_id): 같은 세미나에 한 번만 제출, 그룹별 활동보고 조회.
 @Table(
     name = "khlug_group_activity_report",
     uniqueConstraints = [UniqueConstraint(columnNames = ["group_id", "seminar_id"])],

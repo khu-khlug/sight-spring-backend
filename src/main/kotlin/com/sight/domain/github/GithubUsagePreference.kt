@@ -13,6 +13,7 @@ import java.time.Instant
 // 저장소 조회에 회원 개인의 GitHub API 사용량을 쓸지 정한 회원 전역 설정. 모든 그룹에 같게 적용한다.
 // 설정한 적 없는 회원은 행이 없으며 사용하지 않는 것(false)으로 본다.
 @Entity
+// 유니크(member_id): 회원당 설정 행 하나.
 @Table(
     name = "github_usage_preference",
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],

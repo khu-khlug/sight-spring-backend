@@ -5,14 +5,18 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.Instant
 
 @Entity
+// 유니크(group_id, member_id): 중복 참가 방지, 그룹별 그룹원 조회.
+// 인덱스(member_id): 회원이 참가한 그룹 조회(그룹 목록 joined 필터).
 @Table(
     name = "khlug_group_member",
     uniqueConstraints = [UniqueConstraint(columnNames = ["group_id", "member_id"])],
+    indexes = [Index(columnList = "member_id")],
 )
 class GroupMember(
     groupId: Long,

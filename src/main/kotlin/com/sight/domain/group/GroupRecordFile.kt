@@ -12,6 +12,8 @@ import jakarta.persistence.UniqueConstraint
 // 기록 첨부 파일의 연결 행. "소유자 + 기록 파일 식별자 → 업로드 기록"을 저장한다.
 // 소유자는 기록 또는 회원의 임시저장 중 정확히 하나다. 업로드 기록을 가리키는 연결 행이 하나 이상이면 그 파일은 사용 중이다.
 @Entity
+// 유니크(record_id·draft_id, file_identifier): 기록 파일 식별자는 소유자 안에서 유일.
+// 인덱스(file_upload_id): 파일을 가리키는 연결이 남았는지 확인.
 @Table(
     name = "khlug_group_record_file",
     uniqueConstraints = [

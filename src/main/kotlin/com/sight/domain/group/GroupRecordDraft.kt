@@ -11,6 +11,7 @@ import java.time.Instant
 
 // 회원의 기록 임시저장. 회원당 하나뿐이며 저장하면 기존 임시저장을 대체한다.
 @Entity
+// 유니크(member_id): 임시저장은 회원당 하나.
 @Table(
     name = "khlug_group_record_draft",
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],

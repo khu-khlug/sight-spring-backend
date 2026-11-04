@@ -8,6 +8,7 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
+// 인덱스(group_id, position, id): 그룹의 리스트를 표시 순서로 조회.
 @Table(
     name = "khlug_group_list",
     indexes = [Index(columnList = "group_id, position, id")],

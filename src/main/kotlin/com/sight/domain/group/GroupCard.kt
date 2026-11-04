@@ -10,6 +10,9 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
+// 인덱스(list_id, position, id): 리스트의 카드를 표시 순서로 조회, 순서 변경 시 구간 잠금.
+// 인덱스(group_id, deleted_at, id): 삭제된 카드 목록, 그룹의 삭제되지 않은 카드.
+// 작성자·수정 시각 인덱스 없음: 회원별 개수·검색 정렬은 그룹 단위로 좁힌 뒤 처리해도 충분하다.
 @Table(
     name = "khlug_group_card",
     indexes = [
@@ -64,12 +67,7 @@ class GroupCard(
     var assigneeMemberId: Long? = null
         private set
 
-    // 외부 이미지 커버 주소. 업로드 파일 커버와 동시에 가질 수 없다.
-    @Column(name = "cover_image_url", columnDefinition = "TEXT")
-    var coverImageUrl: String? = null
-        private set
-
-    // 업로드한 커버 파일의 업로드 기록. 외부 이미지 커버와 동시에 가질 수 없다.
+    // 커버 이미지의 업로드 기록. 커버는 사이트에 업로드한 이미지만 쓰며, 커버가 없으면 null이다.
     @Column(name = "cover_file_upload_id", length = 100)
     var coverFileUploadId: String? = null
         private set
@@ -177,23 +175,9 @@ class GroupCard(
         return true
     }
 
-    // 외부 이미지 주소를 커버로 지정한다. 같은 주소면 false를 반환한다.
-    // 기존 커버가 업로드 파일이었으면 그 파일의 삭제는 호출한 쪽이 같은 트랜잭션에서 처리한다.
-    fun changeCoverToImageUrl(
-        url: String,
-        at: Instant,
-    ): Boolean {
-        require(HTTP_URL_PATTERN.matches(url)) { "커버 이미지 주소는 http 또는 https 주소여야 합니다." }
-        requireEditable()
-        if (coverImageUrl == url) return false
-        coverImageUrl = url
-        coverFileUploadId = null
-        updatedAt = at
-        return true
-    }
-
     // 업로드 파일을 커버로 지정한다. 업로드 파일은 매번 새로 발급받으므로 항상 바뀐다.
-    fun changeCoverToFile(
+    // 기존 커버 파일의 삭제는 호출한 쪽이 같은 트랜잭션에서 처리한다.
+    fun changeCover(
         fileUploadId: String,
         at: Instant,
     ) {
@@ -201,15 +185,13 @@ class GroupCard(
         requireEditable()
         require(coverFileUploadId != fileUploadId) { "이미 커버로 사용 중인 파일입니다." }
         coverFileUploadId = fileUploadId
-        coverImageUrl = null
         updatedAt = at
     }
 
     // 커버를 제거한다. 커버가 없으면 false를 반환한다.
     fun removeCover(at: Instant): Boolean {
         requireEditable()
-        if (coverImageUrl == null && coverFileUploadId == null) return false
-        coverImageUrl = null
+        if (coverFileUploadId == null) return false
         coverFileUploadId = null
         updatedAt = at
         return true
@@ -315,8 +297,6 @@ class GroupCard(
         const val ID_MAX_LENGTH: Int = 100
         const val TITLE_MAX_LENGTH: Int = 255
         const val DESCRIPTION_MAX_BYTES: Int = 4096
-
-        private val HTTP_URL_PATTERN = Regex("^https?://\\S+$", RegexOption.IGNORE_CASE)
 
         private fun normalizeTitle(title: String): String {
             val trimmed = title.trim()

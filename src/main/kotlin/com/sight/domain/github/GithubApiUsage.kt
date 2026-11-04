@@ -7,11 +7,11 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import jakarta.persistence.Version
 import java.time.Duration
 import java.time.Instant
 
 @Entity
+// 유니크(member_id): 회원당 사용량 행 하나, 첫 행 동시 생성 방지.
 @Table(
     name = "github_api_usage",
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],
@@ -45,12 +45,6 @@ class GithubApiUsage(
     // 한도 소모 시 usedCount로 옮기고, 변경 없음(304)이나 미전송이면 이 값만 줄인다.
     @Column(name = "pending_count", nullable = false)
     var pendingCount: Int = 0
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 동시에 같은 사용량 행을 갱신할 때 증가분이 유실되는 충돌을 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

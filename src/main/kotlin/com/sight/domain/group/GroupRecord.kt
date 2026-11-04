@@ -12,6 +12,8 @@ import jakarta.persistence.Table
 import java.time.Instant
 
 @Entity
+// 인덱스(card_id, deleted_at): 카드의 기록 조회.
+// 정렬 시각 인덱스 없음: 카드당 기록 수가 적어 좁힌 뒤 정렬해도 충분하다.
 @Table(
     name = "khlug_group_record",
     indexes = [Index(columnList = "card_id, deleted_at")],

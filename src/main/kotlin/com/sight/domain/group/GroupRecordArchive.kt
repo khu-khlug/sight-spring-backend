@@ -5,17 +5,17 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import jakarta.persistence.Index
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.Instant
 
 // 회원의 기록 개인 보관. 원본을 복제하지 않고 회원과 기록의 연결만 저장한다.
 @Entity
+// 유니크(member_id, record_id): 같은 기록 중복 보관 방지, 회원별 보관 조회.
+// 보관 일시 인덱스 없음: 회원당 보관 수가 적어 좁힌 뒤 정렬해도 충분하다.
 @Table(
     name = "khlug_group_record_archive",
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id", "record_id"])],
-    indexes = [Index(columnList = "member_id, group_id, saved_at")],
 )
 class GroupRecordArchive(
     memberId: Long,

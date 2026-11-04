@@ -12,6 +12,7 @@ import java.time.Instant
 
 // JPQL 엔티티 이름 Group은 예약어 GROUP과 겹치므로 KhlugGroup을 쓴다.
 @Entity(name = "KhlugGroup")
+// 인덱스 없음: 그룹 수가 적어 목록 필터·정렬은 전체 조회로 충분하다.
 @Table(name = "khlug_group")
 class Group(
     title: String,

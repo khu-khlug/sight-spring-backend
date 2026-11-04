@@ -10,6 +10,7 @@ import jakarta.persistence.UniqueConstraint
 import java.time.Instant
 
 @Entity
+// 유니크(member_id, group_id): 중복 즐겨찾기 방지, 회원별 즐겨찾기 조회.
 @Table(
     name = "khlug_group_bookmark",
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id", "group_id"])],

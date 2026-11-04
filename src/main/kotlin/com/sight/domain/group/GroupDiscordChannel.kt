@@ -11,6 +11,7 @@ import java.time.Instant
 
 // 그룹 채팅방인 Discord 채널. 그룹당 하나이며, Discord 호출 전에 생성 작업으로 먼저 저장해 중간 실패를 복구한다.
 @Entity
+// 유니크(group_id): 그룹당 채널 하나, 동시 생성 방지.
 @Table(
     name = "khlug_group_discord_channel",
     uniqueConstraints = [UniqueConstraint(columnNames = ["group_id"])],

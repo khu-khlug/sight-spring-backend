@@ -11,6 +11,7 @@ import java.time.Instant
 
 // 회원의 그룹 Discord 채널 참여. Discord 호출 전에 참여 작업으로 먼저 저장해, Discord 참여 후 완료 기록이 실패해도 재요청에서 이어서 완료한다.
 @Entity
+// 유니크(discord_channel_id, member_id): 회원·채널별 참여 작업은 하나.
 @Table(
     name = "khlug_group_discord_channel_member",
     uniqueConstraints = [UniqueConstraint(columnNames = ["discord_channel_id", "member_id"])],

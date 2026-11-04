@@ -1,7 +1,6 @@
 package com.sight.domain.group
 
 import jakarta.persistence.Column
-import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -54,10 +53,9 @@ class Group(
     var status: GroupStatus = GroupStatus.PROGRESS
         private set
 
-    // 관심 분야 목록. null과 빈 목록을 구분해 저장한다.
-    @Convert(converter = GroupInterestListConverter::class)
+    // 관심 분야 enum 이름을 쉼표로 이은 문자열. null과 빈 목록(빈 문자열)을 구분해 저장한다.
     @Column(name = "interests", length = 255)
-    var interests: List<GroupInterest>? = interests
+    var interestNames: String? = toInterestNames(interests)
         private set
 
     // 쉼표로 구분한 사용 기술. 사용 기술이 없으면 null이다.
@@ -138,6 +136,10 @@ class Group(
         this.repositoryUrls = normalizeRepositoryUrls(repositoryUrls)
     }
 
+    // 관심 분야 목록. 저장값이 null이면 null, 빈 문자열이면 빈 목록이다.
+    val interests: List<GroupInterest>?
+        get() = fromInterestNames(interestNames)
+
     val isEnded: Boolean
         get() = status.isEnded
 
@@ -186,7 +188,7 @@ class Group(
         this.title = newTitle
         this.description = description
         this.category = category
-        this.interests = interests
+        this.interestNames = toInterestNames(interests)
         this.techStack = newTechStack
         this.repositoryUrls = newRepositoryUrls
         this.allowJoin = allowJoin
@@ -293,6 +295,19 @@ class Group(
         const val REPOSITORY_URL_SEPARATOR: String = "\n"
 
         private val HTTP_URL_PATTERN = Regex("^https?://\\S+$", RegexOption.IGNORE_CASE)
+
+        private const val INTEREST_SEPARATOR: String = ","
+
+        private fun toInterestNames(interests: List<GroupInterest>?): String? = interests?.joinToString(INTEREST_SEPARATOR) { it.name }
+
+        // 저장된 값에 허용하지 않는 이름이 있으면 데이터 오류이므로 예외를 던진다.
+        private fun fromInterestNames(interestNames: String?): List<GroupInterest>? {
+            if (interestNames == null) return null
+            if (interestNames.isEmpty()) return emptyList()
+            return interestNames.split(INTEREST_SEPARATOR).map { name ->
+                requireNotNull(GroupInterest.entries.find { it.name == name }) { "허용하지 않는 관심 분야입니다: $name" }
+            }
+        }
 
         private fun String.codePointLength(): Int = codePointCount(0, length)
 

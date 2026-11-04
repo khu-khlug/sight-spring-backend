@@ -8,7 +8,7 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
 import com.sight.core.room.CLUB_ROOM_LOCATIONS
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupStatus
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleMemberApply
@@ -252,7 +252,7 @@ class ScheduleService(
     ): Schedule {
         val group =
             groupRepository.findById(groupId).orElseThrow { NotFoundException("존재하지 않는 그룹입니다.") }
-        if (group.state != GroupState.PROGRESS) {
+        if (group.status != GroupStatus.PROGRESS) {
             throw BadRequestException("진행 중인 그룹만 그룹 활동 일정을 등록할 수 있습니다.")
         }
         if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requester.userId)) {

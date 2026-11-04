@@ -1,14 +1,19 @@
 package com.sight.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.sight.core.exception.ForbiddenException
-import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupLog
+import com.sight.domain.group.GroupLogType
+import com.sight.domain.member.Member
+import com.sight.domain.member.StudentStatus
+import com.sight.domain.member.UserStatus
 import com.sight.repository.GroupLogRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.repository.dto.GroupLogListDto
+import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -17,72 +22,96 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import java.time.LocalDateTime
+import java.time.Instant
+import java.util.Optional
 
 class GroupLogServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
     private val groupLogRepository = mock<GroupLogRepository>()
+    private val memberRepository = mock<MemberRepository>()
+    private val objectMapper = ObjectMapper()
     private val groupLogService =
         GroupLogService(
             groupRepository = groupRepository,
             groupMemberRepository = groupMemberRepository,
             groupLogRepository = groupLogRepository,
+            memberRepository = memberRepository,
+            objectMapper = objectMapper,
+        )
+
+    private fun createMember(id: Long) =
+        Member(
+            id = id,
+            name = "user$id",
+            realname = "이름$id",
+            admission = "19",
+            college = "공과대학",
+            grade = 3L,
+            studentStatus = StudentStatus.UNDERGRADUATE,
+            status = UserStatus.ACTIVE,
         )
 
     @Test
-    fun `listGroupLogs는 그룹 멤버에게 로그 목록과 전체 count를 반환한다`() {
+    fun `listGroupLogs는 그룹 멤버에게 로그 목록과 전체 개수를 반환한다`() {
         // given
         val groupId = 100L
         val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
         given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
-        given(groupRepository.findGroupLogsByGroupId(groupId, 0, 100)).willReturn(
+        given(groupRepository.findGroupLogsByGroupIdOrderByLatest(groupId, 0, GroupLogService.PAGE_SIZE)).willReturn(
             listOf(
-                GroupLogListDto(
-                    id = 10L,
-                    memberId = 1L,
-                    message = "참여",
-                    createdAt = LocalDateTime.of(2026, 5, 1, 12, 0),
+                GroupLog(
+                    groupId = groupId,
+                    actorMemberId = 1L,
+                    actorName = "이름1",
+                    logType = GroupLogType.GROUP_MEMBER_JOINED,
+                    logData = "{}",
+                    createdAt = Instant.parse("2026-05-01T03:00:00Z"),
                 ),
-                GroupLogListDto(
-                    id = 9L,
-                    memberId = 0L,
-                    message = "시스템 로그",
-                    createdAt = LocalDateTime.of(2026, 4, 30, 12, 0),
+                GroupLog(
+                    groupId = groupId,
+                    actorMemberId = null,
+                    actorName = null,
+                    logType = GroupLogType.LEGACY,
+                    logData = """{"html":"<b>시스템 로그</b>"}""",
+                    createdAt = Instant.parse("2026-04-30T03:00:00Z"),
                 ),
             ),
         )
         given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(257L)
 
         // when
-        val result = groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 0, limit = 100)
+        val result = groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 0)
 
         // then
-        assertEquals(257L, result.count)
-        assertEquals(2, result.logs.size)
-        assertEquals(10L, result.logs[0].id)
-        assertEquals(1L, result.logs[0].memberId)
-        assertEquals(0L, result.logs[1].memberId)
+        assertEquals(0, result.skip)
+        assertEquals(257L, result.totalCount)
+        assertEquals(2, result.receivedCount)
+        assertEquals(1L, result.logs[0].actor?.userId)
+        assertEquals("이름1", result.logs[0].actor?.name)
+        assertEquals(GroupLogType.GROUP_MEMBER_JOINED, result.logs[0].logType)
+        assertEquals(emptyMap<String, Any?>(), result.logs[0].logData)
+        assertNull(result.logs[1].actor)
+        assertEquals(mapOf("html" to "<b>시스템 로그</b>"), result.logs[1].logData)
     }
 
     @Test
-    fun `listGroupLogs는 offset과 limit를 그대로 레포지토리에 전달한다`() {
+    fun `listGroupLogs는 skip을 offset으로, 한 번에 최대 50개를 레포지토리에 요청한다`() {
         // given
         val groupId = 100L
         val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
         given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
-        given(groupRepository.findGroupLogsByGroupId(groupId, 50, 20)).willReturn(emptyList())
+        given(groupRepository.findGroupLogsByGroupIdOrderByLatest(groupId, 50, 50)).willReturn(emptyList())
         given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(0L)
 
         // when
-        groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 50, limit = 20)
+        groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 50)
 
         // then
-        verify(groupRepository).findGroupLogsByGroupId(eq(groupId), eq(50), eq(20))
+        verify(groupRepository).findGroupLogsByGroupIdOrderByLatest(eq(groupId), eq(50), eq(50))
     }
 
     @Test
@@ -92,7 +121,7 @@ class GroupLogServiceTest {
 
         // then
         assertThrows<NotFoundException> {
-            groupLogService.listGroupLogs(groupId = 999L, requesterId = 1L, offset = 0, limit = 100)
+            groupLogService.listGroupLogs(groupId = 999L, requesterId = 1L, skip = 0)
         }
     }
 
@@ -106,45 +135,59 @@ class GroupLogServiceTest {
 
         // then
         assertThrows<ForbiddenException> {
-            groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, offset = 0, limit = 100)
+            groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 0)
         }
     }
 
     @Test
-    fun `createLog는 충돌 없는 ID로 로그를 저장한다`() {
-        // given - 채번한 ID가 비어 있음
-        given(groupLogRepository.existsById(any())).willReturn(false)
+    fun `createLog는 행위자 실명과 로그데이터 JSON을 함께 저장한다`() {
+        // given
+        given(memberRepository.findById(1L)).willReturn(Optional.of(createMember(1L)))
 
         // when
-        groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트 메시지")
+        groupLogService.createLog(
+            groupId = 100L,
+            actorMemberId = 1L,
+            logType = GroupLogType.GROUP_MEMBER_KICKED,
+            logData = mapOf("targetUserId" to 2L, "targetUserName" to "이름2", "targetUserCollege" to "공과대학"),
+        )
 
         // then
         verify(groupLogRepository).save(
-            argThat<GroupLog> { group == 100L && member == 1L && message == "테스트 메시지" },
+            argThat<GroupLog> {
+                groupId == 100L &&
+                    actorMemberId == 1L &&
+                    actorName == "이름1" &&
+                    logType == GroupLogType.GROUP_MEMBER_KICKED &&
+                    objectMapper.readTree(logData)["targetUserId"].asLong() == 2L
+            },
         )
     }
 
     @Test
-    fun `createLog는 ID 충돌 시 빈 ID를 찾을 때까지 재채번한다`() {
-        // given - 2번 충돌 후 3번째 빈 ID
-        given(groupLogRepository.existsById(any())).willReturn(true, true, false)
-
-        // when
-        groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
-
-        // then - existsById 3번 확인 후 save 1번
-        verify(groupLogRepository, times(3)).existsById(any())
-        verify(groupLogRepository).save(any())
+    fun `createLog는 로그타입의 필수 필드가 없으면 저장하지 않는다`() {
+        // then
+        assertThrows<IllegalArgumentException> {
+            groupLogService.createLog(
+                groupId = 100L,
+                actorMemberId = 1L,
+                logType = GroupLogType.GROUP_MEMBER_KICKED,
+                logData = mapOf("targetUserId" to 2L),
+            )
+        }
+        verify(groupLogRepository, never()).save(any())
     }
 
     @Test
-    fun `createLog는 빈 ID를 찾지 못하면 InternalServerErrorException을 던진다`() {
-        // given - 항상 충돌
-        given(groupLogRepository.existsById(any())).willReturn(true)
-
+    fun `createLog는 신규 로그를 LEGACY로 저장하지 않는다`() {
         // then
-        assertThrows<InternalServerErrorException> {
-            groupLogService.createLog(groupId = 100L, memberId = 1L, message = "테스트")
+        assertThrows<IllegalArgumentException> {
+            groupLogService.createLog(
+                groupId = 100L,
+                actorMemberId = 1L,
+                logType = GroupLogType.LEGACY,
+                logData = mapOf("html" to "<b>로그</b>"),
+            )
         }
         verify(groupLogRepository, never()).save(any())
     }

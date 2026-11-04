@@ -4,10 +4,10 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupPolicy
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupVisibility
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.notification.NotificationCategory
@@ -17,7 +17,7 @@ import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.util.HtmlUtils
-import java.time.LocalDateTime
+import java.time.Instant
 
 data class GroupMemberListItem(
     val userId: Long,
@@ -62,7 +62,7 @@ class GroupMemberService(
         val members = groupMemberRepository.findMemberListByGroupId(groupId)
         val sorted =
             members
-                .map { it.toItem(masterId = group.master) }
+                .map { it.toItem(group) }
                 .sortedWith(compareByDescending<GroupMemberListItem> { it.isLeader }.thenBy { it.userId })
 
         return GroupMemberListResult(members = sorted)
@@ -73,19 +73,19 @@ class GroupMemberService(
         requester: Member,
         isMember: Boolean,
     ): Boolean =
-        when (group.grade) {
-            GroupAccessGrade.PRIVATE -> isMember || group.author == requester.id
-            GroupAccessGrade.MANAGER -> requester.manager
-            GroupAccessGrade.MEMBER -> requester.studentStatus != StudentStatus.UNITED
-            GroupAccessGrade.ALL -> true
+        when (group.visibility) {
+            GroupVisibility.PRIVATE -> isMember || group.authorMemberId == requester.id
+            GroupVisibility.MANAGER_ONLY -> requester.manager
+            GroupVisibility.MEMBER_ONLY -> requester.studentStatus != StudentStatus.UNITED
+            GroupVisibility.PUBLIC -> true
         }
 
-    private fun com.sight.repository.dto.GroupMemberListDto.toItem(masterId: Long): GroupMemberListItem =
+    private fun com.sight.repository.dto.GroupMemberListDto.toItem(group: Group): GroupMemberListItem =
         GroupMemberListItem(
             userId = this.userId,
             name = this.name,
             realname = this.realname,
-            isLeader = this.userId == masterId,
+            isLeader = group.isLeader(this.userId),
         )
 
     @Transactional
@@ -99,7 +99,7 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.master != requesterId) {
+        if (!group.isLeader(requesterId)) {
             throw ForbiddenException("그룹장만 위임할 수 있습니다")
         }
 
@@ -121,17 +121,28 @@ class GroupMemberService(
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        saveWithTouch(group.copy(master = newMasterId))
+        group.changeLeader(newMasterId)
+        saveWithActivity(group)
 
-        val logMessage =
-            "그룹장이 ${oldMaster.college} ${oldMaster.realname}에서 " +
-                "${newMaster.college} ${newMaster.realname}에게 위임되었습니다."
-        groupLogService.createLog(groupId, requesterId, logMessage)
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            logType = GroupLogType.GROUP_LEADER_DELEGATED,
+            logData =
+                mapOf(
+                    "fromUserId" to oldMaster.id,
+                    "fromUserName" to oldMaster.realname,
+                    "fromUserCollege" to oldMaster.college,
+                    "toUserId" to newMaster.id,
+                    "toUserName" to newMaster.realname,
+                    "toUserCollege" to newMaster.college,
+                ),
+        )
 
         val notificationContent =
             "<a href=\"/group/$groupId#member\"><u>${HtmlUtils.htmlEscape(group.title)}</u></a> " +
                 "그룹장이 ${newMaster.realname}에게 위임되었습니다."
-        val memberIds = groupMemberRepository.findByGroupId(groupId).map { it.member }
+        val memberIds = groupMemberRepository.findByGroupId(groupId).map { it.memberId }
         memberIds.forEach { memberId ->
             notificationService.createNotification(
                 userId = memberId,
@@ -166,7 +177,7 @@ class GroupMemberService(
             throw ForbiddenException("이 그룹은 참여가 제한되어 있습니다")
         }
 
-        if (group.state !in setOf(GroupState.PROGRESS, GroupState.SUSPEND)) {
+        if (group.isEnded) {
             throw BadRequestException("참여할 수 없는 그룹 상태입니다")
         }
 
@@ -174,9 +185,14 @@ class GroupMemberService(
             throw BadRequestException("이미 그룹 멤버입니다")
         }
 
-        groupMemberRepository.save(groupId, requesterId)
+        groupMemberRepository.save(groupId, requesterId, Instant.now())
 
-        groupLogService.createLog(groupId, requesterId, "그룹에 참여했습니다.")
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            logType = GroupLogType.GROUP_MEMBER_JOINED,
+            logData = emptyMap(),
+        )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
         val notificationContent =
@@ -191,9 +207,9 @@ class GroupMemberService(
 
         val additionalRecipients =
             if (group.category == GroupCategory.MANAGE) {
-                groupMemberRepository.findByGroupId(groupId).map { it.member }
+                groupMemberRepository.findByGroupId(groupId).map { it.memberId }
             } else {
-                listOf(group.master)
+                listOfNotNull(group.leaderMemberId)
             }
         additionalRecipients.forEach { memberId ->
             notificationService.createNotification(
@@ -212,7 +228,8 @@ class GroupMemberService(
             )
         }
 
-        saveWithTouch(group.copy(countMember = group.countMember + 1))
+        group.increaseMemberCount()
+        saveWithActivity(group)
     }
 
     @Transactional
@@ -226,7 +243,7 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.category != GroupCategory.MANAGE && group.master != requesterId) {
+        if (group.category != GroupCategory.MANAGE && !group.isLeader(requesterId)) {
             throw ForbiddenException("그룹장만 멤버를 내보낼 수 있습니다")
         }
 
@@ -245,8 +262,17 @@ class GroupMemberService(
 
         groupMemberRepository.delete(groupId, kickedMemberId)
 
-        val logMessage = "${kickedMember.college} ${kickedMember.realname} 내보냈습니다."
-        groupLogService.createLog(groupId, requesterId, logMessage)
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            logType = GroupLogType.GROUP_MEMBER_KICKED,
+            logData =
+                mapOf(
+                    "targetUserId" to kickedMember.id,
+                    "targetUserName" to kickedMember.realname,
+                    "targetUserCollege" to kickedMember.college,
+                ),
+        )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
         notificationService.createNotification(
@@ -264,7 +290,8 @@ class GroupMemberService(
             )
         }
 
-        saveWithTouch(group.copy(countMember = group.countMember - 1))
+        group.decreaseMemberCount()
+        saveWithActivity(group)
     }
 
     @Transactional
@@ -282,13 +309,18 @@ class GroupMemberService(
         }
 
         // 운영 카테고리가 아닌 그룹에서 그룹장은 탈퇴 불가 (먼저 위임 필요)
-        if (group.master == requesterId && group.category != GroupCategory.MANAGE) {
+        if (group.isLeader(requesterId) && group.category != GroupCategory.MANAGE) {
             throw BadRequestException("그룹장은 다른 멤버에게 그룹장을 위임한 후 탈퇴할 수 있습니다")
         }
 
         groupMemberRepository.delete(groupId, requesterId)
 
-        groupLogService.createLog(groupId, requesterId, "그룹에서 나갔습니다.")
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            logType = GroupLogType.GROUP_MEMBER_LEFT,
+            logData = emptyMap(),
+        )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
         val notificationContent =
@@ -303,9 +335,9 @@ class GroupMemberService(
 
         val additionalRecipients =
             if (group.category == GroupCategory.MANAGE) {
-                groupMemberRepository.findByGroupId(groupId).map { it.member }
+                groupMemberRepository.findByGroupId(groupId).map { it.memberId }
             } else {
-                listOf(group.master)
+                listOfNotNull(group.leaderMemberId)
             }
         additionalRecipients.forEach { memberId ->
             notificationService.createNotification(
@@ -324,16 +356,14 @@ class GroupMemberService(
             )
         }
 
-        saveWithTouch(group.copy(countMember = group.countMember - 1))
+        group.decreaseMemberCount()
+        saveWithActivity(group)
     }
 
-    // 그룹 변경 시 changed_at 갱신 + SUSPEND면 PROGRESS로 승격하여 저장
-    private fun saveWithTouch(group: Group) {
-        groupRepository.save(
-            group.copy(
-                changedAt = LocalDateTime.now(),
-                state = if (group.state == GroupState.SUSPEND) GroupState.PROGRESS else group.state,
-            ),
-        )
+    // 그룹원 변경은 활동이므로 중단 상태를 해제하고 최근 활동 일시를 갱신해 저장한다.
+    private fun saveWithActivity(group: Group) {
+        group.resumeByActivity()
+        group.recordActivity(Instant.now())
+        groupRepository.save(group)
     }
 }

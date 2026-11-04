@@ -4,11 +4,10 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.discord.DiscordIntegration
-import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupDiscordChannel
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.testGroup
+import com.sight.domain.group.testGroupDiscordChannel
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.GroupDiscordChannelRepository
 import com.sight.repository.GroupMemberRepository
@@ -46,28 +45,16 @@ class GroupDiscordChannelServiceTest {
         val groupId = 1L
         val masterId = 100L
         val group =
-            Group(
-                id = groupId,
-                category = GroupCategory.PROJECT,
-                title = "테스트 그룹",
-                author = masterId,
-                master = masterId,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = groupId, category = GroupCategory.PROJECT, title = "테스트 그룹", leaderMemberId = masterId)
         val discordChannelId = "1234567890"
         val mockTextChannel = mock<TextChannel>()
         val groupDiscordChannel =
-            GroupDiscordChannel(
-                id = "test-ulid",
-                groupId = groupId,
-                discordChannelId = discordChannelId,
-            )
+            testGroupDiscordChannel(id = "test-ulid", groupId = groupId, discordChannelId = discordChannelId)
         val mockGroupMasterDiscordIntegration = mock<DiscordIntegration>()
 
         given(mockTextChannel.id).willReturn(discordChannelId)
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
-        given(groupDiscordChannelRepository.existsByGroupId(groupId)).willReturn(false)
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(null)
         given(discordIntegrationRepository.findByUserId(masterId)).willReturn(mockGroupMasterDiscordIntegration)
         given(discordApiAdapter.createGroupPrivateTextChannel("테스트-그룹")).willReturn(mockTextChannel)
         given(groupDiscordChannelRepository.save(any<GroupDiscordChannel>())).willReturn(groupDiscordChannel)
@@ -99,15 +86,7 @@ class GroupDiscordChannelServiceTest {
         val masterId = 100L
         val nonMasterId = 200L
         val group =
-            Group(
-                id = groupId,
-                category = GroupCategory.PROJECT,
-                title = "테스트 그룹",
-                author = masterId,
-                master = masterId,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = groupId, category = GroupCategory.PROJECT, title = "테스트 그룹", leaderMemberId = masterId)
 
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
 
@@ -121,18 +100,10 @@ class GroupDiscordChannelServiceTest {
         val groupId = 1L
         val masterId = 100L
         val group =
-            Group(
-                id = groupId,
-                category = GroupCategory.PROJECT,
-                title = "테스트 그룹",
-                author = masterId,
-                master = masterId,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = groupId, category = GroupCategory.PROJECT, title = "테스트 그룹", leaderMemberId = masterId)
 
         given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
-        given(groupDiscordChannelRepository.existsByGroupId(groupId)).willReturn(true)
+        given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel(groupId = groupId))
 
         assertThrows<UnprocessableEntityException> {
             groupDiscordChannelService.createDiscordChannel(groupId, masterId)
@@ -143,13 +114,7 @@ class GroupDiscordChannelServiceTest {
     fun `그룹 ID로 디스코드 채널 정보를 조회한다`() {
         val groupId = 1L
         val groupDiscordChannel =
-            GroupDiscordChannel(
-                id = "test-ulid",
-                groupId = groupId,
-                discordChannelId = "1234567890",
-                createdAt = LocalDateTime.now(),
-                updatedAt = LocalDateTime.now(),
-            )
+            testGroupDiscordChannel(id = "test-ulid", groupId = groupId, discordChannelId = "1234567890")
 
         given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(groupDiscordChannel)
 
@@ -186,11 +151,7 @@ class GroupDiscordChannelServiceTest {
                 createdAt = LocalDateTime.now(),
             )
         val testGroupDiscordChannel =
-            GroupDiscordChannel(
-                id = "test-id",
-                groupId = groupId,
-                discordChannelId = discordChannelId,
-            )
+            testGroupDiscordChannel(id = "test-id", groupId = groupId, discordChannelId = discordChannelId)
 
         given(discordIntegrationRepository.findByUserId(memberId)).willReturn(testDiscordIntegration)
         given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
@@ -216,11 +177,7 @@ class GroupDiscordChannelServiceTest {
                 createdAt = LocalDateTime.now(),
             )
         val testGroupDiscordChannel =
-            GroupDiscordChannel(
-                id = "test-id",
-                groupId = groupId,
-                discordChannelId = discordChannelId,
-            )
+            testGroupDiscordChannel(id = "test-id", groupId = groupId, discordChannelId = discordChannelId)
 
         given(discordIntegrationRepository.findByUserId(memberId)).willReturn(testDiscordIntegration)
         given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
@@ -238,11 +195,7 @@ class GroupDiscordChannelServiceTest {
         val memberId = 200L
         val discordChannelId = "test-channel-id"
         val testGroupDiscordChannel =
-            GroupDiscordChannel(
-                id = "test-id",
-                groupId = groupId,
-                discordChannelId = discordChannelId,
-            )
+            testGroupDiscordChannel(id = "test-id", groupId = groupId, discordChannelId = discordChannelId)
 
         given(groupDiscordChannelRepository.findByGroupId(groupId)).willReturn(testGroupDiscordChannel)
         given(discordIntegrationRepository.findByUserId(memberId)).willReturn(null)

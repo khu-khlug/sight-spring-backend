@@ -5,9 +5,9 @@ import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.discord.DiscordIntegration
-import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupStatus
+import com.sight.domain.group.testGroup
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -376,7 +376,7 @@ class SupportRequestServiceTest {
     @Test
     fun `종료된 그룹도 현재 구성원이면 지원 신청에 연결할 수 있다`() {
         val requester = member(id = 10L)
-        val endedGroup = group(id = 100L, state = GroupState.END_SUCCESS)
+        val endedGroup = group(id = 100L, state = GroupStatus.SUCCESS)
         given(memberRepository.findById(10L)).willReturn(Optional.of(requester))
         given(groupRepository.findById(100L)).willReturn(Optional.of(endedGroup))
         given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 10L)).willReturn(true)
@@ -426,16 +426,8 @@ class SupportRequestServiceTest {
 
     private fun group(
         id: Long,
-        state: GroupState = GroupState.PROGRESS,
-    ): Group =
-        Group(
-            id = id,
-            category = GroupCategory.PROJECT,
-            title = "사이트 개발 그룹",
-            author = 10L,
-            master = 10L,
-            state = state,
-        )
+        state: GroupStatus = GroupStatus.PROGRESS,
+    ) = testGroup(id = id, category = GroupCategory.PROJECT, title = "사이트 개발 그룹", leaderMemberId = 10L, status = state)
 
     private fun notification(userId: Long): Notification =
         Notification(

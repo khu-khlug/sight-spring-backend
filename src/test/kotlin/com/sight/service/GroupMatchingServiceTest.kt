@@ -3,6 +3,9 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.Group
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.setField
 import com.sight.domain.groupmatching.ActivityFrequency
 import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
@@ -20,6 +23,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -404,7 +409,7 @@ class GroupMatchingServiceTest {
         groupMatchingService.addMemberToGroup(groupId, answerId)
 
         // then
-        verify(groupMemberRepository).save(groupId, memberId)
+        verify(groupMemberRepository).save(eq(groupId), eq(memberId), any())
         verify(matchedGroupRepository).save(any<MatchedGroup>())
     }
 
@@ -428,7 +433,7 @@ class GroupMatchingServiceTest {
         groupMatchingService.addMemberToGroup(groupId, answerId)
 
         // then
-        verify(groupMemberRepository).save(groupId, memberId)
+        verify(groupMemberRepository).save(eq(groupId), eq(memberId), any())
         verify(matchedGroupRepository, never()).save(any<MatchedGroup>())
     }
 
@@ -487,13 +492,19 @@ class GroupMatchingServiceTest {
         whenever(answer2.userId).thenReturn(2L)
         whenever(groupMatchingAnswerRepository.findAllById(answerIds))
             .thenReturn(listOf(answer1, answer2))
+        // 그룹 아이디는 DB가 채번하므로 저장 시 아이디가 채워진 그룹을 돌려준다.
+        whenever(groupRepository.save(any<Group>())).thenAnswer { invocation ->
+            (invocation.arguments[0] as Group).also { setField(it, "id", 123L) }
+        }
 
         val result =
             groupMatchingService.createGroupFromGroupMatching(title, answerIds, leaderUserId)
 
-        assert(result >= 1000000L)
-        verify(groupRepository).save(any())
-        verify(groupMemberRepository).saveAll(any())
+        assertEquals(123L, result)
+        verify(groupRepository).save(
+            argThat<Group> { leaderMemberId == leaderUserId && memberCount == 2L && category == GroupCategory.STUDY },
+        )
+        verify(groupMemberRepository).saveAll(argThat { size == 2 && all { it.groupId == 123L } })
     }
 
     @Test

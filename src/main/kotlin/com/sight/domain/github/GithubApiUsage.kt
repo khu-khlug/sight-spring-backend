@@ -61,7 +61,10 @@ class GithubApiUsage(
     val remainingCount: Int
         get() = HOURLY_LIMIT - usedCount - pendingCount
 
-    fun reserve(at: Instant, count: Int = 1) {
+    fun reserve(
+        at: Instant,
+        count: Int = 1,
+    ) {
         require(count in 1..HOURLY_LIMIT) { "예약 횟수는 1 이상 시간당 한도 이하여야 합니다." }
         require(!at.isBefore(countStartAt)) { "사용량 집계 시작 전에는 예약할 수 없습니다." }
         if (!at.isBefore(countStartAt.plus(Duration.ofHours(1)))) resetCount(at)
@@ -98,7 +101,11 @@ class GithubApiUsage(
         const val HOURLY_LIMIT: Int = 100
 
         // 사용량 행이 없는 회원의 첫 외부 호출을 예약할 때만 생성한다.
-        fun createWithReservation(memberId: Long, at: Instant, count: Int = 1): GithubApiUsage =
+        fun createWithReservation(
+            memberId: Long,
+            at: Instant,
+            count: Int = 1,
+        ): GithubApiUsage =
             GithubApiUsage(
                 memberId = memberId,
                 countStartAt = at,

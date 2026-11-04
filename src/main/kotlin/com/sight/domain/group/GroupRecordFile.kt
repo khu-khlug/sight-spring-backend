@@ -60,10 +60,18 @@ class GroupRecordFile private constructor(
     companion object {
         const val FILE_IDENTIFIER_MAX_LENGTH: Int = 100
 
-        fun ofRecord(recordId: Long, fileIdentifier: String, fileUploadId: String): GroupRecordFile =
+        fun ofRecord(
+            recordId: Long,
+            fileIdentifier: String,
+            fileUploadId: String,
+        ): GroupRecordFile =
             GroupRecordFile(recordId = recordId, draftId = null, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
 
-        fun ofDraft(draftId: Long, fileIdentifier: String, fileUploadId: String): GroupRecordFile =
+        fun ofDraft(
+            draftId: Long,
+            fileIdentifier: String,
+            fileUploadId: String,
+        ): GroupRecordFile =
             GroupRecordFile(recordId = null, draftId = draftId, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
     }
 }

@@ -51,7 +51,7 @@ USER and 그룹장
 204 No Content
 ```
 
-(해당 없음)
+응답 바디는 없다. 성공 후 [그룹 정보 조회](group-info-get.md#discord-채널-바로가기)로 채팅방 존재·참여 여부와 `chatRoomUrl`을 갱신한다.
 
 ## 실패 응답
 

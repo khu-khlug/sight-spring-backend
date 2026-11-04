@@ -3,7 +3,12 @@
 ## Discord 연동
 
 - 채팅 메시지 조회는 백엔드가 Discord 봇 인증으로 수행한다.
+- 이전 메시지 조회는 Discord 메시지 ID를 `before` 커서로 사용하며 최대 50개를 반환한다. 페이지 번호나 offset으로 최신 메시지부터 다시 건너뛰지 않는다. 다음 커서와 이전 메시지 존재 여부는 [채팅 메시지 목록 조회](group-chat-messages-get.md#페이지네이션)를 따른다.
 - 채팅 메시지 전송은 백엔드가 해당 채널의 Discord 웹훅으로 수행한다. 웹훅 표시 이름에는 요청자의 이름을 사용한다.
+
+## 채팅방 정보
+
+채팅방 존재 여부(`hasChatRoom`)·요청자의 참여 여부(`requesterInfo.isInChatRoom`)·채널 URL(`chatRoomUrl`)은 [그룹 정보 조회](../info/group-info-get.md#discord-채널-바로가기)에서 제공한다. 메시지 API는 메시지와 그 조회 범위에 필요한 정보를 반환한다. 채팅방 생성·참여 성공 후에는 그룹 정보를 재조회한다.
 
 ## 채팅 내용 캐시
 

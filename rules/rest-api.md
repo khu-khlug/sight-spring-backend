@@ -34,9 +34,11 @@
 ## 페이지네이션
 
 - 목록 조회 API에는 기본적으로 페이지네이션을 적용한다.
-- offset-based pagination과 cursor-based pagination을 허용한다.
-- offset-based pagination은 `offset`, `limit` query parameter를 사용한다.
+- page-based pagination, offset-based pagination과 cursor-based pagination을 허용한다.
+- 커서를 사용하지 않는 고정 크기 목록 API는 `page` query parameter를 사용한다. 첫 페이지는 0이며, 페이지 크기와 `page * 페이지 크기`로 계산하는 조회 시작 위치를 명세한다. `offset`, `limit` 옵션은 받지 않는다.
+- 조회 크기를 클라이언트가 지정하는 목록 API의 offset-based pagination은 `offset`, `limit` query parameter를 사용한다. `offset`은 0부터 시작하는 건너뛸 항목 수다.
 - cursor-based pagination은 `cursor`, `limit` query parameter를 사용한다.
+  - 외부 시스템의 커서 계약을 사용하는 경우 의미가 드러나는 커서 이름을 명시해 사용할 수 있다. Discord 채팅 메시지 목록은 `before`를 사용하고 반환 크기를 50개로 고정하므로 `cursor`, `page`, `offset`, `limit` 옵션은 받지 않는다.
 - `limit`은 100을 초과할 수 없다.
 - 다음 조건 중 하나를 만족하는 경우에만 페이지네이션을 적용하지 않을 수 있다.
   - 개수가 늘어날 가능성이 없다.

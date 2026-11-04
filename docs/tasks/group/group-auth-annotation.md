@@ -1,116 +1,68 @@
-# 그룹 권한 확인을 컨트롤러 어노테이션으로 옮기기
+---
+type: backend
+---
 
-## 1. 작업 개요
+# 그룹 권한 어노테이션 추가
 
-그룹 API마다 서비스 안에서 따로 하고 있는 그룹 권한 확인(열람권한·그룹원·그룹장)을 `@GroupAuth` 어노테이션으로 옮겨 컨트롤러 단에서 확인합니다. 기존 `@Auth`(`core/auth/Auth.kt`, `core/auth/AuthAspect.kt`)와 같은 AOP 방식을 씁니다.
+## 작업 개요
 
-API 문서(`docs/plans/group/`)의 `## 권한`에 적힌 그룹 권한이 어노테이션 하나로 표현되도록 하는 것이 목표입니다.
+관련 저장소는 sight-spring-backend다. [설계 플랜](../../plans/group-auth.md)을 기준으로 기존 Auth와 사용자 역할을 유지하고 GroupAuth를 추가한다. 완료 기준은 그룹 권한이 필요한 API에서 GroupAuth 하나로 권한을 선언하고 판정하는 것이다.
 
-## 2. 비즈니스 동작
+## 비즈니스 동작
 
-### 권한 수준
+- 기존 UserRole의 USER·MANAGER·SYSTEM과 Auth의 역할 배열 판정을 유지한다.
+- GroupAuth는 기본적으로 `@Auth([UserRole.USER, UserRole.MANAGER])`가 적용된 것으로 한다. GroupRole 배열을 직접 받고 같은 groupId·recordId를 기준으로 각 권한을 OR로 판정한다.
+- Auth와 GroupAuth는 둘 중 하나만 사용하고 동시 선언은 오류로 처리한다.
+- allowManager가 true이면 운영진을 그룹 소속·유형과 관계없이 허용한다. 기본값은 false다.
+- WRITER는 그룹원·기록 소속·작성자를 함께 검사한다. GroupRole.MANAGER는 운영진이면서 운영 그룹인지 검사한다.
+- 권한 포함 관계와 열람 범위는 플랜을 따른다. 비공개 비그룹원 생성자 예외는 모든 VIEWER API에서 제거한다.
 
-| 수준     | 의미                                                                                         |
-| :------- | :------------------------------------------------------------------------------------------- |
-| `VIEWER` | 열람권한. 그룹 공개 범위를 통과해야 함                                                       |
-| `MEMBER` | 요청자가 그룹원이어야 함                                                                     |
-| `LEADER` | 요청자가 그룹장(`group.master`)이어야 함                                                     |
+## HTTP API 계약
 
-열람권한 규칙은 현재 `GroupMemberService.canViewGroup`과 같습니다.
+기존 경로·메서드·요청·성공 응답·페이지네이션은 유지하고 각 API의 권한 선언을 플랜의 조합으로 변경한다. 그룹 상태와 리소스 상태 등 개별 조건은 유지한다.
 
-| 공개 범위(`group.grade`) | 열람 가능한 요청자                         |
-| :----------------------- | :----------------------------------------- |
-| `PRIVATE`                | 그룹원 또는 그룹 생성자(`group.author`)    |
-| `MANAGER`                | 운영진                                     |
-| `MEMBER`                 | 교류 회원(`StudentStatus.UNITED`)이 아닌 회원 |
-| `ALL`                    | 모든 회원                                  |
+인증되지 않으면 401, 권한 부족은 403, 판정 대상이 없고 다른 허용 분기도 없으면 404다. 아이디 형식 오류는 400, 어노테이션 선언 오류는 500이다. 권한 거부 시 변경·알림·경험치·외부 호출은 발생하지 않는다.
 
-### 동작
+## 데이터베이스 계약
 
-1. `@Auth`가 먼저 로그인 여부와 역할을 확인함 (401·403)
-2. `@GroupAuth`가 요청 경로의 `groupId`로 그룹을 찾음 — 없으면 404
-3. 요청자가 지정한 수준을 만족하지 못하면 403
-4. 통과하면 컨트롤러 메서드를 실행하고, 서비스는 그룹 권한을 다시 확인하지 않음
+변경 없음. 기존 회원의 운영진 여부와 그룹·그룹원·기록 데이터를 사용한다.
 
-`allowJoin`, 진행 상태, 채팅방 존재 여부, 접수 기간 같은 상태 조건(`## 조건`)은 권한이 아니므로 서비스에 그대로 둡니다.
+## 외부 시스템 계약
 
-### 옮길 대상 (`origin/main` 기준)
+기존 인증 결과와 사용자 역할 매핑, Discord 등 외부 연동 계약을 유지한다.
 
-| 서비스 · 메서드 | 현재 서비스의 확인 | 어노테이션 |
-| :-- | :-- | :-- |
-| `GroupMemberService.listGroupMembers` | `canViewGroup` | `VIEWER` |
-| `GroupMemberService.joinGroup` | `canViewGroup` | `VIEWER` |
-| `GroupMemberService.delegateMaster` | 그룹장 | `LEADER` |
-| `GroupMemberService.kickMember` | 그룹장 | `LEADER` |
-| `GroupLogService.listGroupLogs` | 그룹원 | `MEMBER` |
-| `GroupService.publishPortfolio` | 그룹장 | `LEADER` |
-| `GroupService.cancelPortfolio` | 그룹장 | `LEADER` |
-| `GroupDiscordChannelService.createDiscordChannel` | 그룹장 | `LEADER` |
-| `GroupDiscordChannelService.addMemberToDiscordChannel` | 그룹장은 아무 멤버나, 일반 멤버는 본인만 | 아래 "결정할 점" 참고 |
-| `GroupActivityReportService.getUploadLink` | 그룹장 | `LEADER` |
-| `GroupActivityReportService.submitReport` | 그룹장 | `LEADER` |
-| `GroupActivityReportService.editReport` | 그룹장 | `LEADER` |
-| `GroupActivityReportService.cancelReport` | 그룹장 또는 운영진 | `LEADER` + 운영진 허용 |
-| `GroupActivityReportService.listReports` | 그룹원 또는 운영진 | `MEMBER` + 운영진 허용 |
+## 보안 및 개인정보
 
-[api-changes.md](api-changes.md)·[new-apis.md](new-apis.md)의 API를 구현하거나 바꿀 때도 그룹 권한은 이 어노테이션으로 확인합니다.
+- GroupAuth는 USER·MANAGER만 허용하며 SYSTEM은 거부한다. Auth의 기존 역할 판정은 유지한다.
+- 그룹 권한이 필요한 API는 Auth를 GroupAuth로 교체한다. 그룹원·그룹장 또는 운영진인 조합은 allowManager로 표현한다.
+- 경로 변수와 실제 그룹·기록 소속을 검사한다. 빈 권한 배열이나 잘못된 선언으로 접근을 허용하지 않는다.
+- 서비스의 그룹 권한 검사 제거와 대체 선언 적용을 같은 변경으로 처리한다. 본인 임시저장·파일 소유권 등 별도 제한은 유지한다.
 
-## 3. HTTP API 계약
+## 비가역적 부작용 및 운영 영향
 
-### 변경 사항
+데이터 변경·삭제는 없다. 그룹원이면 공개 범위와 관계없이 열람할 수 있게 되고 비그룹원 생성자의 비공개 그룹 열람은 차단된다.
 
-- 권한이 없을 때의 응답 코드(403)와 그룹이 없을 때의 응답 코드(404)는 유지함
-- 403 응답 메시지는 API마다 다르던 문구("그룹장만 위임할 수 있습니다" 등)에서 어노테이션의 공통 문구로 바뀔 수 있음
+## 호환성 및 배포
 
-### 유지할 계약
+1. 기존 Auth와 사용자 역할을 유지한 채 GroupAuth와 그룹 판정을 추가한다.
+2. 그룹 권한 배열의 OR 결합·운영진 예외·중복 선언 검사를 구현한 뒤 서비스별 그룹 검사를 옮긴다.
+3. 멤버 조회·참가, 위임·내보내기·탈퇴, 활동 로그, 포트폴리오, 채팅방 생성, 활동보고에 플랜의 해당 권한을 적용한다.
+4. 채팅방 참여는 [API 변경 태스크](api-changes.md)의 본인 참여 변경과 함께 진행한다. 신규 API·WRITER는 해당 기능 구현과 함께 적용하고, 구현되지 않은 판정을 근거로 기존 검사를 제거하지 않는다.
 
-- 경로·요청·응답 형식은 바꾸지 않음 (경로 변경은 `api-changes.md`에서 따로 다룸)
+권한 규칙과 선언은 함께 배포한다. 되돌릴 때도 GroupAuth 적용과 서비스 검사를 함께 되돌린다.
 
-## 4. 데이터베이스 계약
+## 검증
 
-변경 없음
+사용자가 직접 동작을 확인한다. 에이전트는 별도 요청 없이 테스트나 브라우저 조작을 수행하지 않는다.
 
-## 5. 외부 시스템 계약
+- Auth(USER)는 일반 회원만, Auth(USER, MANAGER)는 일반 회원·운영진을 허용한다. Auth(MANAGER)·Auth(SYSTEM)은 각각 해당 역할만 허용하며 기존 접근 범위를 유지한다.
+- 플랜의 10가지 선언 조합에서 허용 대상은 성공하고 인증 없음은 401, 범위 밖 요청자는 403이다.
+- 그룹장·기록 작성자의 포함 관계, 비공개 비그룹원 생성자 차단, 운영진·교류 회원·그룹원의 공개 범위 판정을 확인한다.
+- 한 그룹 권한이나 운영진 예외가 성공하면 다른 분기의 권한 실패·대상 없음에도 통과한다. 서비스의 대상 존재·소속 검사는 계속 적용된다.
+- 다른 그룹의 기록·다른 작성자의 기록·이름이 다른 경로 변수·누락된 대상·빈 배열을 확인한다.
+- Auth와 GroupAuth 동시 선언은 오류다. GroupAuth에 SYSTEM으로 접근하면 403이다.
+- allowManager가 없으면 운영진도 그룹 제약을 충족해야 하며, GroupRole.MANAGER는 운영 그룹에서만 성공한다.
 
-변경 없음
+## 비목표
 
-## 6. 보안 및 개인정보
-
-- 서비스의 권한 확인을 지우는 API는 반드시 같은 커밋에서 컨트롤러에 `@GroupAuth`를 붙여야 함. 하나라도 빠지면 그 API의 그룹 권한 확인이 사라짐
-- 어노테이션이 붙지 않은 그룹 API를 찾을 수 있도록 검증 방법(9절)을 둠
-
-## 7. 비가역적 부작용 및 운영 영향
-
-없음
-
-## 8. 호환성 및 배포
-
-- 요청·응답 형식의 호환성을 유지함
-- 403 응답 메시지는 API별 문구에서 공통 문구로 바뀔 수 있음
-
-## 9. 검증
-
-- 옮긴 API마다 권한 수준별로 통과·403·404를 확인하는 테스트
-- 운영진 허용 옵션이 있는 API는 운영진 요청이 통과하는지 확인
-- `/groups/{groupId}`(또는 `/groups/:groupId`) 경로의 컨트롤러 메서드 중 `@GroupAuth`가 없는 것을 찾는 테스트 또는 lint 규칙
-
-## 10. 비목표
-
-- 상태 조건(`allowJoin`, 진행 상태, 채팅방·접수 기간 등)을 어노테이션으로 옮기지 않음
-- 특수 조직 기반 열람 제한은 이번에 구현하지 않음 (관련 테이블을 만들지 않음)
-- 경로·요청·응답 변경 (`api-changes.md`)
-
-## 결정할 점
-
-1. **"또는" 조합 표현**
-   - "그룹장 또는 운영진", "그룹원 또는 운영진"은 `allowManager` 같은 옵션으로 표현할 수 있음
-   - 그룹 정보 변경의 "그룹장 또는 (운영진 and 운영 그룹)"처럼 그룹 유형까지 보는 조합을 어노테이션에 넣을지, 서비스에 남길지
-2. **`groupId`를 꺼내는 방법**
-   - 메서드 파라미터 이름으로 찾기, 또는 요청의 경로 변수(`HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE`)에서 읽기
-3. **Aspect 실행 순서**
-   - `@Auth`(401)가 `@GroupAuth`보다 먼저 실행되도록 `@Order` 지정
-4. **그룹 중복 조회**
-   - Aspect와 서비스가 같은 그룹을 각각 조회함. 같은 요청의 영속성 컨텍스트라면 두 번째 조회는 캐시에서 나오지만, `spring.jpa.open-in-view` 설정은 확인하지 않았음
-5. **채팅방 멤버 추가**
-   - 현재는 "그룹장은 아무 멤버나, 일반 멤버는 본인만"이라 요청 바디의 `memberId`에 따라 권한이 달라져 어노테이션으로 표현되지 않음
-   - `api-changes.md`대로 요청자 본인만 참여하도록 바꾸면 `MEMBER`로 옮길 수 있음
+기존 Auth·UserRole 변경, 그룹 외 기능의 권한 정책 변경, 신규 그룹·기록 기능 전체 구현, 특수 조직 제한 구현, 사용자 역할을 받는 GroupAuth 확장.

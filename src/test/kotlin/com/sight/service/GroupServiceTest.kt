@@ -4,7 +4,6 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
-import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
 import com.sight.domain.group.GroupOrderBy
@@ -82,6 +81,7 @@ class GroupServiceTest {
                 any(),
             ),
         ).willReturn(0L)
+        given(groupRepository.updatePortfolioPublishedById(any(), any())).willReturn(1)
     }
 
     @Test
@@ -680,7 +680,7 @@ class GroupServiceTest {
 
         // then
         assertTrue(result)
-        verify(groupRepository).save(argThat<Group> { isPortfolioPublished })
+        verify(groupRepository).updatePortfolioPublishedById(1L, true)
         verify(pointService).givePoint(20L, 10, "포트폴리오 발행")
         verify(pointService).givePoint(30L, 10, "포트폴리오 발행")
     }
@@ -730,7 +730,7 @@ class GroupServiceTest {
         groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { !isPortfolioPublished })
+        verify(groupRepository).updatePortfolioPublishedById(1L, false)
         verify(pointService).givePoint(20L, -10, "포트폴리오 취소")
         verify(pointService).givePoint(30L, -10, "포트폴리오 취소")
     }

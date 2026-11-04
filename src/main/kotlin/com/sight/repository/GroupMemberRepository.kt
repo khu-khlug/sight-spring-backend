@@ -97,11 +97,12 @@ class GroupMemberRepository(
         )
     }
 
+    // 삭제한 행 수를 반환한다. 0이면 이미 그룹원이 아니다.
     fun delete(
         groupId: Long,
         memberId: Long,
-    ) {
-        jdbcTemplate.update(
+    ): Int {
+        return jdbcTemplate.update(
             "DELETE FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
             groupId,
             memberId,

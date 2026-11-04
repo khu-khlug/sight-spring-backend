@@ -40,12 +40,11 @@ class FileUploadServiceTest {
             service.createUploadLink(
                 memberId = 10L,
                 apiPath = "/groups/1/activity-report/upload-link",
-                groupId = 1L,
             )
 
         verify(fileUploadRepository).save(
             argThat {
-                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link" && groupId == 1L
+                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link"
             },
         )
         assert(result.url == "https://upload.example.com")

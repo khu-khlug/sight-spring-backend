@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import jakarta.persistence.Version
 import java.time.Instant
 
 // 그룹 채팅방인 Discord 채널. 그룹당 하나이며, Discord 호출 전에 생성 작업으로 먼저 저장해 중간 실패를 복구한다.
@@ -48,12 +47,6 @@ class GroupDiscordChannel(
     // 생성을 완료한 일시. 완료 전이면 null이다.
     @Column(name = "completed_at")
     var completedAt: Instant? = null
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 같은 생성 작업의 동시 진행 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

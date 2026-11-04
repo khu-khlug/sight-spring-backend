@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import jakarta.persistence.Version
 import java.time.Duration
 import java.time.Instant
 
@@ -38,12 +37,6 @@ class GithubUsagePreference(
     // 마지막으로 사용을 끈 일시. 이로부터 7일이 지나야 다시 켤 수 있으며, 같은 값(false) 재요청으로는 갱신하지 않는다.
     @Column(name = "last_disabled_at")
     var lastDisabledAt: Instant? = null
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 동시 변경 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

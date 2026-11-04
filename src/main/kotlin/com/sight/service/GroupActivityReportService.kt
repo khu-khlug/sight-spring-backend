@@ -5,10 +5,12 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupActivityReport
+import com.sight.domain.group.GroupFile
 import com.sight.domain.notification.NotificationCategory
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
 import com.sight.repository.GroupActivityReportRepository
+import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.ScheduleRepository
@@ -57,6 +59,7 @@ class GroupActivityReportService(
     private val pointService: PointService,
     private val notificationService: NotificationService,
     private val fileUploadService: FileUploadService,
+    private val groupFileRepository: GroupFileRepository,
 ) {
     @Transactional
     fun getUploadLink(
@@ -67,7 +70,9 @@ class GroupActivityReportService(
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 업로드 링크를 발급할 수 있습니다.")
 
-        return fileUploadService.createUploadLink(requesterId, requestPath, groupId)
+        val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath)
+        groupFileRepository.save(GroupFile(groupId = groupId, fileUploadId = uploadLink.fileUploadId))
+        return uploadLink
     }
 
     @Transactional
@@ -171,6 +176,7 @@ class GroupActivityReportService(
         )
 
         if (newFileUpload != null) {
+            groupFileRepository.deleteByFileUploadId(oldFileUpload.id)
             fileUploadService.deleteFileUpload(oldFileUpload.id)
             storageService.deleteFile(oldFileUpload.fileKey)
         }
@@ -195,6 +201,7 @@ class GroupActivityReportService(
         validateGroupActivitySubmitPeriod(report.seminarId)
 
         val fileUpload = fileUploadService.getFileUploadById(report.reportFileUploadId)
+        groupFileRepository.deleteByFileUploadId(fileUpload.id)
         fileUploadService.deleteFileUpload(fileUpload.id)
         groupActivityReportRepository.delete(report)
 

@@ -24,8 +24,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.argThat
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
@@ -50,6 +48,12 @@ class GroupMemberServiceTest {
             notificationService = notificationService,
             pointService = pointService,
         )
+
+    init {
+        // 삭제·그룹장 변경이 성공한 상황을 기본으로 둔다. 동시 요청으로 실패하는 경우는 각 테스트에서 따로 정한다.
+        given(groupMemberRepository.delete(any(), any())).willReturn(1)
+        given(groupRepository.changeLeaderById(any(), any(), any())).willReturn(1)
+    }
 
     private fun createGroup(
         id: Long = 100L,
@@ -245,11 +249,8 @@ class GroupMemberServiceTest {
         // when
         groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
 
-        // then - group save: 그룹장 갱신
-        val groupCaptor = argumentCaptor<Group>()
-        verify(groupRepository).save(groupCaptor.capture())
-        val saved = groupCaptor.firstValue
-        assertEquals(2L, saved.leaderMemberId)
+        // then - 현재 그룹장이 요청자일 때만 그룹장을 바꾼다
+        verify(groupRepository).changeLeaderById(100L, 1L, 2L)
 
         // log 호출: 위임 전후 그룹장 정보를 로그데이터로 남긴다
         verify(groupLogService).createLog(
@@ -406,7 +407,7 @@ class GroupMemberServiceTest {
             point = eq(40),
             message = eq("<u>테스트 그룹</u> 그룹에 참여했습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { memberCount == 2L })
+        verify(groupRepository).addMemberCountById(100L, 1)
     }
 
     @Test
@@ -506,7 +507,7 @@ class GroupMemberServiceTest {
         groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { status == GroupStatus.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
     }
 
     @Test
@@ -627,7 +628,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { memberCount == 0L })
+        verify(groupRepository).addMemberCountById(100L, -1)
     }
 
     @Test
@@ -699,7 +700,26 @@ class GroupMemberServiceTest {
         groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { status == GroupStatus.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
+    }
+
+    @Test
+    fun `kickMember는 동시에 같은 회원을 내보내 삭제가 이미 끝났으면 400을 던지고 포인트·로그를 남기지 않는다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+        given(groupMemberRepository.delete(100L, 5L)).willReturn(0)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+        }
+        verify(pointService, never()).givePoint(any(), any(), any())
+        verify(groupLogService, never()).createLog(any(), any(), any(), any())
+        verify(groupRepository, never()).addMemberCountById(any(), any())
     }
 
     @Test
@@ -784,7 +804,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 나갔습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { memberCount == 0L })
+        verify(groupRepository).addMemberCountById(100L, -1)
     }
 
     @Test
@@ -846,7 +866,7 @@ class GroupMemberServiceTest {
         groupMemberService.leaveGroup(groupId = 100L, requesterId = 5L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { status == GroupStatus.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
     }
 
     @Test

@@ -8,10 +8,10 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.time.Instant
 
-@Entity
+// JPQL 엔티티 이름 Group은 예약어 GROUP과 겹치므로 KhlugGroup을 쓴다.
+@Entity(name = "KhlugGroup")
 @Table(name = "khlug_group")
 class Group(
     title: String,
@@ -120,12 +120,6 @@ class Group(
     // 최근 활동 일시. 각 API 명세가 활동으로 인정한 변경에서만 갱신한다.
     @Column(name = "last_activity_at", nullable = false)
     var lastActivityAt: Instant = createdAt
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 상태·카운트의 동시 변경 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

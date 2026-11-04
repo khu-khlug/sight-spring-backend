@@ -5,7 +5,6 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.time.Instant
 
 @Entity
@@ -55,12 +54,6 @@ class GroupList(
     // 이름·설명을 마지막으로 바꾼 일시.
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = createdAt
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 순서·카드 수의 동시 변경 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

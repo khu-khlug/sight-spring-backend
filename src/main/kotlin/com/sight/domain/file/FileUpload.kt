@@ -5,7 +5,6 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.time.Duration
 import java.time.Instant
 
@@ -23,7 +22,6 @@ class FileUpload(
     fileKey: String,
     uploaderMemberId: Long,
     apiPath: String,
-    groupId: Long?,
     fileName: String?,
     size: Long?,
     contentType: String?,
@@ -46,10 +44,6 @@ class FileUpload(
     // 실제 아이디가 들어간 발급 경로. 제출할 때 용도와 대상 리소스가 맞는지 확인하는 기준이다.
     @Column(name = "api_path", nullable = false, length = 255)
     val apiPath: String = apiPath
-
-    // 파일을 쓰는 그룹. 기록 첨부 파일을 같은 그룹의 다른 기록에서 참조할 수 있는지 확인하는 기준이다.
-    @Column(name = "group_id")
-    val groupId: Long? = groupId
 
     // 원본 파일명. 발급 요청에 파일명이 없는 용도면 null이다.
     @Column(name = "file_name", length = 255)
@@ -82,18 +76,11 @@ class FileUpload(
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = createdAt
 
-    // JPA 낙관적 잠금용 수정 버전. 사용 처리와 삭제 표시가 동시에 일어나는 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
-        private set
-
     init {
         require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "업로드 기록 식별자가 올바르지 않습니다." }
         require(fileKey.isNotBlank()) { "파일 key가 필요합니다." }
         require(uploaderMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         require(apiPath.isNotBlank()) { "발급 경로가 필요합니다." }
-        require(groupId == null || groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
         require(fileName == null || fileName.isNotBlank()) { "파일명이 올바르지 않습니다." }
         require(size == null || size in 0..MAX_FILE_SIZE) { "파일 크기는 ${MAX_FILE_SIZE}바이트 이하여야 합니다." }
         require(contentType == null || contentType.isNotBlank()) { "MIME 타입이 올바르지 않습니다." }

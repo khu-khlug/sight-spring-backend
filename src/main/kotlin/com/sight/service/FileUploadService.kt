@@ -25,7 +25,6 @@ class FileUploadService(
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
-        groupId: Long?,
     ): UploadLinkResult {
         val fileKey = UlidCreator.getUlid().toString()
         val url = storageService.generateUploadUrl(fileKey)
@@ -36,7 +35,6 @@ class FileUploadService(
                     fileKey = fileKey,
                     uploaderMemberId = memberId,
                     apiPath = apiPath,
-                    groupId = groupId,
                     fileName = null,
                     size = null,
                     contentType = null,

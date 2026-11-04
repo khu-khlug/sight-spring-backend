@@ -183,8 +183,10 @@ class GroupService(
         if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 포트폴리오를 발행할 수 있습니다.")
         if (group.isPortfolioPublished) throw BadRequestException("이미 발행된 포트폴리오입니다.")
 
-        group.publishPortfolio()
-        groupRepository.save(group)
+        // 동시에 발행하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.
+        if (groupRepository.updatePortfolioPublishedById(groupId, published = true) == 0) {
+            throw BadRequestException("이미 발행된 포트폴리오입니다.")
+        }
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->
@@ -209,8 +211,10 @@ class GroupService(
         if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 포트폴리오를 취소할 수 있습니다.")
         if (!group.isPortfolioPublished) throw NotFoundException("발행된 포트폴리오가 없습니다.")
 
-        group.cancelPortfolio()
-        groupRepository.save(group)
+        // 동시에 취소하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.
+        if (groupRepository.updatePortfolioPublishedById(groupId, published = false) == 0) {
+            throw NotFoundException("발행된 포트폴리오가 없습니다.")
+        }
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->

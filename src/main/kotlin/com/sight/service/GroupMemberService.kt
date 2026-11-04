@@ -121,8 +121,11 @@ class GroupMemberService(
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        group.changeLeader(newMasterId)
-        saveWithActivity(group)
+        // 그 사이 다른 요청이 그룹장을 바꿨으면 요청자는 더 이상 그룹장이 아니다.
+        if (groupRepository.changeLeaderById(groupId, requesterId, newMasterId) == 0) {
+            throw ForbiddenException("그룹장만 위임할 수 있습니다")
+        }
+        recordGroupActivity(groupId)
 
         groupLogService.createLog(
             groupId = groupId,
@@ -228,8 +231,8 @@ class GroupMemberService(
             )
         }
 
-        group.increaseMemberCount()
-        saveWithActivity(group)
+        groupRepository.addMemberCountById(groupId, 1)
+        recordGroupActivity(groupId)
     }
 
     @Transactional
@@ -260,7 +263,10 @@ class GroupMemberService(
             throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
         }
 
-        groupMemberRepository.delete(groupId, kickedMemberId)
+        // 동시에 같은 회원을 내보내면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.
+        if (groupMemberRepository.delete(groupId, kickedMemberId) == 0) {
+            throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
+        }
 
         groupLogService.createLog(
             groupId = groupId,
@@ -290,8 +296,8 @@ class GroupMemberService(
             )
         }
 
-        group.decreaseMemberCount()
-        saveWithActivity(group)
+        groupRepository.addMemberCountById(groupId, -1)
+        recordGroupActivity(groupId)
     }
 
     @Transactional
@@ -313,7 +319,10 @@ class GroupMemberService(
             throw BadRequestException("그룹장은 다른 멤버에게 그룹장을 위임한 후 탈퇴할 수 있습니다")
         }
 
-        groupMemberRepository.delete(groupId, requesterId)
+        // 동시에 나가기를 요청하면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.
+        if (groupMemberRepository.delete(groupId, requesterId) == 0) {
+            throw BadRequestException("그룹 멤버가 아닙니다")
+        }
 
         groupLogService.createLog(
             groupId = groupId,
@@ -356,14 +365,14 @@ class GroupMemberService(
             )
         }
 
-        group.decreaseMemberCount()
-        saveWithActivity(group)
+        groupRepository.addMemberCountById(groupId, -1)
+        recordGroupActivity(groupId)
     }
 
-    // 그룹원 변경은 활동이므로 중단 상태를 해제하고 최근 활동 일시를 갱신해 저장한다.
-    private fun saveWithActivity(group: Group) {
-        group.resumeByActivity()
-        group.recordActivity(Instant.now())
-        groupRepository.save(group)
+    // 그룹원 변경은 활동이므로 중단 상태를 해제하고 최근 활동 일시를 갱신한다.
+    // 그룹 엔티티를 통째로 저장하면 동시에 바뀐 그룹원 수를 덮어쓰므로 필요한 컬럼만 갱신한다.
+    private fun recordGroupActivity(groupId: Long) {
+        groupRepository.resumeStoppedById(groupId)
+        groupRepository.recordActivityById(groupId, Instant.now())
     }
 }

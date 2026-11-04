@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import jakarta.persistence.Version
 import java.time.Instant
 
 // 회원의 그룹 Discord 채널 참여. Discord 호출 전에 참여 작업으로 먼저 저장해, Discord 참여 후 완료 기록이 실패해도 재요청에서 이어서 완료한다.
@@ -41,12 +40,6 @@ class GroupDiscordChannelMember(
     // 참여를 완료한 일시. null이면 참여 작업이 진행 중이다.
     @Column(name = "joined_at")
     var joinedAt: Instant? = null
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 같은 참여 작업의 동시 완료 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

@@ -216,10 +216,9 @@ class GroupMatchingService(
         groupId: Long,
         answerId: String,
     ) {
-        val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+        groupRepository.findById(groupId).orElseThrow {
+            NotFoundException("그룹을 찾을 수 없습니다")
+        }
         val answer =
             groupMatchingAnswerRepository.findById(answerId).orElseThrow {
                 NotFoundException("답변을 찾을 수 없습니다")
@@ -230,8 +229,7 @@ class GroupMatchingService(
         }
 
         groupMemberRepository.save(groupId, answer.userId, Instant.now())
-        group.increaseMemberCount()
-        groupRepository.save(group)
+        groupRepository.addMemberCountById(groupId, 1)
 
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
             matchedGroupRepository.save(

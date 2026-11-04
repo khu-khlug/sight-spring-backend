@@ -6,6 +6,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.file.testFileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupFile
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
 import com.sight.domain.group.testGroupMember
@@ -15,6 +16,7 @@ import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
 import com.sight.repository.GroupActivityReportRepository
+import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.ScheduleRepository
@@ -42,6 +44,7 @@ class GroupActivityReportServiceTest {
     private val pointService = mock<PointService>()
     private val notificationService = mock<NotificationService>()
     private val fileUploadService = mock<FileUploadService>()
+    private val groupFileRepository = mock<GroupFileRepository>()
     private lateinit var service: GroupActivityReportService
 
     private val now = LocalDateTime.now()
@@ -100,9 +103,10 @@ class GroupActivityReportServiceTest {
                 pointService,
                 notificationService,
                 fileUploadService,
+                groupFileRepository,
             )
         given(storageService.getDownloadUrl(any())).willReturn("https://download.example.com")
-        given(fileUploadService.createUploadLink(any(), any(), any())).willReturn(
+        given(fileUploadService.createUploadLink(any(), any())).willReturn(
             UploadLinkResult(url = "https://upload.example.com", fileKey = "key-1", fileUploadId = "file-1"),
         )
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
@@ -119,7 +123,8 @@ class GroupActivityReportServiceTest {
         val result = service.getUploadLink(groupId = 1L, requesterId = 10L, requestPath = "/groups/1/activity-report/upload-link")
 
         assertEquals("https://upload.example.com", result.url)
-        verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link", 1L)
+        verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link")
+        verify(groupFileRepository).save(argThat<GroupFile> { groupId == 1L && fileUploadId == "file-1" })
     }
 
     @Test
@@ -387,6 +392,7 @@ class GroupActivityReportServiceTest {
         service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
 
         verify(groupActivityReportRepository).delete(baseReport)
+        verify(groupFileRepository).deleteByFileUploadId("file-1")
         verify(fileUploadService).deleteFileUpload("file-1")
         verify(storageService).deleteFile("key-1")
     }

@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.time.Instant
 
 @Entity
@@ -112,12 +111,6 @@ class GroupCard(
     // 소프트 삭제 일시. null이 아니면 삭제된 카드다.
     @Column(name = "deleted_at")
     var deletedAt: Instant? = null
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 위치·기록 수·상태의 동시 변경 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

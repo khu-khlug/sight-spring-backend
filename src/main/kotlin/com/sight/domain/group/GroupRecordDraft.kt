@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import jakarta.persistence.Version
 import java.time.Instant
 
 // 회원의 기록 임시저장. 회원당 하나뿐이며 저장하면 기존 임시저장을 대체한다.
@@ -56,12 +55,6 @@ class GroupRecordDraft(
     // 클라이언트에서 임시저장 내용을 마지막으로 수정한 일시. 이보다 이른 저장 요청은 더 오래된 내용이므로 거부한다.
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = updatedAt
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 같은 회원의 동시 저장 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

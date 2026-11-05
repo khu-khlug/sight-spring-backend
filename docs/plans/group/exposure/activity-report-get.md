@@ -43,6 +43,7 @@ USER and (그룹원 or 운영진)
 | `reports`                        | 객체 배열          | 리포트 리스트                                                                               |
 | `reports[].id`                   | 문자열 | `group_activity_report.id`                                                                  |
 | `reports[].groupId`              | 숫자(Long) | group.id                                                                                    |
+| `reports[].seminarId` | 문자열 | 활동보고에 저장된 세미나 아이디. 참조 세미나가 없어도 저장된 식별자를 반환한다 |
 | `reports[].seminarDate`          | string\|null       | 세미나 일시 (`schedule.scheduledAt`, ISO 8601 UTC, `Z` 접미사). 세미나/스케줄 참조 row 누락 시 null |
 | `reports[].seminarIsSummerSeason` | boolean\|null     | true: 여름, false: 겨울. 세미나 참조 row 누락 시 null                                           |
 | `reports[].seminarIsSpeakAfter`  | boolean\|null      | false:먼저말하기 true:나중에말하기. 세미나 참조 row 누락 시 null                                |

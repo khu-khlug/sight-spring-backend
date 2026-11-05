@@ -6,6 +6,8 @@
 
 ## 구현 근거와 공통 기준
 
+파일 제공 변경은 [파일 제공 태스크](file-delivery.md)를 따른다.
+
 - 즐겨찾기·포트폴리오: [GroupController](../../../src/main/kotlin/com/sight/controllers/http/GroupController.kt), [GroupService](../../../src/main/kotlin/com/sight/service/GroupService.kt).
 - 채팅방 생성·참여: 위 컨트롤러와 [GroupDiscordChannelService](../../../src/main/kotlin/com/sight/service/GroupDiscordChannelService.kt).
 - 멤버 조회·위임·참가·내보내기·나가기: [GroupMemberController](../../../src/main/kotlin/com/sight/controllers/http/GroupMemberController.kt), [GroupMemberService](../../../src/main/kotlin/com/sight/service/GroupMemberService.kt), [GroupMemberRepository](../../../src/main/kotlin/com/sight/repository/GroupMemberRepository.kt).

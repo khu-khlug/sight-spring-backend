@@ -2,6 +2,16 @@
 
 그룹 API 설계 문서(`docs/plans/group/`) 중 현재 작업 트리의 스프링 구현에 아직 없는 API 목록입니다. 기존 API의 경로·계약을 변경하는 작업은 [api-changes.md](api-changes.md)에 있으며, 이 목록의 신규 구현과 구분합니다.
 
+## 파일
+
+| API | 명세 |
+| :-- | :-- |
+| `GET /groups/:groupId/files/:fileId` | [그룹 파일 조회](../../plans/group/group-file-get.md) |
+| `GET /file/:filename` | [레거시 파일 조회](../../plans/legacy-file-get.md) |
+| `GET /image/:filename` | [레거시 이미지 조회](../../plans/legacy-image-get.md) |
+
+파일 제공 전환은 [파일 제공 태스크](file-delivery.md)를 따른다.
+
 ## 그룹 정보
 
 | API | 문서 |
@@ -100,4 +110,3 @@
 | `PUT /groups/:groupId/status/progress` | [그룹 활동 재진행](../../plans/group/setting/group-status-progress.md) |
 | `PATCH /groups/user-preference` | [GitHub API 개인 사용량 사용 설정](../../plans/group/setting/user-github-preference-update.md) |
 | `GET /groups/user-preference` | [GitHub API 개인 사용량 설정 조회](../../plans/group/setting/user-github-preference-get.md) |
-

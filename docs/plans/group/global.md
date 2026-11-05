@@ -18,7 +18,7 @@
 
 ## 권한
 
-그룹 권한 선언은 [그룹 권한 어노테이션](../group-auth.md)을 따른다. 기존 `Auth`와 `UserRole`은 유지한다. `GroupAuth`는 기본적으로 `@Auth([UserRole.USER, UserRole.MANAGER])`가 적용된 것으로 하며 그룹 제약을 추가 검사한다. API에는 둘 중 하나만 선언한다.
+그룹 권한 선언은 [그룹 권한 어노테이션](../group-auth.md)을 따른다. 기존 `Auth`와 `UserRole`은 유지한다. 그룹 권한이 필요한 API에는 `@Auth([UserRole.USER, UserRole.MANAGER])`와 `@GroupAuth`를 이 순서로 함께 명시한다. Auth의 사용자 역할 검사 후 GroupAuth의 그룹 제약을 검사하며 두 조건을 모두 만족해야 한다.
 
 열람권한은 `VIEWER`다. 그룹원·그룹장·해당 그룹의 기록 작성자는 공개 범위와 관계없이 열람할 수 있으며, 비그룹원은 공개 범위로 판정한다. 비공개 그룹의 생성자도 그룹원이 아니면 열람할 수 없다.
 

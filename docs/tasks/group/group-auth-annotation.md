@@ -6,14 +6,14 @@ type: backend
 
 ## 작업 개요
 
-관련 저장소는 sight-spring-backend다. [설계 플랜](../../plans/group-auth.md)을 기준으로 기존 Auth와 사용자 역할을 유지하고 GroupAuth를 추가한다. 완료 기준은 그룹 권한이 필요한 API에서 GroupAuth 하나로 권한을 선언하고 판정하는 것이다.
+관련 저장소는 sight-spring-backend다. [설계 플랜](../../plans/group-auth.md)을 기준으로 기존 Auth와 사용자 역할을 유지하고 GroupAuth를 추가한다. 완료 기준은 Auth와 GroupAuth로 사용자 역할과 그룹 권한을 명시하고 두 조건을 모두 판정하는 것이다.
 
 ## 비즈니스 동작
 
 - 기존 UserRole의 USER·MANAGER·SYSTEM과 Auth의 역할 배열 판정을 유지한다.
-- GroupAuth는 기본적으로 `@Auth([UserRole.USER, UserRole.MANAGER])`가 적용된 것으로 한다. GroupRole 배열을 직접 받고 같은 groupId·recordId를 기준으로 각 권한을 OR로 판정한다.
-- Auth와 GroupAuth는 둘 중 하나만 사용하고 동시 선언은 오류로 처리한다.
-- allowManager가 true이면 운영진을 그룹 소속·유형과 관계없이 허용한다. 기본값은 false다.
+- GroupAuth를 쓰는 함수에는 `@Auth([UserRole.USER, UserRole.MANAGER])`를 직접 선언한다. Auth가 사용자 역할을 검사한 뒤 GroupAuth가 같은 groupId·recordId를 기준으로 GroupRole 배열을 OR로 판정한다.
+- Auth를 GroupAuth 위에 함께 선언하고 두 조건을 AND로 적용한다. 이 조합과 작성 순서는 커스텀 린트로 강제하고 실제 검사 순서도 Auth 이후 GroupAuth로 보장한다.
+- allowManager는 기본값 없이 true 또는 false를 반드시 명시한다. true이면 운영진을 그룹 소속·유형과 관계없이 허용하고 false이면 운영진도 선언한 그룹 권한을 충족해야 한다.
 - WRITER는 그룹원·기록 소속·작성자를 함께 검사한다. GroupRole.MANAGER는 운영진이면서 운영 그룹인지 검사한다.
 - 권한 포함 관계와 열람 범위는 플랜을 따른다. 비공개 비그룹원 생성자 예외는 모든 VIEWER API에서 제거한다.
 
@@ -33,8 +33,8 @@ type: backend
 
 ## 보안 및 개인정보
 
-- GroupAuth는 USER·MANAGER만 허용하며 SYSTEM은 거부한다. Auth의 기존 역할 판정은 유지한다.
-- 그룹 권한이 필요한 API는 Auth를 GroupAuth로 교체한다. 그룹원·그룹장 또는 운영진인 조합은 allowManager로 표현한다.
+- 함께 선언한 Auth가 USER·MANAGER만 허용하며 SYSTEM은 거부한다. Auth의 기존 역할 판정은 유지한다.
+- 그룹 권한이 필요한 API는 Auth를 유지하고 GroupAuth를 추가한다. 그룹원·그룹장 또는 운영진인 조합은 allowManager로 표현한다.
 - 경로 변수와 실제 그룹·기록 소속을 검사한다. 빈 권한 배열이나 잘못된 선언으로 접근을 허용하지 않는다.
 - 서비스의 그룹 권한 검사 제거와 대체 선언 적용을 같은 변경으로 처리한다. 본인 임시저장·파일 소유권 등 별도 제한은 유지한다.
 
@@ -45,7 +45,7 @@ type: backend
 ## 호환성 및 배포
 
 1. 기존 Auth와 사용자 역할을 유지한 채 GroupAuth와 그룹 판정을 추가한다.
-2. 그룹 권한 배열의 OR 결합·운영진 예외·중복 선언 검사를 구현한 뒤 서비스별 그룹 검사를 옮긴다.
+2. 그룹 권한 배열의 OR 결합·운영진 예외, 선언 린트·시작 시 검증과 Auth 우선 실행을 구현한 뒤 서비스별 그룹 검사를 옮긴다.
 3. 멤버 조회·참가, 위임·내보내기·탈퇴, 활동 로그, 포트폴리오, 채팅방 생성, 활동보고에 플랜의 해당 권한을 적용한다.
 4. 채팅방 참여는 [API 변경 태스크](api-changes.md)의 본인 참여 변경과 함께 진행한다. 신규 API·WRITER는 해당 기능 구현과 함께 적용하고, 구현되지 않은 판정을 근거로 기존 검사를 제거하지 않는다.
 
@@ -60,8 +60,9 @@ type: backend
 - 그룹장·기록 작성자의 포함 관계, 비공개 비그룹원 생성자 차단, 운영진·교류 회원·그룹원의 공개 범위 판정을 확인한다.
 - 한 그룹 권한이나 운영진 예외가 성공하면 다른 분기의 권한 실패·대상 없음에도 통과한다. 서비스의 대상 존재·소속 검사는 계속 적용된다.
 - 다른 그룹의 기록·다른 작성자의 기록·이름이 다른 경로 변수·누락된 대상·빈 배열을 확인한다.
-- Auth와 GroupAuth 동시 선언은 오류다. GroupAuth에 SYSTEM으로 접근하면 403이다.
-- allowManager가 없으면 운영진도 그룹 제약을 충족해야 하며, GroupRole.MANAGER는 운영 그룹에서만 성공한다.
+- GroupAuth만 선언하거나 Auth 역할 집합이 USER·MANAGER와 다르거나 작성 순서가 반대이면 린트가 실패한다. 서버 시작 시에도 잘못된 선언을 거부한다. SYSTEM 요청은 Auth에서 403으로 거부한다.
+- GroupAuth 인자는 이름을 명시한다. groupId·allowManager 누락은 컴파일 오류다. WRITER의 recordId 누락, 빈 역할 배열·경로 변수 이름, 실제 경로 변수와 불일치는 린트 오류다.
+- allowManager가 false이면 운영진도 그룹 제약을 충족해야 하며, GroupRole.MANAGER는 운영 그룹에서만 성공한다.
 
 ## 비목표
 

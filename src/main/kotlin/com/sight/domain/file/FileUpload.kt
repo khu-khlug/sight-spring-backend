@@ -2,6 +2,7 @@ package com.sight.domain.file
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Embedded
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
@@ -38,6 +39,9 @@ class FileUpload(
     // R2 객체 key.
     @Column(name = "file_key", nullable = false, length = 255)
     val fileKey: String = fileKey
+
+    @Embedded
+    val readCache: FileReadCache = FileReadCache()
 
     // 업로드 링크를 발급받은 회원. 제출할 때 요청자와 같아야 한다.
     @Column(name = "member_id", nullable = false)
@@ -110,6 +114,7 @@ class FileUpload(
     fun markDeleted(at: Instant) {
         require(!isDeleted) { "이미 삭제 처리된 파일입니다." }
         deletedAt = at
+        readCache.invalidate()
     }
 
     companion object {

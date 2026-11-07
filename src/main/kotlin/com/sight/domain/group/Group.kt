@@ -38,7 +38,7 @@ class Group(
         private set
 
     // 그룹 설명. 일반 텍스트이며 제어 문자 중 줄바꿈만 허용한다.
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     var description: String? = description
         private set
 
@@ -55,7 +55,7 @@ class Group(
         private set
 
     // 관심 분야 enum 이름을 쉼표로 이은 문자열. null과 빈 목록(빈 문자열)을 구분해 저장한다.
-    @Column(name = "interests", length = 255)
+    @Column(name = "interests", length = 1023)
     var interestNames: String? = toInterestNames(interests)
         private set
 

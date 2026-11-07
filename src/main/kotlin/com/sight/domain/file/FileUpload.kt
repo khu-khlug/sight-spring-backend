@@ -11,12 +11,12 @@ import java.time.Instant
 
 // 업로드 기록. R2 객체 하나와 1:1로 대응하며, 파일의 상태는 R2가 아니라 이 기록이 결정한다.
 @Entity
-// 인덱스(deleted_at): 삭제 표시 후 남은 기록 청소.
-// 인덱스(is_uploaded, upload_check_at): 업로드 확인 예약, 미사용 업로드 청소.
 @Table(
     name = "file_upload",
     indexes = [
+        // 인덱스(deleted_at): 삭제 표시 후 남은 기록 청소.
         Index(columnList = "deleted_at"),
+        // 인덱스(is_uploaded, upload_check_at): 업로드 확인 예약, 미사용 업로드 청소.
         Index(columnList = "is_uploaded, upload_check_at"),
     ],
 )

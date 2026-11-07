@@ -19,7 +19,7 @@ import java.time.Instant
     indexes = [Index(columnList = "card_id, deleted_at")],
 )
 class GroupRecord(
-    cardId: String,
+    cardId: Long,
     authorMemberId: Long,
     content: String,
     createdAt: Instant,
@@ -31,8 +31,8 @@ class GroupRecord(
     val id: Long = 0
 
     // 현재 소속 카드. 같은 그룹의 다른 카드로 옮길 수 있으며, 기록의 그룹은 이 카드의 그룹으로 판단한다.
-    @Column(name = "card_id", nullable = false, length = GroupCard.ID_MAX_LENGTH)
-    var cardId: String = cardId
+    @Column(name = "card_id", nullable = false)
+    var cardId: Long = cardId
         private set
 
     // 작성자. 수정 권한과 기록 삭제 시 경험치 차감 대상의 기준이다.
@@ -68,7 +68,7 @@ class GroupRecord(
         private set
 
     init {
-        require(cardId.isNotBlank()) { "카드 식별자가 올바르지 않습니다." }
+        require(cardId > 0) { "카드 식별자가 올바르지 않습니다." }
         require(authorMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         validateContent(content)
     }
@@ -95,8 +95,8 @@ class GroupRecord(
     }
 
     // 같은 그룹의 다른 카드로 옮긴다. 아이디·작성자·본문·작성 일시는 유지한다. 같은 카드면 false를 반환한다.
-    fun moveToCard(cardId: String): Boolean {
-        require(cardId.isNotBlank()) { "카드 식별자가 올바르지 않습니다." }
+    fun moveToCard(cardId: Long): Boolean {
+        require(cardId > 0) { "카드 식별자가 올바르지 않습니다." }
         require(!isDeleted) { "삭제된 기록입니다." }
         if (this.cardId == cardId) return false
         this.cardId = cardId

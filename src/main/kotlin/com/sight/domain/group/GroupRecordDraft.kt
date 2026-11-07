@@ -19,7 +19,7 @@ import java.time.Instant
 class GroupRecordDraft(
     memberId: Long,
     groupId: Long,
-    cardId: String,
+    cardId: Long,
     recordId: Long?,
     content: String,
     updatedAt: Instant,
@@ -39,8 +39,8 @@ class GroupRecordDraft(
         private set
 
     // 작성 중인 기록이 속한 카드.
-    @Column(name = "card_id", nullable = false, length = GroupCard.ID_MAX_LENGTH)
-    var cardId: String = cardId
+    @Column(name = "card_id", nullable = false)
+    var cardId: Long = cardId
         private set
 
     // 수정 중인 기록. 새 기록 작성 중이면 null이다.
@@ -72,7 +72,7 @@ class GroupRecordDraft(
     // 같은 그룹·카드·기록을 대상으로 하는지 여부. 다르면 기존 첨부 연결을 모두 해제해야 한다.
     fun isSameTarget(
         groupId: Long,
-        cardId: String,
+        cardId: Long,
         recordId: Long?,
     ): Boolean = this.groupId == groupId && this.cardId == cardId && this.recordId == recordId
 
@@ -82,7 +82,7 @@ class GroupRecordDraft(
     // 새 내용으로 덮어쓴다. 서버에 더 최신 내용이 있으면 거부한다.
     fun overwrite(
         groupId: Long,
-        cardId: String,
+        cardId: Long,
         recordId: Long?,
         content: String,
         updatedAt: Instant,
@@ -100,11 +100,11 @@ class GroupRecordDraft(
     companion object {
         private fun validateTarget(
             groupId: Long,
-            cardId: String,
+            cardId: Long,
             recordId: Long?,
         ) {
             require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
-            require(cardId.isNotBlank()) { "카드 식별자가 올바르지 않습니다." }
+            require(cardId > 0) { "카드 식별자가 올바르지 않습니다." }
             require(recordId == null || recordId > 0) { "기록 식별자가 올바르지 않습니다." }
         }
 

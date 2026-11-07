@@ -6,7 +6,6 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
-import jakarta.persistence.Version
 import java.time.Duration
 import java.time.Instant
 
@@ -50,12 +49,6 @@ class GithubCache(
     // 캐시 만료 판단과 최대 보관 개수 초과 시 오래된 캐시를 교체하는 기준으로 쓴다. 캐시 조회만으로는 갱신하지 않는다.
     @Column(name = "cached_at", nullable = false)
     var cachedAt: Instant = cachedAt
-        private set
-
-    // JPA 낙관적 잠금용 수정 버전. 동시 갱신이 캐시 내용·시각을 덮어쓰는 충돌을 저장 시 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    var version: Long = 0
         private set
 
     init {

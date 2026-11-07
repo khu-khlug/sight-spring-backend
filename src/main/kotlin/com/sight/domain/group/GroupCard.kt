@@ -21,31 +21,35 @@ import java.time.Instant
     ],
 )
 class GroupCard(
-    id: String,
+    id: Long,
     groupId: Long,
-    listId: String,
+    listId: Long,
     authorMemberId: Long,
     title: String,
-    position: Int,
+    position: Long,
     createdAt: Instant,
 ) {
-    // 카드 식별자. 그룹 API 아이디 기준에 따라 문자열(ULID)이다.
+    // 카드 식별자. 레거시의 정수 아이디를 그대로 유지한다.
     @Id
-    @Column(name = "id", nullable = false, length = ID_MAX_LENGTH)
-    val id: String = id
+    @Column(name = "id", nullable = false)
+    val id: Long = id
 
     // 소속 그룹. 카드를 다른 그룹으로 옮길 수 없으므로 바뀌지 않는다.
     @Column(name = "group_id", nullable = false)
     val groupId: Long = groupId
 
+    // 이전 SQL에서 기존 카드는 true로 설정한다. 커버 교체 후에도 카드의 출처는 유지한다.
+    @Column(name = "is_legacy", nullable = false)
+    val isLegacy: Boolean = false
+
     // 소속 리스트. 삭제된 카드는 리스트에서 빠지므로 null이고, 복구하면 지정한 리스트로 들어간다.
-    @Column(name = "list_id", length = GroupList.ID_MAX_LENGTH)
-    var listId: String? = listId
+    @Column(name = "list_id")
+    var listId: Long? = listId
         private set
 
     // 리스트 안의 표시 순서. 오름차순으로 보여 주며 같으면 카드 아이디 오름차순이다. 삭제된 카드는 null이다.
     @Column(name = "position")
-    var position: Int? = position
+    var position: Long? = position
         private set
 
     // 카드를 만든 회원. 카드 삭제 시 경험치를 차감하는 대상이다.
@@ -58,16 +62,20 @@ class GroupCard(
         private set
 
     // 카드 설명 Markdown 원문. 서버는 파싱·정제하지 않으며 없으면 빈 문자열이다.
-    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "description", nullable = false, columnDefinition = "LONGTEXT")
     var description: String = ""
         private set
+
+    // 레거시의 기록 이어 받기 연결 원문(그룹ID#카드ID). 이전 SQL로 기존 값을 그대로 보존한다.
+    @Column(name = "`from`", length = 255)
+    val from: String? = null
 
     // 담당 회원. 미지정이면 null이다.
     @Column(name = "assignee_member_id")
     var assigneeMemberId: Long? = null
         private set
 
-    // 커버 이미지의 업로드 기록. 커버는 사이트에 업로드한 이미지만 쓰며, 커버가 없으면 null이다.
+    // 신규 업로드 커버. null인 레거시 카드는 기존 파일 테이블의 카드 연결로 커버를 찾는다.
     @Column(name = "cover_file_upload_id", length = 100)
     var coverFileUploadId: String? = null
         private set
@@ -112,9 +120,9 @@ class GroupCard(
         private set
 
     init {
-        require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "카드 식별자가 올바르지 않습니다." }
+        require(id > 0) { "카드 식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
-        require(listId.isNotBlank()) { "리스트 식별자가 올바르지 않습니다." }
+        require(listId > 0) { "리스트 식별자가 올바르지 않습니다." }
         require(authorMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         this.title = normalizeTitle(title)
     }
@@ -188,10 +196,11 @@ class GroupCard(
         updatedAt = at
     }
 
-    // 커버를 제거한다. 커버가 없으면 false를 반환한다.
-    fun removeCover(at: Instant): Boolean {
+    // 레거시 커버 존재 여부는 기존 파일 연결을 조회한 호출자가 전달하고 연결 제거도 함께 처리한다.
+    fun removeCover(at: Instant, hasLegacyCover: Boolean = false): Boolean {
         requireEditable()
-        if (coverFileUploadId == null) return false
+        require(!hasLegacyCover || isLegacy) { "레거시 카드만 기존 파일 커버를 가질 수 있습니다." }
+        if (coverFileUploadId == null && !hasLegacyCover) return false
         coverFileUploadId = null
         updatedAt = at
         return true
@@ -236,11 +245,11 @@ class GroupCard(
 
     // 같은 그룹의 리스트 안 위치로 옮긴다. 비활성 카드도 옮길 수 있다. 위치 계산은 호출한 쪽이 한다.
     fun moveTo(
-        listId: String,
-        position: Int,
+        listId: Long,
+        position: Long,
         at: Instant,
     ): Boolean {
-        require(listId.isNotBlank()) { "리스트 식별자가 올바르지 않습니다." }
+        require(listId > 0) { "리스트 식별자가 올바르지 않습니다." }
         require(!isDeleted) { "삭제된 카드입니다." }
         if (this.listId == listId && this.position == position) return false
         this.listId = listId
@@ -260,11 +269,11 @@ class GroupCard(
 
     // 삭제된 카드를 지정한 리스트의 위치로 복구한다.
     fun restore(
-        listId: String,
-        position: Int,
+        listId: Long,
+        position: Long,
         at: Instant,
     ) {
-        require(listId.isNotBlank()) { "리스트 식별자가 올바르지 않습니다." }
+        require(listId > 0) { "리스트 식별자가 올바르지 않습니다." }
         require(isDeleted) { "삭제된 카드가 아닙니다." }
         this.listId = listId
         this.position = position
@@ -294,7 +303,6 @@ class GroupCard(
     }
 
     companion object {
-        const val ID_MAX_LENGTH: Int = 100
         const val TITLE_MAX_LENGTH: Int = 255
         const val DESCRIPTION_MAX_BYTES: Int = 4096
 

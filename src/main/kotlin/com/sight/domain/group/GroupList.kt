@@ -14,16 +14,16 @@ import java.time.Instant
     indexes = [Index(columnList = "group_id, position, id")],
 )
 class GroupList(
-    id: String,
+    id: Long,
     groupId: Long,
     title: String,
-    position: Int,
+    position: Long,
     createdAt: Instant,
 ) {
-    // 리스트 식별자. 그룹 API 아이디 기준에 따라 문자열(ULID)이다.
+    // 리스트 식별자. 레거시의 정수 아이디를 그대로 유지한다.
     @Id
-    @Column(name = "id", nullable = false, length = ID_MAX_LENGTH)
-    val id: String = id
+    @Column(name = "id", nullable = false)
+    val id: Long = id
 
     // 소속 그룹.
     @Column(name = "group_id", nullable = false)
@@ -35,13 +35,13 @@ class GroupList(
         private set
 
     // 리스트 설명. 일반 텍스트이며 없으면 빈 문자열이다.
-    @Column(name = "description", nullable = false, length = DESCRIPTION_MAX_LENGTH)
+    @Column(name = "description", nullable = false, columnDefinition = "LONGTEXT")
     var description: String = ""
         private set
 
     // 그룹 안의 표시 순서. 오름차순으로 보여 주며, 같으면 리스트 아이디 오름차순이다.
     @Column(name = "position", nullable = false)
-    var position: Int = position
+    var position: Long = position
         private set
 
     // 삭제되지 않은 카드 수. 비활성 카드를 포함한다.
@@ -58,7 +58,7 @@ class GroupList(
         private set
 
     init {
-        require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "리스트 식별자가 올바르지 않습니다." }
+        require(id > 0) { "리스트 식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
         this.title = normalizeTitle(title)
     }
@@ -83,7 +83,7 @@ class GroupList(
     }
 
     // 표시 순서를 바꾼다. 순서 계산은 같은 그룹의 다른 리스트와 함께 해야 하므로 계산된 값을 받는다.
-    fun moveTo(position: Int) {
+    fun moveTo(position: Long) {
         this.position = position
     }
 
@@ -97,7 +97,6 @@ class GroupList(
     }
 
     companion object {
-        const val ID_MAX_LENGTH: Int = 100
         const val TITLE_MAX_LENGTH: Int = 255
         const val DESCRIPTION_MAX_LENGTH: Int = 1000
 

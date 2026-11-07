@@ -30,6 +30,12 @@ solapi:
   base-url: ${SOLAPI_BASE_URL:https://api.solapi.com}
   timeout: 10s
 
+# 문자열 ID API와 기존 채번 중단을 준비한 뒤 활성화한다.
+integer-id:
+  enabled: ${INTEGER_ID_ENABLED:false}
+  node-id: ${INTEGER_ID_NODE_ID:}
+  legacy-max-id: ${INTEGER_ID_LEGACY_MAX_ID:}
+
 ---
 spring:
   config:

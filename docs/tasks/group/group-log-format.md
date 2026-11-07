@@ -27,7 +27,7 @@
 
 - 아래 표의 필드는 모두 필수이며 null을 허용하지 않는다. 부가 값이 없는 이벤트는 빈 객체다.
 - 필드에 별도 타입 표기가 없으면 문자열이다. groupId 및 sourceGroupId와 회원 식별자(targetUserId·fromUserId·toUserId·assigneeUserId)는 스프링 도메인에 따라 Long 숫자다. recordId는 [그룹 공통 아이디 타입](../../plans/group/global.md#아이디-타입)에 따라 Long 숫자다.
-- 아직 도메인이 없는 리스트·카드 식별자는 문자열이다. 도메인 추가 시 그룹 공통 ID 기준을 함께 적용한다.
+- 리스트·카드 식별자와 이를 참조하는 listId·cardId·fromListId·toListId·sourceCardId는 Long 숫자다. 기존 레거시 식별자를 유지하며 [그룹 공통 ID 기준](../../plans/group/global.md#아이디-타입)을 따른다.
 - 이름·제목·소속은 동작 당시 원문 텍스트다. JSON 이스케이프 외에 HTML·Markdown 이스케이프를 적용하지 않는다.
 - changedFields는 실제 변경한 항목의 표시명 배열이다. 레거시 기준 제목·목적·분야·기술·공개 범위·저장소 중 변경한 항목을 담는다.
 - category는 GroupCategory의 API enum 값이다. label은 카드 레이블 API의 값이며 색상을 문자열로 보존한다.
@@ -136,11 +136,11 @@
       "memberId": 7,
       "logType": "CARD_MOVED",
       "logData": {
-        "cardId": "2001",
+        "cardId": 2001,
         "cardTitle": "API 설계",
-        "fromListId": "1001",
+        "fromListId": 1001,
         "fromListTitle": "할 일",
-        "toListId": "1002",
+        "toListId": 1002,
         "toListTitle": "진행 중"
       },
       "createdAt": "2026-10-26T10:00:00"

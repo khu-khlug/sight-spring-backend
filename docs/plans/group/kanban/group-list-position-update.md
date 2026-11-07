@@ -51,7 +51,7 @@ USER and 그룹원
 
 | 이름 | 타입 | 설명 |
 | :-- | :--: | :-- |
-| `insertBeforeListId` | 문자열 | 선택. 이 리스트 바로 앞에 삽입. 생략하거나 null이면 맨 끝 |
+| `insertBeforeListId` | 숫자(Long) | 선택. 이 리스트 바로 앞에 삽입. 생략하거나 null이면 맨 끝 |
 
 ## 성공 응답
 

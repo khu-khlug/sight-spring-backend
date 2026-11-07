@@ -52,7 +52,7 @@ USER and 그룹원
 | `totalCount`        | 숫자(uint) | 삭제된 카드 총 수 |
 | `receivedCount`     | 숫자(uint) | 받은 카드 수 (`cards` 길이)                   |
 | `cards`             | 객체 배열  | 카드 목록. 삭제 일시 내림차순                 |
-| `cards.id`          |   문자열   | 카드 아이디                                   |
+| `cards.id`          |   숫자(Long)   | 카드 아이디                                   |
 | `cards.title`       |   문자열   | 카드명                                        |
 | `cards.authorName`  |   문자열   | 카드 생성자 실명                              |
 | `cards.recordCount` | 숫자(uint) | 카드의 기록 수                                |

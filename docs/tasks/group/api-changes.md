@@ -12,7 +12,7 @@
 - 채팅방 생성·참여: 위 컨트롤러와 [GroupDiscordChannelService](../../../src/main/kotlin/com/sight/service/GroupDiscordChannelService.kt).
 - 멤버 조회·위임·참가·내보내기·나가기: [GroupMemberController](../../../src/main/kotlin/com/sight/controllers/http/GroupMemberController.kt), [GroupMemberService](../../../src/main/kotlin/com/sight/service/GroupMemberService.kt), [GroupMemberRepository](../../../src/main/kotlin/com/sight/repository/GroupMemberRepository.kt).
 - 활동보고: [GroupActivityReportController](../../../src/main/kotlin/com/sight/controllers/http/GroupActivityReportController.kt), [GroupActivityReportService](../../../src/main/kotlin/com/sight/service/GroupActivityReportService.kt), [FileUploadService](../../../src/main/kotlin/com/sight/service/FileUploadService.kt).
-- 아이디 타입은 [공통 기준](../../plans/group/global.md)에 따라 현재 도메인 선언을 따른다. 그룹·회원·그룹 로그의 `Long`은 유지한다. 활동보고·세미나·파일 업로드 아이디는 현재처럼 문자열이다.
+- 아이디 타입은 [공통 기준](../../plans/group/global.md)에 따라 도메인 선언을 따른다. 그룹·회원·그룹 로그·기록·리스트·카드는 `Long` 숫자이며 리스트·카드를 참조하는 필드도 같다. 기존 레거시 식별자와 URL 대상을 유지한다. 활동보고·세미나·파일 업로드 아이디는 문자열이다.
 - 이미 구현된 경험치 수치는 변경 사항으로 취급하지 않는다. [경험치 기준](../../plans/experience-points.md)에 따라 참가 +40, 내보내기·나가기 -40, 포트폴리오 ±10, 보고서·세미나 발표 제출·취소 ±150은 유지한다. 실습 그룹의 경험치 제외 예외는 제거한다.
 
 ## 즐겨찾기·참가·채팅방
@@ -111,7 +111,7 @@
 
 - 최상위 `leaderUserId`(숫자 Long 또는 null)를 추가하고 멤버별 `isLeader`·`realname`을 제거한다. 그룹장이 없으면 `leaderUserId: null`이며 그룹원도 없으면 `members: []`다.
 - `members[].name`에는 기존 `realname` 값을 반환한다.
-- `college`, 삭제되지 않은 본인 작성 카드 수 `cardCount`, 삭제되지 않은 본인 작성 기록 수 `recordCount`를 추가한다. 현재 카드·기록 도메인이 없으므로 해당 기능 구현과 연계해야 한다.
+- `college`, 삭제되지 않은 본인 작성 카드 수 `cardCount`, 삭제되지 않은 본인 작성 기록 수 `recordCount`를 추가한다. 기존 `GroupCard`·`GroupRecord` 도메인을 사용하며 조회 기능 구현과 연계한다.
 - 그룹장 우선 정렬은 유지하고, 나머지는 회원 아이디순에서 회원 실명(`members[].name`, 현재 회원 도메인의 `realname`) 오름차순으로 변경한다. 백엔드에서 정렬을 완료한 목록을 반환한다.
 - 열람 권한은 [권한 설계](../../plans/group-auth.md)의 공통 `VIEWER`로 판정한다. 비공개 그룹의 생성자 예외를 제거하며, 그룹원은 공개 범위와 관계없이 열람하고 비그룹원은 공개 범위로 판정한다. 이 규칙은 모든 `VIEWER` API에 적용하며 [권한 태스크](group-auth-annotation.md)에서 전환한다.
 - 경로와 성공 `200`은 유지한다.

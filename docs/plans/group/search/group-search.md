@@ -84,9 +84,9 @@ USER and 열람권한
 | `totalPages`          |   숫자(uint)   | 검색 결과의 전체 페이지 수. 결과가 없으면 0                                                    |
 | `receivedCount`       |   숫자(uint)   | 받은 결과 수 (`results` 길이)                                                                 |
 | `results`             |   객체 배열    | 검색 결과 목록. 최근 변경순(정렬 참고) |
-| `results.listId`      |     문자열     | 카드가 속한 리스트 아이디                                                                     |
+| `results.listId`      |     숫자(Long)     | 카드가 속한 리스트 아이디                                                                     |
 | `results.listTitle`   |     문자열     | 카드가 속한 리스트 제목                                                                       |
-| `results.cardId`      |     문자열     | 카드 아이디                                                                                   |
+| `results.cardId`      |     숫자(Long)     | 카드 아이디                                                                                   |
 | `results.cardTitle`   |     문자열     | 카드명                                                                                        |
 | `results.recordId`    | 숫자(Long) \| null | 일치한 기록 아이디. `target`이 `RECORD`일 때만 있고 나머지는 null                              |
 | `results.matchedText` | 문자열 \| null | 일치한 부분 미리보기. `RECORD`면 본문 일부, `AUTHOR`면 생성자명, `TITLE`이면 null              |

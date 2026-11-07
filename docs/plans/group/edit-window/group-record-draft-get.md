@@ -47,7 +47,7 @@ USER and 그룹원
 | :-- | :--: | :-- |
 | `draft` | 객체 | 요청자의 해당 그룹 기록 임시저장. null을 반환하지 않음 |
 | `draft.isNewRecord` | 불리언 | 새 기록 작성 중이면 true, 기존 기록 수정 중이면 false |
-| `draft.cardId` | 문자열 | 작성 중인 기록이 속한 카드 아이디 |
+| `draft.cardId` | 숫자(Long) | 작성 중인 기록이 속한 카드 아이디 |
 | `draft.cardTitle` | 문자열 | 카드명 |
 | `draft.recordId` | 숫자(Long) \| null | 수정 중인 기록 아이디. `isNewRecord`가 true이면 null |
 | `draft.content` | 문자열 | 서버에 저장된 임시저장 본문. TIPTAP 문서 JSON을 직렬화한 문자열 |
@@ -69,7 +69,7 @@ USER and 그룹원
 
 1. 그룹원은 이 그룹의 본인 임시저장을 조회할 수 있다
    - 200 응답과 함께 `draft`를 반환한다. 대상 카드 아이디·카드명·`recordId`·본문·마지막 저장 일시·첨부 파일을 포함한다
-   - 기록 아이디는 숫자(Long), 카드·파일 아이디는 문자열, `updatedAt`은 UTC ISO 8601 `Z` 형식이다
+   - 기록·카드 아이디는 숫자(Long), 파일 아이디는 문자열, `updatedAt`은 UTC ISO 8601 `Z` 형식이다
 2. 새 기록과 기존 기록 수정을 구분해 반환한다
    - 새 기록 작성 중이면 `isNewRecord: true`·`recordId: null`, 기존 기록 수정 중이면 false와 그 기록 아이디를 반환한다
 3. 본문은 임시저장 본문 그대로 반환한다

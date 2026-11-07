@@ -1,5 +1,6 @@
 package com.sight.domain.group
 
+import com.sight.core.groupauth.GroupVisibility
 import java.time.Instant
 
 // 테스트에서 저장된 상태의 그룹 도메인을 만든다. DB가 채번하는 id는 리플렉션으로 넣고, 나머지 상태는 도메인 메서드로 만든다.

@@ -3,12 +3,12 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupPolicy
 import com.sight.domain.group.GroupStatus
-import com.sight.domain.group.GroupVisibility
 import com.sight.domain.group.testGroup
 import com.sight.domain.group.testGroupMember
 import com.sight.domain.member.Member

@@ -4,10 +4,10 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupMember
-import com.sight.domain.group.GroupVisibility
 import com.sight.domain.groupmatching.GroupMatching
 import com.sight.domain.groupmatching.GroupMatchingAnswer
 import com.sight.domain.groupmatching.GroupMatchingAnswerOption

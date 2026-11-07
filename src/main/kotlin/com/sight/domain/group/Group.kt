@@ -1,5 +1,6 @@
 package com.sight.domain.group
 
+import com.sight.core.groupauth.GroupVisibility
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType

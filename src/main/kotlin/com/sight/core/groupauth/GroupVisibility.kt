@@ -1,4 +1,4 @@
-package com.sight.domain.group
+package com.sight.core.groupauth
 
 enum class GroupVisibility {
     // 그룹원만

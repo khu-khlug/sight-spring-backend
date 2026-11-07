@@ -2,7 +2,6 @@ package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupFile
@@ -68,8 +67,7 @@ class GroupActivityReportService(
         requesterId: Long,
         requestPath: String,
     ): UploadLinkResult {
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 업로드 링크를 발급할 수 있습니다.")
+        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
 
         val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath)
         groupFileRepository.save(GroupFile(groupId = groupId, fileUploadId = uploadLink.fileUploadId))
@@ -85,7 +83,6 @@ class GroupActivityReportService(
         uploadLinkRequestPath: String,
     ): ActivityReportResult {
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 활동보고를 제출할 수 있습니다.")
 
         val seminar = findNextSeminar() ?: throw BadRequestException("활동보고 기간이 아닙니다.")
         if (groupActivityReportRepository.existsByGroupIdAndSeminarId(groupId, seminar.id)) {
@@ -138,7 +135,6 @@ class GroupActivityReportService(
         if (isPresentation == null && fileUploadId == null) throw BadRequestException("수정할 내용이 없습니다.")
 
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 활동보고를 수정할 수 있습니다.")
 
         val report =
             groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
@@ -189,11 +185,8 @@ class GroupActivityReportService(
     fun cancelReport(
         groupId: Long,
         reportId: String,
-        requesterId: Long,
-        isManager: Boolean,
     ) {
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!isManager && !group.isLeader(requesterId)) throw ForbiddenException("그룹장 또는 운영진만 활동보고를 취소할 수 있습니다.")
 
         val report =
             groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
@@ -226,16 +219,8 @@ class GroupActivityReportService(
     }
 
     @Transactional(readOnly = true)
-    fun listReports(
-        groupId: Long,
-        requesterId: Long,
-        isManager: Boolean,
-    ): ActivityReportListResult {
+    fun listReports(groupId: Long): ActivityReportListResult {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!isManager && !groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)) {
-            throw ForbiddenException("그룹 멤버만 활동보고를 조회할 수 있습니다.")
-        }
-
         val reports = groupActivityReportRepository.findByGroupId(groupId)
 
         val seminars = bigSeminarRepository.findAllById(reports.map { it.seminarId }).associateBy { it.id }

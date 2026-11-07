@@ -1,6 +1,5 @@
 package com.sight.service
 
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.discord.DiscordIntegration
@@ -77,21 +76,6 @@ class GroupDiscordChannelServiceTest {
 
         assertThrows<NotFoundException> {
             groupDiscordChannelService.createDiscordChannel(groupId, requesterId)
-        }
-    }
-
-    @Test
-    fun `그룹장이 아닌 사용자가 채널 생성을 시도하면 ForbiddenException이 발생한다`() {
-        val groupId = 1L
-        val masterId = 100L
-        val nonMasterId = 200L
-        val group =
-            testGroup(id = groupId, category = GroupCategory.PROJECT, title = "테스트 그룹", leaderMemberId = masterId)
-
-        given(groupRepository.findById(groupId)).willReturn(Optional.of(group))
-
-        assertThrows<ForbiddenException> {
-            groupDiscordChannelService.createDiscordChannel(groupId, nonMasterId)
         }
     }
 

@@ -3,13 +3,10 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupPolicy
-import com.sight.domain.member.Member
-import com.sight.domain.member.StudentStatus
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -40,24 +37,11 @@ class GroupMemberService(
     private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
-    fun listGroupMembers(
-        groupId: Long,
-        requesterId: Long,
-    ): GroupMemberListResult {
+    fun listGroupMembers(groupId: Long): GroupMemberListResult {
         val group =
             groupRepository.findById(groupId).orElseThrow {
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
-
-        val requester =
-            memberRepository.findById(requesterId).orElseThrow {
-                NotFoundException("회원을 찾을 수 없습니다")
-            }
-
-        val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
-        if (!canViewGroup(group, requester, isMember)) {
-            throw ForbiddenException("해당 그룹의 멤버 목록을 조회할 권한이 없습니다")
-        }
 
         val members = groupMemberRepository.findMemberListByGroupId(groupId)
         val sorted =
@@ -67,18 +51,6 @@ class GroupMemberService(
 
         return GroupMemberListResult(members = sorted)
     }
-
-    private fun canViewGroup(
-        group: Group,
-        requester: Member,
-        isMember: Boolean,
-    ): Boolean =
-        when (group.visibility) {
-            GroupVisibility.PRIVATE -> isMember || group.authorMemberId == requester.id
-            GroupVisibility.MANAGER_ONLY -> requester.manager
-            GroupVisibility.MEMBER_ONLY -> requester.studentStatus != StudentStatus.UNITED
-            GroupVisibility.PUBLIC -> true
-        }
 
     private fun com.sight.repository.dto.GroupMemberListDto.toItem(group: Group): GroupMemberListItem =
         GroupMemberListItem(
@@ -98,10 +70,6 @@ class GroupMemberService(
             groupRepository.findById(groupId).orElseThrow {
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
-
-        if (!group.isLeader(requesterId)) {
-            throw ForbiddenException("그룹장만 위임할 수 있습니다")
-        }
 
         if (newMasterId == requesterId) {
             throw BadRequestException("자기 자신에게 위임할 수 없습니다")
@@ -166,15 +134,7 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        val requester =
-            memberRepository.findById(requesterId).orElseThrow {
-                NotFoundException("회원을 찾을 수 없습니다")
-            }
         val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
-
-        if (!canViewGroup(group, requester, isMember)) {
-            throw ForbiddenException("그룹에 참여할 수 있는 권한이 없습니다")
-        }
 
         if (!group.allowJoin) {
             throw ForbiddenException("이 그룹은 참여가 제한되어 있습니다")
@@ -246,10 +206,6 @@ class GroupMemberService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.category != GroupCategory.MANAGE && !group.isLeader(requesterId)) {
-            throw ForbiddenException("그룹장만 멤버를 내보낼 수 있습니다")
-        }
-
         if (kickedMemberId == requesterId) {
             throw BadRequestException("자기 자신을 내보낼 수 없습니다")
         }
@@ -309,10 +265,6 @@ class GroupMemberService(
             groupRepository.findById(groupId).orElseThrow {
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
-
-        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)) {
-            throw BadRequestException("그룹 멤버가 아닙니다")
-        }
 
         // 운영 카테고리가 아닌 그룹에서 그룹장은 탈퇴 불가 (먼저 위임 필요)
         if (group.isLeader(requesterId) && group.category != GroupCategory.MANAGE) {

@@ -1,7 +1,6 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupCategory
@@ -676,7 +675,7 @@ class GroupServiceTest {
         given(groupMemberRepository.findByGroupId(1L)).willReturn(members)
 
         // when
-        val result = groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
+        val result = groupService.publishPortfolio(groupId = 1L)
 
         // then
         assertTrue(result)
@@ -692,18 +691,7 @@ class GroupServiceTest {
 
         // when & then
         assertFailsWith<BadRequestException> {
-            groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
-        }
-    }
-
-    @Test
-    fun `publishPortfolio는 그룹장이 아닌 멤버가 요청하면 403을 반환한다`() {
-        // given
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-
-        // when & then
-        assertFailsWith<ForbiddenException> {
-            groupService.publishPortfolio(groupId = 1L, requesterId = 99L)
+            groupService.publishPortfolio(groupId = 1L)
         }
     }
 
@@ -714,7 +702,7 @@ class GroupServiceTest {
 
         // when & then
         assertFailsWith<NotFoundException> {
-            groupService.publishPortfolio(groupId = 1L, requesterId = 10L)
+            groupService.publishPortfolio(groupId = 1L)
         }
     }
 
@@ -727,7 +715,7 @@ class GroupServiceTest {
         given(groupMemberRepository.findByGroupId(1L)).willReturn(members)
 
         // when
-        groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
+        groupService.cancelPortfolio(groupId = 1L)
 
         // then
         verify(groupRepository).updatePortfolioPublishedById(1L, false)
@@ -742,18 +730,7 @@ class GroupServiceTest {
 
         // when & then
         assertFailsWith<NotFoundException> {
-            groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
-        }
-    }
-
-    @Test
-    fun `cancelPortfolio는 그룹장이 아닌 멤버가 요청하면 403을 반환한다`() {
-        // given
-        given(groupRepository.findById(1L)).willReturn(Optional.of(testGroup(id = 1L, leaderMemberId = 10L, isPortfolioPublished = true)))
-
-        // when & then
-        assertFailsWith<ForbiddenException> {
-            groupService.cancelPortfolio(groupId = 1L, requesterId = 99L)
+            groupService.cancelPortfolio(groupId = 1L)
         }
     }
 
@@ -764,7 +741,7 @@ class GroupServiceTest {
 
         // when & then
         assertFailsWith<NotFoundException> {
-            groupService.cancelPortfolio(groupId = 1L, requesterId = 10L)
+            groupService.cancelPortfolio(groupId = 1L)
         }
     }
 }

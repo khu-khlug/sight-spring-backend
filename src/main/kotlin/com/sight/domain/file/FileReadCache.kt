@@ -24,10 +24,13 @@ class FileReadCache(
         require(readUrl == null || readUrl.isNotBlank()) { "읽기 주소가 필요합니다." }
     }
 
-    fun reusableUrl(at: Instant): String? =
-        readUrl?.takeIf { readUrlExpiresAt?.isAfter(at.plus(REFRESH_MARGIN)) == true }
+    fun reusableUrl(at: Instant): String? = readUrl?.takeIf { readUrlExpiresAt?.isAfter(at.plus(REFRESH_MARGIN)) == true }
 
-    fun refresh(url: String, expiresAt: Instant, at: Instant) {
+    fun refresh(
+        url: String,
+        expiresAt: Instant,
+        at: Instant,
+    ) {
         require(url.isNotBlank()) { "읽기 주소가 필요합니다." }
         require(expiresAt.isAfter(at)) { "읽기 주소의 만료 시각은 발급 시각보다 늦어야 합니다." }
         readUrl = url

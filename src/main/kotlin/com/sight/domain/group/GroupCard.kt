@@ -197,7 +197,10 @@ class GroupCard(
     }
 
     // 레거시 커버 존재 여부는 기존 파일 연결을 조회한 호출자가 전달하고 연결 제거도 함께 처리한다.
-    fun removeCover(at: Instant, hasLegacyCover: Boolean = false): Boolean {
+    fun removeCover(
+        at: Instant,
+        hasLegacyCover: Boolean = false,
+    ): Boolean {
         requireEditable()
         require(!hasLegacyCover || isLegacy) { "레거시 카드만 기존 파일 커버를 가질 수 있습니다." }
         if (coverFileUploadId == null && !hasLegacyCover) return false

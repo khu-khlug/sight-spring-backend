@@ -1,7 +1,6 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.group.GroupBookmark
@@ -175,12 +174,8 @@ class GroupService(
     }
 
     @Transactional
-    fun publishPortfolio(
-        groupId: Long,
-        requesterId: Long,
-    ): Boolean {
+    fun publishPortfolio(groupId: Long): Boolean {
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 포트폴리오를 발행할 수 있습니다.")
         if (group.isPortfolioPublished) throw BadRequestException("이미 발행된 포트폴리오입니다.")
 
         // 동시에 발행하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.
@@ -203,12 +198,8 @@ class GroupService(
     }
 
     @Transactional
-    fun cancelPortfolio(
-        groupId: Long,
-        requesterId: Long,
-    ) {
+    fun cancelPortfolio(groupId: Long) {
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 포트폴리오를 취소할 수 있습니다.")
         if (!group.isPortfolioPublished) throw NotFoundException("발행된 포트폴리오가 없습니다.")
 
         // 동시에 취소하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.

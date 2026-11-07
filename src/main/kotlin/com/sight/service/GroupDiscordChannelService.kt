@@ -44,10 +44,6 @@ class GroupDiscordChannelService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (!group.isLeader(requesterId)) {
-            throw ForbiddenException("그룹장만 디스코드 채널을 생성할 수 있습니다")
-        }
-
         if (groupDiscordChannelRepository.findByGroupId(groupId) != null) {
             throw UnprocessableEntityException("이미 디스코드 채널이 존재합니다")
         }

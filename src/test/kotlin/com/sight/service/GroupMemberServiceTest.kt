@@ -117,7 +117,7 @@ class GroupMemberServiceTest {
         )
 
         // when
-        val result = groupMemberService.listGroupMembers(groupId = 100L, requesterId = 1L)
+        val result = groupMemberService.listGroupMembers(groupId = 100L)
 
         // then
         assertEquals(3, result.members.size)
@@ -136,97 +136,8 @@ class GroupMemberServiceTest {
 
         // then
         assertThrows<NotFoundException> {
-            groupMemberService.listGroupMembers(groupId = 999L, requesterId = 1L)
+            groupMemberService.listGroupMembers(groupId = 999L)
         }
-    }
-
-    @Test
-    fun `PRIVATE 그룹은 멤버만 조회 가능하다`() {
-        // given
-        val group = createGroup(visibility = GroupVisibility.PRIVATE)
-        val requester = createMember(id = 2L)
-        stubGroupAndRequester(group, requester, isMember = true)
-        given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
-
-        // when (does not throw)
-        groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-    }
-
-    @Test
-    fun `PRIVATE 그룹은 비멤버이고 author도 아니면 403을 던진다`() {
-        // given
-        val group = createGroup(visibility = GroupVisibility.PRIVATE, master = 1L, author = 1L)
-        val requester = createMember(id = 2L)
-        stubGroupAndRequester(group, requester, isMember = false)
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-        }
-    }
-
-    @Test
-    fun `MANAGER 그룹은 운영진만 조회 가능하다`() {
-        // given
-        val group = createGroup(category = GroupCategory.MANAGE, visibility = GroupVisibility.MANAGER_ONLY)
-        val requester = createMember(id = 2L, manager = true)
-        stubGroupAndRequester(group, requester, isMember = false)
-        given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
-
-        // when (does not throw)
-        groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-    }
-
-    @Test
-    fun `MANAGER 그룹은 운영진이 아닌 회원이 조회하면 403을 던진다`() {
-        // given
-        val group = createGroup(category = GroupCategory.MANAGE, visibility = GroupVisibility.MANAGER_ONLY)
-        val requester = createMember(id = 2L, manager = false)
-        stubGroupAndRequester(group, requester, isMember = true)
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-        }
-    }
-
-    @Test
-    fun `MEMBER 그룹은 UNDERGRADUATE·ABSENCE·GRADUATE 회원이 조회 가능하다`() {
-        // given
-        val group = createGroup(visibility = GroupVisibility.MEMBER_ONLY)
-        listOf(StudentStatus.UNDERGRADUATE, StudentStatus.ABSENCE, StudentStatus.GRADUATE).forEach { status ->
-            val requester = createMember(id = 2L, studentStatus = status)
-            stubGroupAndRequester(group, requester, isMember = false)
-            given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
-
-            // when (does not throw)
-            groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-        }
-    }
-
-    @Test
-    fun `MEMBER 그룹은 UNITED 회원이 조회하면 403을 던진다`() {
-        // given
-        val group = createGroup(visibility = GroupVisibility.MEMBER_ONLY)
-        val requester = createMember(id = 2L, studentStatus = StudentStatus.UNITED)
-        stubGroupAndRequester(group, requester, isMember = false)
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
-        }
-    }
-
-    @Test
-    fun `ALL 그룹은 UNITED 회원도 조회 가능하다`() {
-        // given
-        val group = createGroup(visibility = GroupVisibility.PUBLIC)
-        val requester = createMember(id = 2L, studentStatus = StudentStatus.UNITED)
-        stubGroupAndRequester(group, requester, isMember = false)
-        given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
-
-        // when (does not throw)
-        groupMemberService.listGroupMembers(groupId = group.id, requesterId = requester.id)
     }
 
     @Test
@@ -279,24 +190,6 @@ class GroupMemberServiceTest {
             content = eq(expectedContent),
             url = anyOrNull(),
         )
-    }
-
-    @Test
-    fun `delegateMaster는 그룹장이 아니면 403을 던진다`() {
-        // given
-        val group = createGroup(id = 100L, master = 1L)
-        val newMaster = createMember(id = 2L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(memberRepository.findById(2L)).willReturn(Optional.of(newMaster))
-
-        // then
-        assertThrows<ForbiddenException> {
-            // 요청자(99)는 master(1)가 아님
-            groupMemberService.delegateMaster(groupId = 100L, requesterId = 99L, newMasterId = 2L)
-        }
-        verify(groupRepository, never()).save(any())
-        verify(groupLogService, never()).createLog(any(), any(), any(), any())
-        verify(notificationService, never()).createNotification(any(), any(), any(), any(), anyOrNull())
     }
 
     @Test
@@ -531,19 +424,6 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 열람 권한 없으면 403을 던진다`() {
-        // given - PRIVATE 그룹, 비멤버, 비-author (권한 단계에서 차단되므로 state/allowJoin 무관)
-        val group = createGroup(id = 100L, master = 1L, author = 1L, visibility = GroupVisibility.PRIVATE)
-        val requester = createMember(id = 99L)
-        stubGroupAndRequester(group, requester, isMember = false)
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupMemberService.joinGroup(groupId = 100L, requesterId = 99L)
-        }
-    }
-
-    @Test
     fun `joinGroup은 이미 멤버인 경우 400을 던진다`() {
         // given - 권한·allow_join·state 모두 통과 후 이미 멤버 차단
         val group =
@@ -629,34 +509,6 @@ class GroupMemberServiceTest {
             message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
         )
         verify(groupRepository).addMemberCountById(100L, -1)
-    }
-
-    @Test
-    fun `kickMember는 그룹장이 아니면 403을 던진다`() {
-        // given
-        val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupMemberService.kickMember(groupId = 100L, requesterId = 99L, kickedMemberId = 5L)
-        }
-    }
-
-    @Test
-    fun `kickMember는 운영 카테고리 그룹에서 그룹장이 아닌 회원도 멤버를 내보낼 수 있다`() {
-        // given - 운영 카테고리는 그룹장 권한 체크 건너뜀
-        val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
-        val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
-
-        // when - 그룹장(1L)이 아닌 99L이 요청
-        groupMemberService.kickMember(groupId = 100L, requesterId = 99L, kickedMemberId = 5L)
-
-        // then
-        verify(groupMemberRepository).delete(100L, 5L)
     }
 
     @Test
@@ -893,19 +745,6 @@ class GroupMemberServiceTest {
         // then
         assertThrows<BadRequestException> {
             groupMemberService.leaveGroup(groupId = 100L, requesterId = 1L)
-        }
-    }
-
-    @Test
-    fun `leaveGroup은 비멤버가 탈퇴하려 하면 400을 던진다`() {
-        // given
-        val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 99L)).willReturn(false)
-
-        // then
-        assertThrows<BadRequestException> {
-            groupMemberService.leaveGroup(groupId = 100L, requesterId = 99L)
         }
     }
 

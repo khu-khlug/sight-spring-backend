@@ -2,12 +2,10 @@ package com.sight.service
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupLog
 import com.sight.domain.group.GroupLogType
 import com.sight.repository.GroupLogRepository
-import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
@@ -37,7 +35,6 @@ data class GroupLogListResult(
 @Service
 class GroupLogService(
     private val groupRepository: GroupRepository,
-    private val groupMemberRepository: GroupMemberRepository,
     private val groupLogRepository: GroupLogRepository,
     private val memberRepository: MemberRepository,
     private val objectMapper: ObjectMapper,
@@ -45,16 +42,10 @@ class GroupLogService(
     @Transactional(readOnly = true)
     fun listGroupLogs(
         groupId: Long,
-        requesterId: Long,
         skip: Int,
     ): GroupLogListResult {
         if (!groupRepository.existsById(groupId)) {
             throw NotFoundException("그룹을 찾을 수 없습니다")
-        }
-
-        val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
-        if (!isMember) {
-            throw ForbiddenException("해당 그룹의 활동 로그를 조회할 권한이 없습니다")
         }
 
         val logs = groupRepository.findGroupLogsByGroupIdOrderByLatest(groupId, offset = skip, limit = PAGE_SIZE)

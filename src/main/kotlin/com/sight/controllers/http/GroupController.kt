@@ -11,6 +11,8 @@ import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.core.groupauth.GroupAuth
+import com.sight.core.groupauth.GroupRole
 import com.sight.service.GroupDiscordChannelService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
@@ -83,6 +85,7 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/discord-channel")
     fun createGroupDiscordChannel(
         @PathVariable groupId: Long,
@@ -133,6 +136,7 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth(roles = [GroupRole.VIEWER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.CREATED)
     fun addBookmark(
@@ -143,6 +147,7 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth(roles = [GroupRole.VIEWER], groupId = "groupId", allowManager = false)
     @DeleteMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelBookmark(
@@ -153,23 +158,23 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/portfolio")
     fun publishPortfolio(
         @PathVariable groupId: Long,
-        requester: Requester,
     ): PublishPortfolioResponse {
-        val published = groupService.publishPortfolio(groupId, requester.userId)
+        val published = groupService.publishPortfolio(groupId)
         return PublishPortfolioResponse(published = published)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
     @DeleteMapping("/groups/{groupId}/portfolio")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelPortfolio(
         @PathVariable groupId: Long,
-        requester: Requester,
     ) {
-        groupService.cancelPortfolio(groupId, requester.userId)
+        groupService.cancelPortfolio(groupId)
     }
 
     @Auth([UserRole.MANAGER])

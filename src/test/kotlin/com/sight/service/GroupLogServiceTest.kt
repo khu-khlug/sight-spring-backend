@@ -1,7 +1,6 @@
 package com.sight.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.GroupLog
 import com.sight.domain.group.GroupLogType
@@ -9,7 +8,6 @@ import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.repository.GroupLogRepository
-import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,14 +26,12 @@ import java.util.Optional
 
 class GroupLogServiceTest {
     private val groupRepository = mock<GroupRepository>()
-    private val groupMemberRepository = mock<GroupMemberRepository>()
     private val groupLogRepository = mock<GroupLogRepository>()
     private val memberRepository = mock<MemberRepository>()
     private val objectMapper = ObjectMapper()
     private val groupLogService =
         GroupLogService(
             groupRepository = groupRepository,
-            groupMemberRepository = groupMemberRepository,
             groupLogRepository = groupLogRepository,
             memberRepository = memberRepository,
             objectMapper = objectMapper,
@@ -57,9 +53,7 @@ class GroupLogServiceTest {
     fun `listGroupLogs는 그룹 멤버에게 로그 목록과 전체 개수를 반환한다`() {
         // given
         val groupId = 100L
-        val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
-        given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
         given(groupRepository.findGroupLogsByGroupIdOrderByLatest(groupId, 0, GroupLogService.PAGE_SIZE)).willReturn(
             listOf(
                 GroupLog(
@@ -83,7 +77,7 @@ class GroupLogServiceTest {
         given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(257L)
 
         // when
-        val result = groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 0)
+        val result = groupLogService.listGroupLogs(groupId = groupId, skip = 0)
 
         // then
         assertEquals(0, result.skip)
@@ -101,14 +95,12 @@ class GroupLogServiceTest {
     fun `listGroupLogs는 skip을 offset으로, 한 번에 최대 50개를 레포지토리에 요청한다`() {
         // given
         val groupId = 100L
-        val requesterId = 1L
         given(groupRepository.existsById(groupId)).willReturn(true)
-        given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(true)
         given(groupRepository.findGroupLogsByGroupIdOrderByLatest(groupId, 50, 50)).willReturn(emptyList())
         given(groupRepository.countGroupLogsByGroupId(groupId)).willReturn(0L)
 
         // when
-        groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 50)
+        groupLogService.listGroupLogs(groupId = groupId, skip = 50)
 
         // then
         verify(groupRepository).findGroupLogsByGroupIdOrderByLatest(eq(groupId), eq(50), eq(50))
@@ -121,21 +113,7 @@ class GroupLogServiceTest {
 
         // then
         assertThrows<NotFoundException> {
-            groupLogService.listGroupLogs(groupId = 999L, requesterId = 1L, skip = 0)
-        }
-    }
-
-    @Test
-    fun `listGroupLogs는 그룹 멤버가 아니면 403을 던진다`() {
-        // given
-        val groupId = 100L
-        val requesterId = 2L
-        given(groupRepository.existsById(groupId)).willReturn(true)
-        given(groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)).willReturn(false)
-
-        // then
-        assertThrows<ForbiddenException> {
-            groupLogService.listGroupLogs(groupId = groupId, requesterId = requesterId, skip = 0)
+            groupLogService.listGroupLogs(groupId = 999L, skip = 0)
         }
     }
 

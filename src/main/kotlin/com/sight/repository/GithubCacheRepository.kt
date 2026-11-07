@@ -12,5 +12,7 @@ interface GithubCacheRepository : JpaRepository<GithubCache, String> {
     // 아직 없는 행의 동시 삽입과 최대 행 수 제한은 별도의 공통 저장 경로에서 직렬 처리한다.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select cache from GithubCache cache where cache.id = :id")
-    fun findByIdForUpdate(@Param("id") id: String): GithubCache?
+    fun findByIdForUpdate(
+        @Param("id") id: String,
+    ): GithubCache?
 }

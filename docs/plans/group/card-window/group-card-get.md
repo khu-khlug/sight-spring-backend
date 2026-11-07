@@ -42,7 +42,7 @@ USER and 열람권한
 
 | 이름 | 타입 | 설명 |
 | :-- | :--: | :-- |
-| `listId` | 숫자(Long) | 소속 리스트 아이디 |
+| `listId` | 10진 문자열 | 소속 리스트 아이디 |
 | `listTitle` | 문자열 | 소속 리스트 이름 |
 | `description` | 문자열 | 카드 설명 Markdown 원문. 없으면 빈 문자열 |
 | `recordSort` | 문자열 | 카드에 저장된 기록 정렬 설정. `NEWEST`, `OLDEST`, `RECENTLY_UPDATED` |

@@ -80,7 +80,7 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | 이름             | 타입      | 설명                              |
 | ---------------- | --------- | --------------------------------- |
 | `id`             | 문자열 | 생성된 `group_activity_report.id` |
-| `groupId`        | 숫자(Long) | 제출한 그룹                       |
+| `groupId`        | 10진 문자열 | 제출한 그룹                       |
 | `seminarId`      | 문자열 | 해당하는 세미나                   |
 | `isPresentation` | boolean   | 발표 여부                         |
 | `reportFileKey`  | string    | R2 파일 key                       |
@@ -130,7 +130,7 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 10. 파일 검증에 실패하면 기존 데이터를 보존한다
     - 기존 보고서와 파일은 그대로 두고, R2 객체가 없는 해당 업로드 기록만 지운다. 상관없는 업로드는 지우지 않는다
 11. 응답 필드는 정해진 타입이다
-    - `id`·`seminarId`는 문자열, `groupId`는 숫자(Long), `isPresentation`은 불리언, 생성·수정 일시는 UTC ISO 8601 `Z` 형식이다
+    - `id`·`seminarId`는 문자열, `groupId`는 10진 문자열, `isPresentation`은 불리언, 생성·수정 일시는 UTC ISO 8601 `Z` 형식이다
 12. DB 처리가 실패하면 모두 되돌린다
     - 트랜잭션 도중 실패하면 활동보고·파일 사용 상태·경험치와 경험치 이력·알림·로그·그룹 상태를 함께 되돌리고, R2 객체는 지우지 않는다
 13. 거부된 요청은 아무것도 바꾸지 않는다

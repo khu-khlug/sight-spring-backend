@@ -30,24 +30,33 @@
 
 ## 아이디 타입
 
-- 스프링 도메인에 선언된 식별자 타입을 요청·응답 및 경로 파라미터에 그대로 사용한다. `Long`은 숫자(`Long`), `String`은 문자열로 명시한다. 숫자 식별자를 문자열로 변환하여 통일하지 않는다.
-- 레거시 그룹·리스트·카드·기록의 숫자 식별자를 그대로 유지한다. 이전 과정에서 재채번하거나 문자열 식별자로 바꾸지 않으며 기존 URL이 가리키는 대상도 유지한다.
-- 숫자 식별자는 양의 Long 정수다. 0·음수·소수·Long 범위 초과·숫자가 아닌 경로 값과 JSON 문자열 식별자는 400으로 거부한다. 선택 필드의 생략·null 허용 여부는 각 계약을 따른다.
-- 회원 참조처럼 다른 리소스를 가리키는 필드도 참조 대상 도메인의 식별자 타입을 따른다. null 허용 여부는 각 필드의 계약에 따른다.
+- 그룹·리스트·카드·기록·그룹 활동 로그의 식별자는 DB에서 `BIGINT`, 도메인에서 `Long`으로 유지하며 API의 JSON 요청·응답에서는 10진수 문자열로 전달한다. TSID를 JavaScript Number로 처리해 정밀도가 손실되지 않게 한다.
+- 레거시 그룹·리스트·카드·기록·로그의 식별자 값과 참조를 그대로 유지한다. 이전 시 재채번하지 않으며 기존 URL이 가리키는 대상도 유지한다. Base32로 바꾸지 않고 10진수 표기를 사용하는 이유는 레거시 식별자와 URL의 호환성이다.
+- 위 정수 식별자 문자열은 선행 0 없는 양의 Long의 10진수 표기다. 빈 값·0·음수·소수·Long 범위 초과·숫자가 아닌 값과 JSON 숫자 식별자는 400으로 거부한다. 경로·쿼리 값도 같은 정수 범위를 검사한다. 선택 필드의 생략·null 허용 여부는 각 계약을 따른다.
+- 다른 리소스를 가리키는 참조 필드는 대상 리소스의 API 표현을 따른다. 회원 식별자는 기존 숫자(Long)를 유지하며 파일 업로드·활동보고·세미나는 기존 문자열 식별자를 유지한다. 수량과 모든 Long 값을 일괄 문자열화하지 않는다.
 
 | 대상 | 도메인 선언 | API 타입 |
 | :-- | :-- | :-- |
-| 그룹 (`groupId`, 그룹 정보의 `id`) | `Group.id: Long` | 숫자(Long) |
+| 그룹 (`groupId`, 그룹 정보의 `id`) | `Group.id: Long` | 문자열(10진수 Long) |
 | 회원 (`userId`, `leaderUserId`, `assigneeUserId` 등) | `Member.id: Long` | 숫자(Long) |
-| 그룹 활동 로그 (`logs.id`) | `GroupLog.id: Long` | 숫자(Long) |
+| 그룹 활동 로그 (`logs.id`) | `GroupLog.id: Long` | 문자열(10진수 Long) |
 | 활동보고 (`reportId`) | `GroupActivityReport.id: String` | 문자열 |
 | 세미나 (`seminarId`) | `BigSeminar.id: String` | 문자열 |
 | 파일 업로드 (`fileUploadId`) | `FileUpload.id: String` | 문자열 |
-| 기록 (`recordId`, 기록 필드의 `id`) | `GroupRecord.id: Long` | 숫자(Long) |
-| 리스트 (`listId`, `targetListId`, `insertBeforeListId` 등) | `GroupList.id: Long` | 숫자(Long) |
-| 카드 (`cardId`, `targetCardId`, `sourceCardId`, `insertBeforeCardId` 등) | `GroupCard.id: Long` | 숫자(Long) |
+| 기록 (`recordId`, 기록 필드의 `id`) | `GroupRecord.id: Long` | 문자열(10진수 Long) |
+| 리스트 (`listId`, `targetListId`, `insertBeforeListId` 등) | `GroupList.id: Long` | 문자열(10진수 Long) |
+| 카드 (`cardId`, `targetCardId`, `sourceCardId`, `insertBeforeCardId` 등) | `GroupCard.id: Long` | 문자열(10진수 Long) |
 
 도메인 추가·변경 시 이 표와 관련 명세의 필드 타입을 함께 갱신한다.
+
+## 신규 정수 식별자 발급
+
+- 이 계약은 그룹 시스템 구현에 우선 적용한다. 일정·매칭·내부 연동 등 기존 API 전반의 채번·표현 전환은 [별도 TODO](../../../../tasks/open/existing-integer-id-migration-backend.md)로 관리한다. 같은 그룹·로그 테이블의 TSID를 기존 API가 읽는 경우에는 그 응답과 소비자도 함께 전환해야 하며, 대응 전에는 해당 대상의 TSID 쓰기를 활성화하지 않는다.
+- 신규 그룹·리스트·카드·기록·그룹 활동 로그의 ID는 공통 `IntegerIdService.nextId()`로 발급한 TSID를 사용한다. 서비스에서 발급해 도메인 생성자에 Long으로 전달하고, 응답 경계에서 10진수 문자열로 변환한다.
+- 서비스별 시간·랜덤 조합, 레거시 전역 sequence 테이블, 위 대상의 DB 자동 증가로 새 ID를 발급하지 않는다. 도메인은 발급 라이브러리·현재 시각·난수를 직접 호출하지 않는다.
+- 같은 JVM은 생성기 하나를 공유한다. 배포 시 `INTEGER_ID_ENABLED=true`, JVM별로 고유한 `INTEGER_ID_NODE_ID`(0~1023), 운영에서 확인한 `INTEGER_ID_LEGACY_MAX_ID`를 설정한다. 중복 노드 번호를 실행하지 않으며 DB 임대·예약 테이블은 사용하지 않는다.
+- 기존 데이터는 이전 SQL에서 원래 ID로 넣는다. 기존 ID 범위 검사, 노드 번호 재사용, 배포 환경 변수 설정과 전환 순서는 [TSID 결정·도입 계획](../../decisions/integer-id-tsid.md)을 따른다.
+- 이 절은 구현할 공통 계약이다. 현재 공통 발급기만 추가된 단계이며 실제 생성 서비스 연결·사전 할당 저장·문자열 API·프런트 처리는 같은 백엔드 전환 배포에 맞춰 적용한다.
 
 ## 설명과 정렬 값의 저장 타입
 

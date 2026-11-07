@@ -74,7 +74,7 @@ USER and 그룹장
 | 이름             | 타입      | 설명                            |
 | ---------------- | --------- | ------------------------------- |
 | `id`             | 문자열 | `group_activity_report.id`      |
-| `groupId`        | 숫자(Long) | group.id                        |
+| `groupId`        | 10진 문자열 | group.id                        |
 | `seminarId`      | 문자열 | big_seminar.id                  |
 | `isPresentation` | boolean   | 발표 여부                       |
 | `reportFileKey`  | string    | 보고 파일 key                   |
@@ -129,7 +129,7 @@ USER and 그룹장
 14. 파일 검증에 실패하면 기존 데이터를 보존한다
     - 기존 보고서와 파일은 그대로 두고, R2 객체가 없는 해당 업로드 기록만 지운다. 상관없는 업로드는 지우지 않는다
 15. 응답 필드는 정해진 타입이다
-    - `id`·`seminarId`는 문자열, `groupId`는 숫자(Long), `isPresentation`은 불리언, 생성·수정 일시는 UTC ISO 8601 `Z` 형식이다
+    - `id`·`seminarId`는 문자열, `groupId`는 10진 문자열, `isPresentation`은 불리언, 생성·수정 일시는 UTC ISO 8601 `Z` 형식이다
 16. DB 처리가 실패하면 모두 되돌린다
     - 트랜잭션 도중 실패하면 활동보고·파일 사용 상태·알림·로그·그룹 상태를 함께 되돌리고, R2 객체는 지우지 않는다
 17. 거부된 요청은 아무것도 바꾸지 않는다

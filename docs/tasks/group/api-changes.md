@@ -12,7 +12,7 @@
 - 채팅방 생성·참여: 위 컨트롤러와 [GroupDiscordChannelService](../../../src/main/kotlin/com/sight/service/GroupDiscordChannelService.kt).
 - 멤버 조회·위임·참가·내보내기·나가기: [GroupMemberController](../../../src/main/kotlin/com/sight/controllers/http/GroupMemberController.kt), [GroupMemberService](../../../src/main/kotlin/com/sight/service/GroupMemberService.kt), [GroupMemberRepository](../../../src/main/kotlin/com/sight/repository/GroupMemberRepository.kt).
 - 활동보고: [GroupActivityReportController](../../../src/main/kotlin/com/sight/controllers/http/GroupActivityReportController.kt), [GroupActivityReportService](../../../src/main/kotlin/com/sight/service/GroupActivityReportService.kt), [FileUploadService](../../../src/main/kotlin/com/sight/service/FileUploadService.kt).
-- 아이디 타입은 [공통 기준](../../plans/group/global.md)에 따라 도메인 선언을 따른다. 그룹·회원·그룹 로그·기록·리스트·카드는 `Long` 숫자이며 리스트·카드를 참조하는 필드도 같다. 기존 레거시 식별자와 URL 대상을 유지한다. 활동보고·세미나·파일 업로드 아이디는 문자열이다.
+- 아이디 타입은 [공통 기준](../../plans/group/global.md)에 따라 도메인 선언을 따른다. 그룹·그룹 로그·기록·리스트·카드는 DB·도메인의 `Long`을 유지하고 API에서는 10진 문자열로 전달하며 이를 참조하는 필드도 같다. 회원 식별자는 숫자(Long)를 유지한다. 기존 레거시 식별자와 URL 대상을 유지한다. 활동보고·세미나·파일 업로드 아이디는 문자열이다.
 - 이미 구현된 경험치 수치는 변경 사항으로 취급하지 않는다. [경험치 기준](../../plans/experience-points.md)에 따라 참가 +40, 내보내기·나가기 -40, 포트폴리오 ±10, 보고서·세미나 발표 제출·취소 ±150은 유지한다. 실습 그룹의 경험치 제외 예외는 제거한다.
 
 ## 즐겨찾기·참가·채팅방

@@ -42,7 +42,7 @@ USER and (그룹원 or 운영진)
 | ---------------------------- | --------- | ------------------------------------------------------------------------------------------- |
 | `reports`                        | 객체 배열          | 리포트 리스트                                                                               |
 | `reports[].id`                   | 문자열 | `group_activity_report.id`                                                                  |
-| `reports[].groupId`              | 숫자(Long) | group.id                                                                                    |
+| `reports[].groupId`              | 10진 문자열 | group.id                                                                                    |
 | `reports[].seminarId` | 문자열 | 활동보고에 저장된 세미나 아이디. 참조 세미나가 없어도 저장된 식별자를 반환한다 |
 | `reports[].seminarDate`          | string\|null       | 세미나 일시 (`schedule.scheduledAt`, ISO 8601 UTC, `Z` 접미사). 세미나/스케줄 참조 row 누락 시 null |
 | `reports[].seminarIsSummerSeason` | boolean\|null     | true: 여름, false: 겨울. 세미나 참조 row 누락 시 null                                           |
@@ -61,7 +61,7 @@ USER and (그룹원 or 운영진)
 
 1. 그룹원이나 운영진은 그룹의 활동보고 목록을 조회할 수 있다
    - 200 응답과 함께 이 그룹의 활동보고를 반환한다. 그룹원이 아닌 운영진도 조회할 수 있다
-   - 보고서 아이디는 문자열, 그룹 아이디는 숫자(Long), 시각은 UTC ISO 8601 `Z` 형식이다. 활동보고가 없으면 `reports: []`다
+   - 보고서 아이디는 문자열, 그룹 아이디는 10진 문자열, 시각은 UTC ISO 8601 `Z` 형식이다. 활동보고가 없으면 `reports: []`다
 2. 보고 파일은 내려받을 수 있는 주소로 반환한다
    - 공개 버킷이면 접근 URL, 비공개 버킷이면 Presigned GET URL을 반환하며 파일 key로 대신하지 않는다
 3. 세미나 정보가 없으면 해당 필드만 null이다

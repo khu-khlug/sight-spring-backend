@@ -56,7 +56,7 @@ USER and 열람권한
 | `totalCount` | 숫자(uint) | 조회 가능한 전체 리스트 수 |
 | `receivedCount` | 숫자(uint) | 이번에 반환한 리스트 수. 최대 10 |
 | `lists` | 객체 배열 | 리스트 목록 |
-| `lists.id` | 숫자(Long) | 리스트 아이디 |
+| `lists.id` | 10진 문자열 | 리스트 아이디 |
 | `lists.title` | 문자열 | 리스트 이름 |
 | `lists.description` | 문자열 | 리스트 설명. 없으면 빈 문자열 |
 | `lists.cardCount` | 숫자(uint) | 해당 리스트의 조회 가능한 전체 카드 수. 포함된 카드 개수와 구분 |

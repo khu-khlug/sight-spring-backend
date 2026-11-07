@@ -18,7 +18,7 @@ USER and 그룹원
 
 ## 조건
 
-- `groupId`는 조회할 그룹의 아이디이며 숫자(Long)이다.
+- `groupId`는 조회할 그룹의 아이디이며 10진 문자열이다.
 - 요청자 본인의 임시저장만 조회한다. 다른 회원의 임시저장은 조회하지 않는다.
 - 임시저장이 존재하고 해당 임시저장이 속한 그룹이 `groupId`와 일치해야 한다.
 - 임시저장이 없거나 다른 그룹 것이면 메타데이터 조회와 달리 `404 Not Found`를 반환한다.
@@ -47,9 +47,9 @@ USER and 그룹원
 | :-- | :--: | :-- |
 | `draft` | 객체 | 요청자의 해당 그룹 기록 임시저장. null을 반환하지 않음 |
 | `draft.isNewRecord` | 불리언 | 새 기록 작성 중이면 true, 기존 기록 수정 중이면 false |
-| `draft.cardId` | 숫자(Long) | 작성 중인 기록이 속한 카드 아이디 |
+| `draft.cardId` | 10진 문자열 | 작성 중인 기록이 속한 카드 아이디 |
 | `draft.cardTitle` | 문자열 | 카드명 |
-| `draft.recordId` | 숫자(Long) \| null | 수정 중인 기록 아이디. `isNewRecord`가 true이면 null |
+| `draft.recordId` | 10진 문자열 \| null | 수정 중인 기록 아이디. `isNewRecord`가 true이면 null |
 | `draft.content` | 문자열 | 서버에 저장된 임시저장 본문. TIPTAP 문서 JSON을 직렬화한 문자열 |
 | `draft.updatedAt` | 문자열 | 마지막 저장 일시. ISO 8601 UTC 문자열이며 `Z` 접미사를 사용 |
 | `draft.files` | 객체 배열 | 임시저장에 연결된 첨부 파일과 읽기 링크. 형식은 [기록 첨부 파일의 조회 응답 첨부 파일 목록](../global.md#조회-응답의-첨부-파일-목록)을 따름. 첨부 파일이 없으면 빈 배열 |
@@ -69,7 +69,7 @@ USER and 그룹원
 
 1. 그룹원은 이 그룹의 본인 임시저장을 조회할 수 있다
    - 200 응답과 함께 `draft`를 반환한다. 대상 카드 아이디·카드명·`recordId`·본문·마지막 저장 일시·첨부 파일을 포함한다
-   - 기록·카드 아이디는 숫자(Long), 파일 아이디는 문자열, `updatedAt`은 UTC ISO 8601 `Z` 형식이다
+   - 기록·카드 아이디는 10진 문자열, 파일 아이디는 문자열, `updatedAt`은 UTC ISO 8601 `Z` 형식이다
 2. 새 기록과 기존 기록 수정을 구분해 반환한다
    - 새 기록 작성 중이면 `isNewRecord: true`·`recordId: null`, 기존 기록 수정 중이면 false와 그 기록 아이디를 반환한다
 3. 본문은 임시저장 본문 그대로 반환한다

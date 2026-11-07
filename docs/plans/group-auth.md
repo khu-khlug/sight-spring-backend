@@ -26,12 +26,12 @@ GroupAuth를 사용하는 함수에는 `@Auth([UserRole.USER, UserRole.MANAGER])
 
 포함 관계는 `VIEWER ⊇ MEMBER ⊇ (LEADER ∪ WRITER)`다. LEADER는 그룹장 여부로, WRITER는 해당 기록의 작성자 여부로 독립적으로 판정한다. 그룹장은 본인 기록에서 LEADER와 WRITER를 모두 만족하고, 다른 사람의 기록에서는 LEADER만 만족한다. GroupRole.MANAGER는 별도 조건이다.
 
-그룹원은 공개 범위와 관계없이 VIEWER를 만족한다. 비그룹원은 아래 공개 범위로 판정하며, 비공개 그룹의 생성자도 그룹원이 아니면 거부한다. 모든 VIEWER권한인 API들에 같은 규칙을 적용한다.
+모든 공개 범위에서 그룹원은 VIEWER를 만족한다. 운영진 공개(`MANAGER_ONLY`)는 운영 그룹에서만 지정할 수 있고, 운영 그룹에는 운영진만 참가하므로 이 경우에도 포함 관계가 성립한다. 비그룹원은 아래 공개 범위로 판정하며, 비공개 그룹의 생성자도 그룹원이 아니면 거부한다. 모든 VIEWER 권한 API에 같은 규칙을 적용한다.
 
-| 공개 범위 | 비그룹원 중 허용 대상 |
+| 공개 범위 | 허용 대상 |
 | :-- | :-- |
-| 비공개 | 없음 |
-| 운영진 공개 | 운영진 |
+| 비공개 | 그룹멤버 |
+| 운영진 공개 | 운영진만 |
 | 회원 공개 | 교류 회원을 제외한 회원 |
 | 완전 공개 | 모든 로그인 회원 |
 
@@ -50,7 +50,7 @@ annotation class GroupAuth(
 - groupId·recordId는 실제 아이디가 아닌 Spring 경로 변수 이름이다. groupId는 항상 명시하고, WRITER가 포함되면 recordId도 명시한다. WRITER는 기록의 현재 그룹 소속을 검사한다.
 - allowManager는 기본값 없이 true 또는 false를 반드시 명시한다. true이면 운영진은 그룹 소속·유형과 관계없이 허용하고, false이면 운영진도 선언한 그룹 권한을 충족해야 한다. 운영 그룹만 허용하는 GroupRole.MANAGER와 구분한다.
 - 커스텀 린트는 같은 함수의 Auth 선언, 정확한 USER·MANAGER 역할 집합, Auth가 GroupAuth보다 위에 있는 순서, GroupAuth의 이름 있는 인자 사용을 검사한다. WRITER의 recordId 누락, 빈 roles 배열·경로 변수 이름, 실제 경로 변수와의 불일치도 거부하며 CI에서 실패 처리한다.
-- groupId·allowManager 누락은 기본값을 제거해 컴파일 단계에서 막는다. 잘못된 선언은 서버 시작 시에도 거부한다.
+- groupId·allowManager 누락은 기본값을 제거해 컴파일 단계에서 막는다.
 - 실제 요청에서는 Auth 검사가 통과한 뒤 GroupAuth를 실행한다. 어노테이션 작성 순서와 별도로 실행 순서를 보장한다.
 
 ```kotlin
@@ -72,6 +72,16 @@ fun updateRecord(...) { ... }
 )
 fun updateGroup(...) { ... }
 ```
+
+## 구현 구성
+
+어노테이션·Aspect·그룹 권한 enum·판정 서비스는 `com.sight.core.groupauth`에 둔다. 기존 `core/auth`처럼 권한 판정 서비스는 Repository에서 필요한 정보를 조회한다. 그룹 공개 범위·그룹원 포함 관계·운영 그룹 권한 정책도 `GroupAuthorizationService`에서 관리하며 업무 Service와 그룹 도메인에 분산하지 않는다.
+
+`GroupAuthAspect`는 선언한 경로 변수 이름에 대응하는 컨트롤러의 `@PathVariable` 인자에서 Spring MVC가 변환한 `Long` ID를 읽어 판정 서비스를 호출한다. ID 형식 검증은 HTTP 입력 처리에서 담당한다. `AuthAspect`의 order는 `HIGHEST_PRECEDENCE + 100`, `GroupAuthAspect`는 `+ 101`로 사용자 역할 검사를 먼저 실행한다.
+
+선언 검사기 `GroupAuthDeclaration`은 테스트 소스에 둔다. CI의 `check`에 포함된 `GroupAuthDeclarationTest`가 Kotlin 선언 분석으로 어노테이션 순서·이름 있는 인자를 검사하고 리플렉션으로 역할 집합·경로 변수를 검사한다.
+
+WRITER의 기록 소속·작성자는 `repository/GroupAuthorizationRepository`가 기록의 현재 카드와 조인해 조회한다. SQL과 조회 결과 타입 `GroupRecordAuthor`는 Repository에 유지한다. 복구 API에서도 작성자 권한을 판정할 수 있도록 삭제된 기록·카드를 포함하며, 삭제·비활성 상태별 행동 제한은 해당 업무 서비스에서 검사한다.
 
 ## 조합별 선언
 
@@ -101,13 +111,13 @@ GroupAuth 허용 = roles 중 하나를 만족 OR (allowManager AND 운영진)
 - 인증되지 않았으면 401, 권한을 만족하지 못하면 403이다. GroupAuth에 SYSTEM으로 접근하면 403이다.
 - 그룹 판정 대상이 없고 성공한 다른 그룹 권한이나 운영진 예외도 없으면 404다. 다른 그룹의 기록으로 WRITER 권한을 얻을 수 없다.
 - 한 그룹 권한이나 운영진 예외가 성공하면 다른 분기의 권한 실패·대상 없음이 허용을 막지 않는다. 허용 후에도 서비스의 대상 존재·소속·삭제 상태 검사는 유지한다.
-- 아이디 형식 오류는 400, 어노테이션 선언 오류는 500이며 비즈니스 동작을 실행하지 않는다.
+- 아이디 형식 오류는 400이며 비즈니스 동작을 실행하지 않는다. 어노테이션 선언 오류는 CI의 선언 검사에서 거부한다.
 - 어노테이션이 없는 공개 API의 계약은 유지한다.
 
 ## 적용 범위와 순서
 
-1. 기존 Auth·사용자 역할·인증 결과를 유지하고 GroupAuth를 추가한다. 그룹 도메인의 판정은 그룹 기능에 둔다.
-2. 그룹 권한 배열의 OR 결합·운영진 예외, 선언 린트·시작 시 검증과 Auth 우선 실행을 구현한다.
+1. 기존 Auth·사용자 역할·인증 결과를 유지하고 GroupAuth를 추가한다. 그룹 권한 판정은 `core/groupauth`에서 관리한다.
+2. 그룹 권한 배열의 OR 결합·운영진 예외, 선언 린트와 Auth 우선 실행을 구현한다.
 3. 모든 VIEWER API에 공개 범위·포함 관계를 적용하고 비공개 생성자 예외를 제거한다.
 4. 서비스의 그룹 권한 검사를 제거하는 API는 같은 변경에서 Auth를 유지하고 GroupAuth를 추가한다.
 5. [기존 API 변경](../tasks/group/api-changes.md)과 [신규 API](../tasks/group/new-apis.md)에도 같은 선언을 적용한다. 채팅방 참여는 본인 참여 API로 변경한 뒤 MEMBER로 옮긴다.

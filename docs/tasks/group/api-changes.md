@@ -113,7 +113,7 @@
 - `members[].name`에는 기존 `realname` 값을 반환한다.
 - `college`, 삭제되지 않은 본인 작성 카드 수 `cardCount`, 삭제되지 않은 본인 작성 기록 수 `recordCount`를 추가한다. 기존 `GroupCard`·`GroupRecord` 도메인을 사용하며 조회 기능 구현과 연계한다.
 - 그룹장 우선 정렬은 유지하고, 나머지는 회원 아이디순에서 회원 실명(`members[].name`, 현재 회원 도메인의 `realname`) 오름차순으로 변경한다. 백엔드에서 정렬을 완료한 목록을 반환한다.
-- 열람 권한은 [권한 설계](../../plans/group-auth.md)의 공통 `VIEWER`로 판정한다. 비공개 그룹의 생성자 예외를 제거하며, 그룹원은 공개 범위와 관계없이 열람하고 비그룹원은 공개 범위로 판정한다. 이 규칙은 모든 `VIEWER` API에 적용하며 [권한 태스크](group-auth-annotation.md)에서 전환한다.
+- 열람 권한은 [권한 설계](../../plans/group-auth.md)의 공통 `VIEWER`로 판정한다. 비공개 그룹의 생성자 예외를 제거하며, 그룹원은 모든 공개 범위에서 열람하고 비그룹원은 공개 범위로 판정한다. 운영 그룹에는 운영진만 참가한다. 이 규칙은 모든 `VIEWER` API에 적용하며 [권한 태스크](group-auth-annotation.md)에서 전환한다.
 - 경로와 성공 `200`은 유지한다.
 
 ### 그룹장 위임 — [명세](../../plans/group/member/group-leader-delegate.md)

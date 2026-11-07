@@ -2,7 +2,7 @@
 
 ## 작업 개요
 
-관련 저장소는 sight-spring-backend다. 그룹 활동 로그를 로그타입(logType)과 로그데이터(logData)로 나눈다. 신규 로그의 완성된 문장이나 Markdown을 저장하는 대신 이벤트별 JSON 데이터를 저장·제공한다. 연동 작업은 [Frontend Task](group-log-format-frontend.md)를 따른다.
+관련 저장소는 sight-spring-backend다. 그룹 활동 로그를 로그타입(logType)과 로그데이터(logData)로 나눈다. 신규 로그의 완성된 문장이나 Markdown을 저장하는 대신 이벤트별 JSON 데이터를 저장·제공한다. 프런트는 이 문서의 타입별 스키마로 문장과 카드 링크를 구성하고, LEGACY만 HTML 정제 후 표시한다.
 
 기존 로그는 LEGACY로 분류하고 HTML 원문을 보존한다. 완료 기준은 DB와 조회 응답에 로그타입·로그데이터가 제공되고 현재 구현된 네 가지 로깅 동작이 이벤트별 JSON으로 저장되는 것이다.
 

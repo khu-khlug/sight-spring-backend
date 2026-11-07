@@ -2,7 +2,7 @@
 
 그룹 활동 로그를 최신 로그부터 조회합니다.
 
-로그타입·로그데이터 변경은 [그룹 로그 변경 Task](../../../tasks/group/group-log-format-backend.md)를 따른다. 이 문서의 페이지네이션·행위자·시각 개편은 별도 변경 범위이며 해당 Task에 함께 포함하지 않는다.
+로그타입·로그데이터 변경은 [그룹 로그 변경 Task](../../../tasks/group/group-log-format.md)를 따른다. 이 문서의 페이지네이션·행위자·시각 개편은 별도 변경 범위이며 해당 Task에 함께 포함하지 않는다.
 
 ## 운영 그룹인 경우
 
@@ -68,7 +68,7 @@ USER and 그룹원
 
 ### 로그타입과 로그데이터
 
-- `logType`은 `LEGACY`와 이벤트별 enum 50개로 구분한다. 전체 값과 타입별 필수 필드는 [변경 Task의 비즈니스 동작](../../../tasks/group/group-log-format-backend.md#비즈니스-동작)을 따른다.
+- `logType`은 `LEGACY`와 이벤트별 enum 50개로 구분한다. 전체 값과 타입별 필수 필드는 [변경 Task의 비즈니스 동작](../../../tasks/group/group-log-format.md#비즈니스-동작)을 따른다.
 - `LEGACY`의 `logData`는 `{ "html": "기존 HTML 원문" }`이다. 기존 로그를 이벤트별 타입으로 역추정하거나 원문을 JSON 데이터로 변환하지 않는다.
 - 신규 이벤트의 `logData`는 타입별 필드로 구성한 객체다. 부가 데이터가 없는 이벤트도 `{}`로 반환한다.
 - `logData`를 직렬화한 문자열로 반환하지 않는다. 완성된 메시지나 HTML·Markdown 링크도 넣지 않는다.

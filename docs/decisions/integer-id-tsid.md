@@ -7,7 +7,7 @@
 - DB의 정수 식별자는 signed `BIGINT`, Kotlin 도메인은 `Long`을 사용한다. 현재 ULID 문자열을 사용하는 도메인과 스토리지 객체 키는 이번 결정으로 변경하지 않는다.
 - TSID는 애플리케이션에서 생성해 도메인에 전달한다. 도메인이 시간·난수·발급 라이브러리를 직접 호출하지 않는다.
 - TSID만으로 샤드 위치나 정확한 생성 순서를 결정하지 않는다. 소속 관계와 생성 일시는 기존 필드를 사용한다.
-- 1차 적용은 그룹 시스템 구현에 한정한다. 기존 일정·매칭·내부 연동 등 API 전체의 문자열 전환과 기존 채번 교체는 [별도 TODO](../../../tasks/open/existing-integer-id-migration-backend.md)로 관리한다. 기존 API가 새 그룹 시스템의 TSID를 읽는 공유 경로는 아래 호환성 조건을 먼저 충족해야 한다.
+- 1차 적용은 그룹 시스템 구현에 한정한다. 기존 일정·매칭·내부 연동 등 API 전체의 문자열 전환과 기존 채번 교체는 후속 작업으로 분리하며, 대상과 교체 지점은 아래 도입 계획을 따른다. 기존 API가 새 그룹 시스템의 TSID를 읽는 공유 경로는 아래 호환성 조건을 먼저 충족해야 한다.
 
 ## 현재 구현
 
@@ -166,7 +166,7 @@ Base32 대신 10진수 표기를 사용하는 이유는 레거시 식별자와 U
 | `features/member/GroupDetailContainer/index.tsx`의 기록 삭제·복구·수정 호출에서 `Number(recordId)` | 기록 ID 문자열을 API에 그대로 전달 |
 | `features/member/GroupDetailContainer/EditWindow/index.tsx`의 기록 조회·임시저장 대상·생성 후 재시도에서 `Number(recordId)` | 기록 조회·초안·재시도 대상 모두 문자열로 유지 |
 | `api/public/group/`의 `groupId: number`·`recordId: number`, `KanbanApi.ts`의 기록 `id: number` | 대상 ID와 생성 응답·API 인자를 문자열로 변경. 기존 문자열 카드·리스트 ID와 회원 숫자 ID는 유지 |
-| `features/member/GroupDetailContainer/EditWindow/useRecordDraft.ts`와 `api/public/group/AutosaveApi.ts`의 숫자 기록·그룹 ID 및 숫자 타입 검사 | 초안의 대상 ID도 문자열로 저장·복구. 기존 로컬 초안과의 호환 처리를 명시 |
+| `features/member/GroupDetailContainer/EditWindow/useRecordDraft.ts`와 `api/public/group/AutosaveApi.ts`의 숫자 기록·그룹 ID 및 숫자 타입 검사 | 초안의 대상 ID도 문자열로 저장·복구. 그룹 상세는 미배포 상태이므로 이전 브라우저 저장 데이터의 호환 처리는 제공하지 않음 |
 
 역할 번호·창 정렬·파일명 파싱 등에 쓰는 무관한 `Number()`·`parseInt()`까지 제거하지 않는다. 일정·그룹 목록 소비자와 개발 목업에도 위 응답 변경을 적용하되 실제 ID 처리 지점을 기준으로 변경한다. 이 절은 확인한 기존 동작의 교체 목록이며 새 API 전체의 구현 파일 목록은 아니다.
 

@@ -6,7 +6,7 @@ type: backend
 
 ## 작업 개요
 
-sight-spring-backend에서 [이전 계획](../../plans/file-migration.md)과 [파일 조회](../../plans/group/group-file-get.md)를 구현한다. 기존 파일 경로와 신규 영구 주소가 Laravel 없이 파일을 제공하는 것이 완료 기준이다. 프런트 연동 범위와 의존 순서는 [프런트 태스크](../../../../tasks/open/file-permanent-url-frontend.md)를 따른다.
+sight-spring-backend에서 [이전 계획](../../plans/file-migration.md)과 [파일 조회](../../plans/group/group-file-get.md)를 구현한다. 기존 파일 경로와 신규 영구 주소가 Laravel 없이 파일을 제공하는 것이 완료 기준이다. 프런트는 [그룹 공통 명세](../../plans/group/global.md)의 파일 계약을 따르며, 서버의 파일 API 제공 후 영구 주소를 사용하는 프런트를 배포한다.
 
 ## 비즈니스 동작
 

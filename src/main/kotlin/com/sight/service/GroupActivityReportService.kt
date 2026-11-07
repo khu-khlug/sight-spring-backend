@@ -33,6 +33,7 @@ data class ActivityReportResult(
 data class ActivityReportListItem(
     val id: String,
     val groupId: Long,
+    val seminarId: String,
     val seminarDate: LocalDateTime?,
     val seminarIsSummerSeason: Boolean?,
     val seminarIsSpeakAfter: Boolean?,
@@ -249,6 +250,7 @@ class GroupActivityReportService(
                 ActivityReportListItem(
                     id = report.id,
                     groupId = report.groupId,
+                    seminarId = report.seminarId,
                     seminarDate = schedule?.scheduledAt,
                     seminarIsSummerSeason = seminar?.isSummerSeason,
                     seminarIsSpeakAfter = seminar?.isSpeakAfter,

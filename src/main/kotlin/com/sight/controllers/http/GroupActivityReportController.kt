@@ -118,6 +118,7 @@ class GroupActivityReportController(
                         id = item.id,
                         groupId = item.groupId,
                         seminarDate = item.seminarDate,
+                        seminarId = item.seminarId,
                         seminarIsSummerSeason = item.seminarIsSummerSeason,
                         seminarIsSpeakAfter = item.seminarIsSpeakAfter,
                         isPresentation = item.isPresentation,

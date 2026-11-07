@@ -5,6 +5,4 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface GroupDiscordChannelRepository : JpaRepository<GroupDiscordChannel, String> {
     fun findByGroupId(groupId: Long): GroupDiscordChannel?
-
-    fun existsByGroupId(groupId: Long): Boolean
 }

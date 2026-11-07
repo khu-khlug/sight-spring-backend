@@ -3,18 +3,20 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.file.FileUpload
-import com.sight.domain.group.Group
+import com.sight.domain.file.testFileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupMember
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupFile
+import com.sight.domain.group.GroupStatus
+import com.sight.domain.group.testGroup
+import com.sight.domain.group.testGroupMember
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
 import com.sight.repository.GroupActivityReportRepository
+import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.ScheduleRepository
@@ -26,6 +28,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.time.Instant
 import java.time.LocalDateTime
 import java.util.Optional
 import kotlin.test.assertEquals
@@ -41,17 +44,17 @@ class GroupActivityReportServiceTest {
     private val pointService = mock<PointService>()
     private val notificationService = mock<NotificationService>()
     private val fileUploadService = mock<FileUploadService>()
+    private val groupFileRepository = mock<GroupFileRepository>()
     private lateinit var service: GroupActivityReportService
 
     private val now = LocalDateTime.now()
     private val baseGroup =
-        Group(
+        testGroup(
             id = 1L,
             category = GroupCategory.STUDY,
             title = "테스트 그룹",
-            author = 10L,
-            master = 10L,
-            state = GroupState.PROGRESS,
+            leaderMemberId = 10L,
+            status = GroupStatus.PROGRESS,
         )
     private val baseSchedule =
         Schedule(
@@ -71,21 +74,21 @@ class GroupActivityReportServiceTest {
             isSpeakAfter = false,
         )
     private val baseFileUpload =
-        FileUpload(
-            id = "file-1",
-            fileKey = "key-1",
-            memberId = 10L,
-            apiPath = "/groups/1/activity-report/upload-link",
-        )
-    private val baseReport =
+        testFileUpload(id = "file-1", fileKey = "key-1", uploaderMemberId = 10L)
+
+    private val baseReport = createReport()
+
+    private fun createReport(groupId: Long = 1L) =
         GroupActivityReport(
             id = "report-1",
-            groupId = 1L,
+            groupId = groupId,
             seminarId = "seminar-1",
-            reportFileKey = "key-1",
             isPresentation = false,
+            reportFileUploadId = "file-1",
+            createdAt = Instant.parse("2025-01-01T00:00:00Z"),
         )
-    private val baseMembers = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))
+
+    private val baseMembers = listOf(testGroupMember(groupId = 1L, memberId = 20L), testGroupMember(groupId = 1L, memberId = 30L))
 
     @BeforeEach
     fun setUp() {
@@ -100,12 +103,14 @@ class GroupActivityReportServiceTest {
                 pointService,
                 notificationService,
                 fileUploadService,
+                groupFileRepository,
             )
         given(storageService.getDownloadUrl(any())).willReturn("https://download.example.com")
         given(fileUploadService.createUploadLink(any(), any())).willReturn(
             UploadLinkResult(url = "https://upload.example.com", fileKey = "key-1", fileUploadId = "file-1"),
         )
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
+        given(fileUploadService.getFileUploadById("file-1")).willReturn(baseFileUpload)
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
 
@@ -119,6 +124,7 @@ class GroupActivityReportServiceTest {
 
         assertEquals("https://upload.example.com", result.url)
         verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link")
+        verify(groupFileRepository).save(argThat<GroupFile> { groupId == 1L && fileUploadId == "file-1" })
     }
 
     @Test
@@ -316,7 +322,7 @@ class GroupActivityReportServiceTest {
 
     @Test
     fun `editReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
-        val otherGroupReport = baseReport.copy(groupId = 99L)
+        val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
 
@@ -369,7 +375,7 @@ class GroupActivityReportServiceTest {
             uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
         )
 
-        verify(groupActivityReportRepository).save(argThat { isPresentation && reportFileKey == "key-1" })
+        verify(groupActivityReportRepository).save(argThat { isPresentation && reportFileUploadId == "file-1" })
         verify(storageService, never()).deleteFile(any())
     }
 
@@ -386,7 +392,9 @@ class GroupActivityReportServiceTest {
         service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
 
         verify(groupActivityReportRepository).delete(baseReport)
-        verify(fileUploadService).deleteByFileKey("key-1")
+        verify(groupFileRepository).deleteByFileUploadId("file-1")
+        verify(fileUploadService).deleteFileUpload("file-1")
+        verify(storageService).deleteFile("key-1")
     }
 
     @Test
@@ -413,7 +421,7 @@ class GroupActivityReportServiceTest {
 
     @Test
     fun `cancelReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
-        val otherGroupReport = baseReport.copy(groupId = 99L)
+        val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
 

@@ -7,10 +7,8 @@ import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnauthorizedException
-import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.testGroup
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -217,15 +215,7 @@ class ScheduleServiceTest {
                 status = UserStatus.ACTIVE,
             )
         val group =
-            Group(
-                id = 20L,
-                category = GroupCategory.STUDY,
-                title = "코틀린 스터디",
-                author = 10L,
-                master = 10L,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = 20L, category = GroupCategory.STUDY, title = "코틀린 스터디", leaderMemberId = 10L)
         given(scheduleRepository.findActiveById(1L)).willReturn(schedule)
         given(memberRepository.findById(10L)).willReturn(Optional.of(member))
         given(groupRepository.findById(20L)).willReturn(Optional.of(group))
@@ -812,15 +802,7 @@ class ScheduleServiceTest {
     fun `createGroupActivitySchedule은 그룹 멤버이면 GROUP_ACTIVITY로 expoint 0 checkCode 없이 생성한다`() {
         val requester = Requester(userId = 1L, role = UserRole.USER)
         val group =
-            Group(
-                id = 10L,
-                category = GroupCategory.STUDY,
-                title = "스터디",
-                author = 1L,
-                master = 1L,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = 10L, category = GroupCategory.STUDY, title = "스터디", leaderMemberId = 1L)
         given(groupRepository.findById(10L)).willReturn(Optional.of(group))
         given(groupMemberRepository.existsByGroupIdAndMemberId(10L, 1L)).willReturn(true)
         given(scheduleRepository.save(any<Schedule>())).willAnswer { it.arguments[0] as Schedule }
@@ -846,15 +828,7 @@ class ScheduleServiceTest {
     fun `createGroupActivitySchedule은 해당 그룹 멤버가 아니면 ForbiddenException을 던진다`() {
         val requester = Requester(userId = 1L, role = UserRole.USER)
         val group =
-            Group(
-                id = 10L,
-                category = GroupCategory.STUDY,
-                title = "스터디",
-                author = 1L,
-                master = 1L,
-                state = GroupState.PROGRESS,
-                grade = GroupAccessGrade.MEMBER,
-            )
+            testGroup(id = 10L, category = GroupCategory.STUDY, title = "스터디", leaderMemberId = 1L)
         given(groupRepository.findById(10L)).willReturn(Optional.of(group))
         given(groupMemberRepository.existsByGroupIdAndMemberId(10L, 1L)).willReturn(false)
 

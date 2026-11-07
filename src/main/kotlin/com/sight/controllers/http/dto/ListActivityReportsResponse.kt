@@ -9,6 +9,7 @@ data class ListActivityReportsResponse(
 data class ListActivityReportResponse(
     val id: String,
     val groupId: Long,
+    val seminarId: String,
     val seminarDate: LocalDateTime?,
     val seminarIsSummerSeason: Boolean?,
     val seminarIsSpeakAfter: Boolean?,

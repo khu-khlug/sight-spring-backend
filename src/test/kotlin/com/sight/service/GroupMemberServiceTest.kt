@@ -4,11 +4,13 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupMember
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupPolicy
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupStatus
+import com.sight.domain.group.GroupVisibility
+import com.sight.domain.group.testGroup
+import com.sight.domain.group.testGroupMember
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -22,15 +24,12 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.argThat
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import java.time.LocalDateTime
 import java.util.Optional
 
 class GroupMemberServiceTest {
@@ -50,25 +49,31 @@ class GroupMemberServiceTest {
             pointService = pointService,
         )
 
+    init {
+        // 삭제·그룹장 변경이 성공한 상황을 기본으로 둔다. 동시 요청으로 실패하는 경우는 각 테스트에서 따로 정한다.
+        given(groupMemberRepository.delete(any(), any())).willReturn(1)
+        given(groupRepository.changeLeaderById(any(), any(), any())).willReturn(1)
+    }
+
     private fun createGroup(
         id: Long = 100L,
         master: Long = 1L,
         author: Long = master,
         category: GroupCategory = GroupCategory.STUDY,
-        grade: GroupAccessGrade = GroupAccessGrade.MEMBER,
-        state: GroupState = GroupState.PENDING,
+        visibility: GroupVisibility = GroupVisibility.MEMBER_ONLY,
+        status: GroupStatus = GroupStatus.PROGRESS,
         allowJoin: Boolean = false,
-        changedAt: LocalDateTime = LocalDateTime.now(),
-    ) = Group(
+        memberCount: Long = 1L,
+    ) = testGroup(
         id = id,
         category = category,
         title = "테스트 그룹",
-        author = author,
-        master = master,
-        grade = grade,
-        state = state,
+        leaderMemberId = master,
+        authorMemberId = author,
+        visibility = visibility,
+        status = status,
         allowJoin = allowJoin,
-        changedAt = changedAt,
+        memberCount = memberCount,
     )
 
     private fun createMember(
@@ -100,7 +105,7 @@ class GroupMemberServiceTest {
     @Test
     fun `listGroupMembers는 그룹장을 맨 앞에 두고 나머지를 userId 오름차순으로 반환한다`() {
         // given
-        val group = createGroup(id = 100L, master = 5L, grade = GroupAccessGrade.ALL)
+        val group = createGroup(id = 100L, master = 5L, visibility = GroupVisibility.PUBLIC)
         val requester = createMember(id = 1L)
         stubGroupAndRequester(group, requester, isMember = true)
         given(groupMemberRepository.findMemberListByGroupId(100L)).willReturn(
@@ -138,7 +143,7 @@ class GroupMemberServiceTest {
     @Test
     fun `PRIVATE 그룹은 멤버만 조회 가능하다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.PRIVATE)
+        val group = createGroup(visibility = GroupVisibility.PRIVATE)
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = true)
         given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
@@ -150,7 +155,7 @@ class GroupMemberServiceTest {
     @Test
     fun `PRIVATE 그룹은 비멤버이고 author도 아니면 403을 던진다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.PRIVATE, master = 1L, author = 1L)
+        val group = createGroup(visibility = GroupVisibility.PRIVATE, master = 1L, author = 1L)
         val requester = createMember(id = 2L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -163,7 +168,7 @@ class GroupMemberServiceTest {
     @Test
     fun `MANAGER 그룹은 운영진만 조회 가능하다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.MANAGER)
+        val group = createGroup(category = GroupCategory.MANAGE, visibility = GroupVisibility.MANAGER_ONLY)
         val requester = createMember(id = 2L, manager = true)
         stubGroupAndRequester(group, requester, isMember = false)
         given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
@@ -175,7 +180,7 @@ class GroupMemberServiceTest {
     @Test
     fun `MANAGER 그룹은 운영진이 아닌 회원이 조회하면 403을 던진다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.MANAGER)
+        val group = createGroup(category = GroupCategory.MANAGE, visibility = GroupVisibility.MANAGER_ONLY)
         val requester = createMember(id = 2L, manager = false)
         stubGroupAndRequester(group, requester, isMember = true)
 
@@ -188,7 +193,7 @@ class GroupMemberServiceTest {
     @Test
     fun `MEMBER 그룹은 UNDERGRADUATE·ABSENCE·GRADUATE 회원이 조회 가능하다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.MEMBER)
+        val group = createGroup(visibility = GroupVisibility.MEMBER_ONLY)
         listOf(StudentStatus.UNDERGRADUATE, StudentStatus.ABSENCE, StudentStatus.GRADUATE).forEach { status ->
             val requester = createMember(id = 2L, studentStatus = status)
             stubGroupAndRequester(group, requester, isMember = false)
@@ -202,7 +207,7 @@ class GroupMemberServiceTest {
     @Test
     fun `MEMBER 그룹은 UNITED 회원이 조회하면 403을 던진다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.MEMBER)
+        val group = createGroup(visibility = GroupVisibility.MEMBER_ONLY)
         val requester = createMember(id = 2L, studentStatus = StudentStatus.UNITED)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -215,7 +220,7 @@ class GroupMemberServiceTest {
     @Test
     fun `ALL 그룹은 UNITED 회원도 조회 가능하다`() {
         // given
-        val group = createGroup(grade = GroupAccessGrade.ALL)
+        val group = createGroup(visibility = GroupVisibility.PUBLIC)
         val requester = createMember(id = 2L, studentStatus = StudentStatus.UNITED)
         stubGroupAndRequester(group, requester, isMember = false)
         given(groupMemberRepository.findMemberListByGroupId(group.id)).willReturn(emptyList())
@@ -236,25 +241,32 @@ class GroupMemberServiceTest {
         given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 2L)).willReturn(true)
         given(groupMemberRepository.findByGroupId(100L)).willReturn(
             listOf(
-                GroupMember(group = 100L, member = 1L),
-                GroupMember(group = 100L, member = 2L),
+                testGroupMember(groupId = 100L, memberId = 1L),
+                testGroupMember(groupId = 100L, memberId = 2L),
             ),
         )
 
         // when
         groupMemberService.delegateMaster(groupId = 100L, requesterId = 1L, newMasterId = 2L)
 
-        // then - group save: master 갱신 + changed_at/state 갱신
-        val groupCaptor = argumentCaptor<Group>()
-        verify(groupRepository).save(groupCaptor.capture())
-        val saved = groupCaptor.firstValue
-        assertEquals(2L, saved.master)
+        // then - 현재 그룹장이 요청자일 때만 그룹장을 바꾼다
+        verify(groupRepository).changeLeaderById(100L, 1L, 2L)
 
-        // log 호출 (메시지 포맷: 레거시 그대로)
+        // log 호출: 위임 전후 그룹장 정보를 로그데이터로 남긴다
         verify(groupLogService).createLog(
             eq(100L),
             eq(1L),
-            eq("그룹장이 공과대학 이름1에서 공과대학 이름2에게 위임되었습니다."),
+            eq(GroupLogType.GROUP_LEADER_DELEGATED),
+            eq(
+                mapOf(
+                    "fromUserId" to 1L,
+                    "fromUserName" to "이름1",
+                    "fromUserCollege" to "공과대학",
+                    "toUserId" to 2L,
+                    "toUserName" to "이름2",
+                    "toUserCollege" to "공과대학",
+                ),
+            ),
         )
 
         // 알림: 멤버 2명 each, content 포맷 검증
@@ -283,7 +295,7 @@ class GroupMemberServiceTest {
             groupMemberService.delegateMaster(groupId = 100L, requesterId = 99L, newMasterId = 2L)
         }
         verify(groupRepository, never()).save(any())
-        verify(groupLogService, never()).createLog(any(), any(), any())
+        verify(groupLogService, never()).createLog(any(), any(), any(), any())
         verify(notificationService, never()).createNotification(any(), any(), any(), any(), anyOrNull())
     }
 
@@ -351,8 +363,8 @@ class GroupMemberServiceTest {
             createGroup(
                 id = 100L,
                 master = 5L,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.PROGRESS,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
                 allowJoin = true,
             )
         val requester = createMember(id = 2L)
@@ -362,8 +374,8 @@ class GroupMemberServiceTest {
         groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
 
         // then
-        verify(groupMemberRepository).save(100L, 2L)
-        verify(groupLogService).createLog(eq(100L), eq(2L), eq("그룹에 참여했습니다."))
+        verify(groupMemberRepository).save(eq(100L), eq(2L), any())
+        verify(groupLogService).createLog(eq(100L), eq(2L), eq(GroupLogType.GROUP_MEMBER_JOINED), eq(emptyMap()))
 
         val expectedContent =
             "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에 참여했습니다."
@@ -395,7 +407,7 @@ class GroupMemberServiceTest {
             point = eq(40),
             message = eq("<u>테스트 그룹</u> 그룹에 참여했습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { countMember == 1L })
+        verify(groupRepository).addMemberCountById(100L, 1)
     }
 
     @Test
@@ -406,8 +418,8 @@ class GroupMemberServiceTest {
                 id = 100L,
                 master = 1L,
                 category = GroupCategory.MANAGE,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.PROGRESS,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
                 allowJoin = true,
             )
         val requester = createMember(id = 5L)
@@ -415,9 +427,9 @@ class GroupMemberServiceTest {
         // findByGroupId는 add_member 이후 호출이라 참여자 포함된 결과를 반환해야 함
         given(groupMemberRepository.findByGroupId(100L)).willReturn(
             listOf(
-                GroupMember(group = 100L, member = 1L),
-                GroupMember(group = 100L, member = 3L),
-                GroupMember(group = 100L, member = 5L),
+                testGroupMember(groupId = 100L, memberId = 1L),
+                testGroupMember(groupId = 100L, memberId = 3L),
+                testGroupMember(groupId = 100L, memberId = 5L),
             ),
         )
 
@@ -463,8 +475,8 @@ class GroupMemberServiceTest {
             createGroup(
                 id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID,
                 master = 1L,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.PROGRESS,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
                 allowJoin = true,
             )
         val requester = createMember(id = 2L)
@@ -484,8 +496,8 @@ class GroupMemberServiceTest {
             createGroup(
                 id = 100L,
                 master = 1L,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.SUSPEND,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.STOP,
                 allowJoin = true,
             )
         val requester = createMember(id = 2L)
@@ -495,7 +507,7 @@ class GroupMemberServiceTest {
         groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
     }
 
     @Test
@@ -505,8 +517,8 @@ class GroupMemberServiceTest {
             createGroup(
                 id = 100L,
                 master = 1L,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.PROGRESS,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
                 allowJoin = false,
             )
         val requester = createMember(id = 2L)
@@ -521,7 +533,7 @@ class GroupMemberServiceTest {
     @Test
     fun `joinGroup은 열람 권한 없으면 403을 던진다`() {
         // given - PRIVATE 그룹, 비멤버, 비-author (권한 단계에서 차단되므로 state/allowJoin 무관)
-        val group = createGroup(id = 100L, master = 1L, author = 1L, grade = GroupAccessGrade.PRIVATE)
+        val group = createGroup(id = 100L, master = 1L, author = 1L, visibility = GroupVisibility.PRIVATE)
         val requester = createMember(id = 99L)
         stubGroupAndRequester(group, requester, isMember = false)
 
@@ -538,8 +550,8 @@ class GroupMemberServiceTest {
             createGroup(
                 id = 100L,
                 master = 1L,
-                grade = GroupAccessGrade.ALL,
-                state = GroupState.PROGRESS,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
                 allowJoin = true,
             )
         val requester = createMember(id = 2L)
@@ -552,15 +564,15 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 PROGRESS, SUSPEND 외 상태에서 400을 던진다`() {
+    fun `joinGroup은 종료된 그룹에서 400을 던진다`() {
         // given
-        listOf(GroupState.PENDING, GroupState.END_SUCCESS, GroupState.END_FAIL).forEach { state ->
+        listOf(GroupStatus.SUCCESS, GroupStatus.FAIL).forEach { status ->
             val group =
                 createGroup(
                     id = 100L,
                     master = 1L,
-                    grade = GroupAccessGrade.ALL,
-                    state = state,
+                    visibility = GroupVisibility.PUBLIC,
+                    status = status,
                     allowJoin = true,
                 )
             val requester = createMember(id = 2L)
@@ -598,7 +610,12 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).delete(100L, 5L)
-        verify(groupLogService).createLog(eq(100L), eq(1L), eq("공과대학 이름5 내보냈습니다."))
+        verify(groupLogService).createLog(
+            eq(100L),
+            eq(1L),
+            eq(GroupLogType.GROUP_MEMBER_KICKED),
+            eq(mapOf("targetUserId" to 5L, "targetUserName" to "이름5", "targetUserCollege" to "공과대학")),
+        )
         verify(notificationService).createNotification(
             userId = eq(5L),
             category = eq(NotificationCategory.GROUP),
@@ -611,7 +628,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 내보내졌습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { countMember == -1L })
+        verify(groupRepository).addMemberCountById(100L, -1)
     }
 
     @Test
@@ -673,7 +690,7 @@ class GroupMemberServiceTest {
     @Test
     fun `kickMember는 SUSPEND 상태 그룹에서 내보내면 상태가 PROGRESS로 전환된다`() {
         // given
-        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
+        val group = createGroup(id = 100L, master = 1L, status = GroupStatus.STOP)
         val kickedMember = createMember(id = 5L)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
@@ -683,7 +700,26 @@ class GroupMemberServiceTest {
         groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
+    }
+
+    @Test
+    fun `kickMember는 동시에 같은 회원을 내보내 삭제가 이미 끝났으면 400을 던지고 포인트·로그를 남기지 않는다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L)
+        val kickedMember = createMember(id = 5L)
+        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
+        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
+        given(groupMemberRepository.delete(100L, 5L)).willReturn(0)
+
+        // then
+        assertThrows<BadRequestException> {
+            groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
+        }
+        verify(pointService, never()).givePoint(any(), any(), any())
+        verify(groupLogService, never()).createLog(any(), any(), any(), any())
+        verify(groupRepository, never()).addMemberCountById(any(), any())
     }
 
     @Test
@@ -737,7 +773,7 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).delete(100L, 5L)
-        verify(groupLogService).createLog(eq(100L), eq(5L), eq("그룹에서 나갔습니다."))
+        verify(groupLogService).createLog(eq(100L), eq(5L), eq(GroupLogType.GROUP_MEMBER_LEFT), eq(emptyMap()))
 
         val expectedContent = "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에서 나갔습니다."
         verify(notificationService, times(2)).createNotification(
@@ -768,7 +804,7 @@ class GroupMemberServiceTest {
             point = eq(-40),
             message = eq("<u>테스트 그룹</u> 그룹에서 나갔습니다."),
         )
-        verify(groupRepository).save(argThat<Group> { countMember == -1L })
+        verify(groupRepository).addMemberCountById(100L, -1)
     }
 
     @Test
@@ -780,8 +816,8 @@ class GroupMemberServiceTest {
         // leave_member 이후의 멤버 목록 (탈퇴자 본인은 빠짐)
         given(groupMemberRepository.findByGroupId(100L)).willReturn(
             listOf(
-                GroupMember(group = 100L, member = 2L),
-                GroupMember(group = 100L, member = 3L),
+                testGroupMember(groupId = 100L, memberId = 2L),
+                testGroupMember(groupId = 100L, memberId = 3L),
             ),
         )
 
@@ -822,7 +858,7 @@ class GroupMemberServiceTest {
     @Test
     fun `leaveGroup은 SUSPEND 상태 그룹에서 탈퇴하면 상태가 PROGRESS로 전환된다`() {
         // given
-        val group = createGroup(id = 100L, master = 1L, state = GroupState.SUSPEND)
+        val group = createGroup(id = 100L, master = 1L, status = GroupStatus.STOP)
         given(groupRepository.findById(100L)).willReturn(Optional.of(group))
         given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 5L)).willReturn(true)
 
@@ -830,7 +866,7 @@ class GroupMemberServiceTest {
         groupMemberService.leaveGroup(groupId = 100L, requesterId = 5L)
 
         // then
-        verify(groupRepository).save(argThat<Group> { state == GroupState.PROGRESS })
+        verify(groupRepository).resumeStoppedById(100L)
     }
 
     @Test

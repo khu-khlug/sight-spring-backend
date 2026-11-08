@@ -6,11 +6,11 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuthAspect
 import com.sight.core.groupauth.GroupAuthorizationService
 import com.sight.core.groupauth.GroupVisibility
+import com.sight.domain.group.GroupDiscordChannel
 import com.sight.domain.group.testGroup
 import com.sight.repository.GroupAuthorizationRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.service.GroupDiscordChannelInfo
 import com.sight.service.GroupDiscordChannelService
 import com.sight.service.GroupMatchingService
 import com.sight.service.GroupService
@@ -70,7 +70,7 @@ class GroupControllerTest {
     fun `디스코드 채널은 그룹장만 만들 수 있다`() {
         givenGroup(GroupVisibility.MEMBER_ONLY)
         given(groupDiscordChannelService.createDiscordChannel(GROUP_ID, LEADER_ID)).willReturn(
-            GroupDiscordChannelInfo(
+            GroupDiscordChannel(
                 id = "channel-1",
                 groupId = GROUP_ID,
                 discordChannelId = "1234567890",

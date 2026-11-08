@@ -38,7 +38,7 @@ class GroupCard(
     @Column(name = "group_id", nullable = false)
     val groupId: Long = groupId
 
-    // 이전 SQL에서 기존 카드는 true로 설정한다. 커버 교체 후에도 카드의 출처는 유지한다.
+    // 데이터 옮길 때 SQL에서 기존 카드는 true로 설정한다. 커버 교체 후에도 카드의 출처는 유지한다.
     @Column(name = "is_legacy", nullable = false)
     val isLegacy: Boolean = false
 

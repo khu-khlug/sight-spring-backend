@@ -48,17 +48,12 @@ fun testGroupMember(
     joinedAt: Instant = Instant.parse("2025-01-01T00:00:00Z"),
 ): GroupMember = GroupMember(id = memberId, groupId = groupId, memberId = memberId, joinedAt = joinedAt)
 
-// 생성을 완료해 Discord 채널이 연결된 그룹 Discord 채널을 만든다.
+// 지정한 식별자로 그룹 Discord 채널을 만든다.
 fun testGroupDiscordChannel(
     id: String = "channel-row-id",
     groupId: Long = 1L,
     discordChannelId: String = "discord-channel-id",
-    createdAt: Instant = Instant.parse("2025-01-01T00:00:00Z"),
-): GroupDiscordChannel =
-    GroupDiscordChannel(id = id, groupId = groupId, createdAt = createdAt).apply {
-        attachChannel(discordChannelId)
-        complete(createdAt)
-    }
+): GroupDiscordChannel = GroupDiscordChannel(id = id, groupId = groupId, discordChannelId = discordChannelId)
 
 fun setField(
     target: Any,

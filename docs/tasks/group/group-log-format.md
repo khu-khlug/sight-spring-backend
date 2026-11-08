@@ -4,7 +4,7 @@
 
 관련 저장소는 sight-spring-backend다. 그룹 활동 로그를 로그타입(logType)과 로그데이터(logData)로 나눈다. 신규 로그의 완성된 문장이나 Markdown을 저장하는 대신 이벤트별 JSON 데이터를 저장·제공한다. 프런트는 이 문서의 타입별 스키마로 문장과 카드 링크를 구성하고, LEGACY만 HTML 정제 후 표시한다.
 
-기존 로그는 LEGACY로 분류하고 HTML 원문을 보존한다. 완료 기준은 DB와 조회 응답에 로그타입·로그데이터가 제공되고 현재 구현된 네 가지 로깅 동작이 이벤트별 JSON으로 저장되는 것이다.
+기존 로그는 LEGACY로 분류하고 HTML 원문을 보존한다. 완료 기준은 DB와 조회 응답에 로그타입·로그데이터·행위자가 제공되고 현재 구현된 네 가지 로깅 동작이 이벤트별 JSON으로 저장되는 것이다. 조회 API의 페이지 단위 조회와 식별자 표현도 [활동 로그 조회 명세](../../plans/group/history/group-logs-get.md)에 맞춘다.
 
 ## 비즈니스 동작
 
@@ -13,7 +13,8 @@
 - 제목·이름·설명·레이블 등 당시 표시 정보를 로그데이터에 스냅샷으로 저장한다. 이후 대상의 이름이 바뀌거나 삭제되어도 발생 당시 내용을 조회할 수 있다.
 - 카드·리스트·기록의 식별자는 데이터에 별도로 보관한다. 클릭용 HTML·Markdown 링크를 저장하지 않는다.
 - 현재 구현된 그룹장 위임·그룹 참여·회원 내보내기·그룹 탈퇴는 각각 GROUP_LEADER_DELEGATED·GROUP_MEMBER_JOINED·GROUP_MEMBER_KICKED·GROUP_MEMBER_LEFT와 대응 데이터로 저장한다.
-- 신규 스프링 로깅에는 로그타입과 로그데이터를 모두 필수로 받으며 타입별 필수 필드와 값 타입을 검사한다. 신규 이벤트를 LEGACY로 저장하지 않는다.
+- 신규 로그는 이벤트별로 정해진 필수 필드와 값 타입을 모두 갖춘 경우에만 저장한다. 신규 이벤트를 LEGACY로 저장하지 않는다.
+- 회원이 남긴 로그는 행위자 회원을 저장하고, 회원이 아닌 시스템이 남긴 로그는 행위자 없이 저장한다. 행위자 이름은 조회할 때 회원 실명을 쓰며, 탈퇴한 회원도 실명을 반환한다.
 - enum 정의만으로 아직 없는 비즈니스 기능을 구현하지 않는다. 나머지 동작을 구현할 때 해당 타입과 데이터를 사용한다.
 - 카드 이어받기 기능은 이번 구현 범위 밖이지만, 이어받기 설정·해제의 로그타입과 로그데이터 정의는 유지한다.
 - 기존 이벤트 발생 조건·포인트·알림·재시도·중복 처리 정책은 바꾸지 않는다. 조회 시 로그를 새로 만들지 않는다.
@@ -21,7 +22,7 @@
 
 ### LEGACY
 
-기존 모든 로그와 구버전·레거시가 새 컬럼 없이 저장한 로그를 포함한다. 기존 message 컬럼의 HTML을 수정하지 않으며, 조회 응답의 logData는 `{ "html": "기존 HTML 원문" }` 객체로 제공한다. 기존 스프링의 일반 텍스트 로그도 LEGACY로 분류하고 내용을 수정하지 않는다.
+기존 모든 로그를 포함한다. 기존 HTML 원문을 수정하지 않고 로그데이터의 html 필드에 그대로 담으며, 조회 응답의 logData도 `{ "html": "기존 HTML 원문" }` 객체로 제공한다. 기존 스프링의 일반 텍스트 로그도 LEGACY로 분류하고 내용을 수정하지 않는다.
 
 ### 로그데이터 필드 규칙
 
@@ -113,27 +114,30 @@
 
 ### GET /groups/:groupId/logs
 
-기존 활동 로그 조회의 본문 표현을 logType과 logData로 교체한다. 로그인·그룹원 권한, 기존 401·403·404 처리 및 200 성공은 유지한다.
+활동 로그 조회의 본문 표현을 logType·logData와 행위자 객체로 바꾸고, 페이지 단위로 조회한다. 로그인·그룹원 권한, 401·403·404 처리 및 200 성공은 유지한다. 세부 계약은 [활동 로그 조회 명세](../../plans/group/history/group-logs-get.md)를 따른다.
 
 - 경로 groupId: Group.id의 양의 Long 값을 나타내는 10진 문자열.
-- 쿼리 offset: 기존의 0 이상 정수, 기본 0.
-- 쿼리 limit: 기존의 1~100 정수, 기본 100.
+- 쿼리 page: 0부터 시작하는 페이지 번호, 기본 0. 페이지당 50개이며 음수·소수·숫자가 아닌 값은 400이다.
 - 요청 바디: 없음.
-- 응답 count: 기존 전체 개수.
+- 응답 page: 요청한 페이지 번호.
+- 응답 totalCount: 그룹의 전체 로그 수.
+- 응답 receivedCount: 반환한 로그 수.
 - 응답 logs[].id: Long 식별자의 10진 문자열. DB·도메인은 Long을 유지한다.
-- 응답 logs[].memberId: 기존 Long. 시스템은 기존대로 0.
+- 응답 logs[].actor: 행위자 객체. 시스템이 남긴 로그면 null이다. userId는 숫자(Long), name은 회원 실명이다.
 - 응답 logs[].logType: 필수 문자열 enum. LEGACY 또는 위 이벤트 값이며 null이 아니다.
 - 응답 logs[].logData: 필수 JSON 객체. logType별 스키마를 따르며 JSON 문자열로 이중 인코딩하지 않는다.
-- 응답 logs[].createdAt: 기존 시각 필드. 이 Task는 시각 변환 정책을 변경하지 않는다.
-- 기존 logs[].message는 최종 응답에서 제거한다. type·data라는 축약 필드도 사용하지 않는다.
+- 응답 logs[].createdAt: 발생 일시. ISO 8601 UTC(`Z` 접미사)다.
+- message·memberId·count·type·data 필드는 반환하지 않는다.
 
 ```json
 {
-  "count": 2,
+  "page": 0,
+  "totalCount": 2,
+  "receivedCount": 2,
   "logs": [
     {
       "id": "10001",
-      "memberId": 7,
+      "actor": { "userId": 7, "name": "홍길동" },
       "logType": "CARD_MOVED",
       "logData": {
         "cardId": "2001",
@@ -143,22 +147,22 @@
         "toListId": "1002",
         "toListTitle": "진행 중"
       },
-      "createdAt": "2026-10-26T10:00:00"
+      "createdAt": "2026-10-26T10:00:00Z"
     },
     {
       "id": "10000",
-      "memberId": 7,
+      "actor": null,
       "logType": "LEGACY",
       "logData": {
         "html": "<a href=\"#2001\">API 설계</a> 카드가 추가되었습니다."
       },
-      "createdAt": "2026-10-25T10:00:00"
+      "createdAt": "2026-10-25T10:00:00Z"
     }
   ]
 }
 ```
 
-이름·제목 스냅샷은 로그 내용이며 현재 대상 리소스의 정보로 덮어쓰지 않는다. 대상 식별자는 참조를 위한 값이며 접근 권한을 부여하지 않는다. actor 객체, totalCount·skip 페이지네이션, UTC 직렬화 등 별도 설계 변경은 이 Task에서 수행하지 않는다.
+이름·제목 스냅샷은 로그 내용이며 현재 대상 리소스의 정보로 덮어쓰지 않는다. 대상 식별자는 참조를 위한 값이며 접근 권한을 부여하지 않는다.
 
 ## 데이터베이스 계약
 
@@ -166,35 +170,33 @@
 erDiagram
     khlug_group_log {
         bigint id PK
-        bigint group
-        bigint member
+        bigint group_id
+        bigint actor_member_id
         varchar_64 log_type
         json log_data
-        longtext message
         timestamp created_at
     }
 ```
 
-- 기존 khlug_group_log에 log_type VARCHAR(64) NOT NULL DEFAULT 'LEGACY'와 log_data JSON NULL을 추가한다. 도메인 속성 이름은 logType과 logData다.
-- log_type은 enum 이름으로 저장한다. ordinal이나 MySQL ENUM은 사용하지 않는다.
-- 신규 이벤트의 log_data에는 해당 스키마의 JSON 객체를 저장한다. JSON 문자열을 다시 JSON 값으로 감싸지 않는다. 신규 이벤트에서는 log_data가 null이면 안 된다.
-- 기존 모든 행은 log_type=LEGACY, log_data=NULL로 둔다. 기존 message·id·group·member·created_at은 수정하지 않는다.
-- LEGACY의 원본은 기존 message LONGTEXT다. API에서 이를 logData.html로 감싸 반환하며 JSON 컬럼으로 HTML 전체를 복사하는 backfill은 하지 않는다.
-- 새 이벤트는 log_data를 사용하고 기존 NOT NULL message 컬럼에는 빈 문자열을 저장한다. 이 빈 문자열을 신규 로그의 내용으로 사용하지 않는다.
-- 기존 PK·유니크·인덱스·그룹/회원 참조·삭제 정책은 유지한다. 새 FK나 인덱스는 추가하지 않는다.
-- 구버전·레거시의 컬럼 없는 INSERT는 기본값 LEGACY와 NULL log_data로 호환한다. 신규 스프링은 필수 데이터 검증을 거친다.
-- 컬럼 추가의 잠금·재구성 여부는 운영 DB와 데이터 크기를 기준으로 배포 전에 확인한다. 운영 마이그레이션은 이 문서 작성 작업에서 실행하지 않는다.
-- 신규 JSON 로그가 저장된 이후에는 컬럼을 삭제하거나 message만 읽는 구버전으로 단순 복귀하지 않는다.
+- id는 레거시 로그의 아이디를 유지하고, 신규 로그는 [그룹 공통 ID 기준](../../plans/group/global.md#아이디-타입)에 따라 발급한 TSID를 쓴다.
+- group_id는 로그가 속한 그룹이며 NOT NULL이다.
+- actor_member_id는 행위자 회원이다. 시스템이 남긴 로그는 NULL이다.
+- log_type은 VARCHAR(64) NOT NULL이며 enum 이름으로 저장한다. ordinal이나 MySQL ENUM은 사용하지 않는다.
+- log_data는 JSON NOT NULL이다. 이벤트 로그는 해당 스키마의 JSON 객체를, LEGACY는 `{ "html": "기존 HTML 원문" }`을 저장한다. JSON 문자열을 다시 JSON 값으로 감싸지 않으며, 부가 데이터가 없는 이벤트는 빈 객체를 저장한다.
+- created_at은 발생 일시이며 NOT NULL이다.
+- 인덱스 (group_id, created_at, id)로 그룹의 로그를 최신순으로 조회한다.
+- 레거시 로그는 LEGACY 행으로 옮긴다. 원문 HTML은 수정하지 않고 log_data의 html에 담으며, 아이디·그룹·발생 일시는 유지한다. 레거시 행위자 0은 시스템 로그로 옮긴다.
+- 신규 JSON 로그가 저장된 이후에는 logType·logData를 해석하지 못하는 버전으로 복귀하지 않는다.
 
 ## 외부 시스템 계약
 
-GitHub·Discord 호출과 인증·호출량 제한은 변경하지 않는다. 레거시 DB 작성자의 기존 message INSERT를 유지하고 새 컬럼의 기본값으로 공존한다. 레거시 HTML 로깅 함수를 이 Task에서 수정하지 않는다.
+변경 없음. GitHub·Discord 호출과 인증·호출량 제한은 변경하지 않는다.
 
 ## 보안 및 개인정보
 
 그룹원 권한과 특수 그룹의 기존 접근 범위를 확장하지 않는다. 신규 데이터의 이름·제목·설명은 텍스트이며 실행할 HTML이나 URL 코드를 생성하지 않는다. LEGACY 원문 보존과 표시 계층의 기존 HTML 정제 원칙을 유지한다.
 
-대상 이름과 소속은 로그 발생 당시 스냅샷으로 보존한다. 기존 메시지가 포함하던 정보 범위를 넘는 연락처·이메일·원본 파일 데이터는 추가하지 않는다. 행위자 이름을 별도 컬럼으로 추가하지 않고 기존 회원 ID와 보존 기간을 유지한다.
+대상 이름·소속은 로그 발생 당시 스냅샷으로 보존한다. 기존 메시지가 포함하던 정보 범위를 넘는 연락처·이메일·원본 파일 데이터는 추가하지 않는다.
 
 ## 비가역적 부작용 및 운영 영향
 
@@ -202,26 +204,23 @@ GitHub·Discord 호출과 인증·호출량 제한은 변경하지 않는다. �
 
 ## 호환성 및 배포
 
-1. DB에 log_type과 log_data를 추가한다. 기존 작성자는 계속 LEGACY로 저장한다.
-2. 로그데이터를 반환하는 API와 이를 읽을 소비자를 조정 배포한다. 전환 기간에는 기존 message 응답을 유지하며 logType·logData를 병행 제공한다.
-3. 소비자가 새 계약을 사용하는 것을 확인한 뒤 신규 JSON 로그 저장을 활성화한다.
-4. 최종 응답에서 message를 제거한다. DB의 message 컬럼은 LEGACY 원본과 레거시 작성자 호환을 위해 유지한다.
-
-신규 JSON 로그 생성 후에는 logType·logData를 해석할 수 있는 버전으로만 rollback한다. 조회 응답의 다른 필드 변경을 묶어서 배포하지 않는다.
+- 조회 응답의 페이지·행위자·식별자·로그 표현이 바뀌므로 백엔드와 프런트의 활동 로그 조회를 함께 배포한다.
+- 신규 로그 아이디는 TSID로 발급하므로 [TSID 도입](../../decisions/integer-id-tsid.md) 설정을 활성화한 상태로 배포한다.
+- 신규 JSON 로그가 저장된 뒤에는 logType·logData를 해석할 수 있는 버전으로만 rollback한다.
 
 ## 검증
 
 사용자가 구현 후 다음 결과를 확인한다. 에이전트는 명시적 요청 없이 테스트·브라우저 조작을 수행하지 않는다.
 
-- 기존 로그는 logType=LEGACY이며 logData.html이 기존 message와 일치한다. 원본·건수·시각·아이디는 바뀌지 않는다.
-- 구버전 작성자의 컬럼 없는 INSERT가 LEGACY로 저장된다.
+- 레거시 로그는 logType=LEGACY이며 logData.html이 기존 원문과 일치한다. 원본·건수·시각·아이디는 바뀌지 않는다.
 - 현재 네 로깅 동작은 해당 logType과 필수 필드가 있는 JSON 객체로 저장·조회된다.
-- 누락된 타입·필수 데이터, 잘못된 필드 타입, null·문자열 형태의 신규 logData는 저장하지 않는다.
+- 필수 필드가 빠지거나 값 타입이 다른 신규 로그데이터는 저장하지 않는다.
+- 회원이 남긴 로그는 행위자 아이디와 회원 실명을, 시스템이 남긴 로그는 null 행위자를 반환한다.
 - 이름 변경·대상 삭제 후에도 당시 이름과 레이블 색상 데이터가 보존된다.
 - 특수문자·HTML처럼 보이는 이름이 텍스트로 보존되고 임의의 링크 문법이나 코드를 만들지 않는다.
-- 권한·offset·limit·count·정렬·오류 처리와 기존 로그 발생 횟수·포인트·알림은 유지된다.
-- 최종 API에 message·type·data는 없고 logType·logData가 제공된다.
+- 권한·page·totalCount·정렬·오류 처리와 기존 로그 발생 횟수·포인트·알림은 유지된다.
+- API에 message·memberId·type·data는 없고 logType·logData·actor가 제공된다.
 
 ## 비목표
 
-아직 없는 그룹·카드·기록·세미나 API의 신규 구현, 기존 HTML의 이벤트 역추정·JSON 변환, 행위자 이름 컬럼 추가, 페이지네이션·시각·회원 응답 구조 변경, 프런트엔드 창 상태 구현.
+아직 없는 그룹·카드·기록·세미나 API의 신규 구현, 기존 HTML의 이벤트 역추정·JSON 변환, 프런트엔드 창 상태 구현.

@@ -26,7 +26,7 @@
 
 - 운영 그룹의 마지막 그룹장이 탈퇴하면 `Group.leaderMemberId: Long?`와 DB의 `khlug_group.leader_member_id`를 null로 저장한다.
 - 그룹장 아이디를 반환하는 조회 응답은 그룹장이 없으면 null을 반환한다. 멤버 목록의 `leaderUserId`도 같으며, 그룹원이 없으면 `members: []`다.
-- 그룹장이 없으면 누구도 `GroupRole.LEADER`를 만족하지 않으며 요청자 그룹 역할도 `LEADER`로 반환하지 않는다. 운영진 예외 등 다른 권한은 별도로 판정한다.
+- 그룹장이 없으면 누구도 `GroupPermission.LEADER`를 만족하지 않으며 요청자 그룹 역할도 `LEADER`로 반환하지 않는다. 운영진 예외 등 다른 권한은 별도로 판정한다.
 
 ## 아이디 타입
 

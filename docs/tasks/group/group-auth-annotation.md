@@ -11,10 +11,10 @@ type: backend
 ## 비즈니스 동작
 
 - 기존 UserRole의 USER·MANAGER·SYSTEM과 Auth의 역할 배열 판정을 유지한다.
-- GroupAuth를 쓰는 함수에는 `@Auth([UserRole.USER, UserRole.MANAGER])`를 직접 선언한다. Auth가 사용자 역할을 검사한 뒤 GroupAuth가 같은 groupId·recordId를 기준으로 GroupRole 배열을 OR로 판정한다.
+- GroupAuth를 쓰는 함수에는 `@Auth([UserRole.USER, UserRole.MANAGER])`를 직접 선언한다. Auth가 사용자 역할을 검사한 뒤 GroupAuth가 같은 groupId·recordId를 기준으로 GroupPermission 배열을 OR로 판정한다.
 - Auth를 GroupAuth 위에 함께 선언하고 두 조건을 AND로 적용한다. 이 조합과 작성 순서는 커스텀 린트로 강제하고 실제 검사 순서도 Auth 이후 GroupAuth로 보장한다.
 - allowManager는 기본값 없이 true 또는 false를 반드시 명시한다. true이면 운영진을 그룹 소속·유형과 관계없이 허용하고 false이면 운영진도 선언한 그룹 권한을 충족해야 한다.
-- WRITER는 그룹원·기록 소속·작성자를 함께 검사한다. GroupRole.MANAGER는 운영진이면서 운영 그룹인지 검사한다.
+- RECORD_AUTHOR는 그룹원·기록 소속·작성자를 함께 검사한다. GroupPermission.MANAGER는 운영진이면서 운영 그룹인지 검사한다.
 - 권한 포함 관계와 열람 범위는 플랜을 따른다. 운영 그룹에는 운영진만 참가하며, 모든 공개 범위에서 그룹원은 VIEWER를 만족한다. 비공개 비그룹원 생성자 예외는 모든 VIEWER API에서 제거한다.
 
 ## HTTP API 계약
@@ -47,7 +47,7 @@ type: backend
 1. 기존 Auth와 사용자 역할을 유지한 채 GroupAuth와 그룹 판정을 추가한다.
 2. 그룹 권한 배열의 OR 결합·운영진 예외, 선언 린트와 Auth 우선 실행을 구현한 뒤 서비스별 그룹 검사를 옮긴다.
 3. 멤버 조회·참가, 위임·내보내기·탈퇴, 활동 로그, 포트폴리오, 채팅방 생성, 활동보고에 플랜의 해당 권한을 적용한다.
-4. 채팅방 참여는 [API 변경 태스크](api-changes.md)의 본인 참여 변경과 함께 진행한다. 신규 API·WRITER는 해당 기능 구현과 함께 적용하고, 구현되지 않은 판정을 근거로 기존 검사를 제거하지 않는다.
+4. 채팅방 참여는 [API 변경 태스크](api-changes.md)의 본인 참여 변경과 함께 진행한다. 신규 API·RECORD_AUTHOR는 해당 기능 구현과 함께 적용하고, 구현되지 않은 판정을 근거로 기존 검사를 제거하지 않는다.
 
 권한 규칙과 선언은 함께 배포한다. 되돌릴 때도 GroupAuth 적용과 서비스 검사를 함께 되돌린다.
 
@@ -61,8 +61,8 @@ type: backend
 - 한 그룹 권한이나 운영진 예외가 성공하면 다른 분기의 권한 실패·대상 없음에도 통과한다. 서비스의 대상 존재·소속 검사는 계속 적용된다.
 - 다른 그룹의 기록·다른 작성자의 기록·이름이 다른 경로 변수·누락된 대상·빈 배열을 확인한다.
 - GroupAuth만 선언하거나 Auth 역할 집합이 USER·MANAGER와 다르거나 작성 순서가 반대이면 린트가 실패한다. SYSTEM 요청은 Auth에서 403으로 거부한다.
-- GroupAuth 인자는 이름을 명시한다. groupId·allowManager 누락은 컴파일 오류다. WRITER의 recordId 누락, 빈 역할 배열·경로 변수 이름, 실제 경로 변수와 불일치는 린트 오류다.
-- allowManager가 false이면 운영진도 그룹 제약을 충족해야 하며, GroupRole.MANAGER는 운영 그룹에서만 성공한다.
+- GroupAuth의 첫 번째 인자인 권한 목록은 이름 없이 쓰고, groupId·recordId·allowManager는 이름을 명시한다. groupId·allowManager 누락은 컴파일 오류다. RECORD_AUTHOR의 recordId 누락, 빈 권한 배열·경로 변수 이름, 실제 경로 변수와 불일치는 린트 오류다.
+- allowManager가 false이면 운영진도 그룹 제약을 충족해야 하며, GroupPermission.MANAGER는 운영 그룹에서만 성공한다.
 
 ## 비목표
 
@@ -70,10 +70,10 @@ type: backend
 
 ## 진행 상태
 
-기능 브랜치의 `core/groupauth`에 GroupAuth·GroupRole·권한 판정 서비스를 반영했다. WRITER 조회는 Repository에 둔다. 기존 Auth의 역할 의미는 유지하고 Auth 다음 GroupAuth가 실행되도록 순서를 지정했다. 선언 검사기는 테스트 소스에 두며 선언 린트는 CI의 check에 포함되는 GroupAuthDeclarationTest로 제공한다.
+기능 브랜치의 `core/groupauth`에 GroupAuth·GroupPermission·권한 판정 서비스를 반영했다. RECORD_AUTHOR 조회는 Repository에 둔다. 기존 Auth의 역할 의미는 유지하고 Auth 다음 GroupAuth가 실행되도록 순서를 지정했다. 선언 검사기는 테스트 소스에 두며 선언 린트는 CI의 check에 포함되는 GroupAuthDeclarationTest로 제공한다.
 
 기존 API 16곳에 선언을 적용했다. 대상은 즐겨찾기 추가·취소, 그룹 참가·멤버 조회·위임·내보내기·탈퇴, 활동 로그 조회, 포트폴리오 발행·취소, 채팅방 생성, 활동보고 업로드 링크·제출·수정·취소·조회다. 서비스의 대응 그룹 권한 검사는 제거하고 대상 존재·소속·접수 기간·파일 소유권·그룹 상태·동시 변경 방지 조건은 유지한다. 운영 그룹도 일반 회원이 그룹장 권한을 우회해 다른 회원을 내보낼 수 없다.
 
-채팅방의 기존 타인 초대 API는 본인 참여 API 전환과 함께 변경하므로 현재 검사를 유지한다. WRITER는 판정 기반까지 제공하며 신규 기록 API에 적용하는 작업은 해당 기능 구현 범위다.
+채팅방의 기존 타인 초대 API는 본인 참여 API 전환과 함께 변경하므로 현재 검사를 유지한다. RECORD_AUTHOR는 판정 기반까지 제공하며 신규 기록 API에 적용하는 작업은 해당 기능 구현 범위다.
 
-기존 권한 테스트 사례를 유지해 새 판정기로 옮기고, OR 결합·운영진 예외·WRITER 소속·Auth 실행 순서·잘못된 선언·변환된 경로 ID 전달에 대한 테스트를 추가했다. 테스트·린트·빌드 실행과 실제 동작 확인은 수행하지 않았다.
+기존 권한 테스트 사례를 유지해 새 판정기로 옮기고, OR 결합·운영진 예외·RECORD_AUTHOR 소속·Auth 실행 순서·잘못된 선언·변환된 경로 ID 전달에 대한 테스트를 추가했다. 테스트·린트·빌드 실행과 실제 동작 확인은 수행하지 않았다.

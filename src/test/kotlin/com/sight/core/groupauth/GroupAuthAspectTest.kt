@@ -55,7 +55,7 @@ class GroupAuthAspectTest {
     fun `GroupAuth에 지정한 경로 변수의 값으로 권한을 검사하고 통과하면 컨트롤러가 실행된다`() {
         authenticate(UserRole.MANAGER)
         assertEquals("허용", controller.record(1L, 10L))
-        verify(permissions).requirePermission(1L, 10L, 7L, true, setOf(GroupRole.WRITER, GroupRole.LEADER), false)
+        verify(permissions).requirePermission(1L, 10L, 7L, true, setOf(GroupPermission.RECORD_AUTHOR, GroupPermission.LEADER), false)
         assertEquals(1, target.calls)
     }
 
@@ -63,7 +63,7 @@ class GroupAuthAspectTest {
     fun `GroupAuth에 기록 ID를 지정하지 않으면 그룹 ID만으로 권한을 검사한다`() {
         authenticate(UserRole.USER)
         assertEquals(1L, controller.group("다른 인자", 1L))
-        verify(permissions).requirePermission(1L, null, 7L, false, setOf(GroupRole.MEMBER), false)
+        verify(permissions).requirePermission(1L, null, 7L, false, setOf(GroupPermission.MEMBER), false)
         assertEquals(1, target.calls)
     }
 
@@ -71,7 +71,7 @@ class GroupAuthAspectTest {
     fun `그룹 권한 검사에서 거부되면 컨트롤러가 실행되지 않는다`() {
         authenticate(UserRole.USER)
         willThrow(ForbiddenException("그룹에 대한 권한이 부족합니다.")).given(permissions)
-            .requirePermission(1L, 10L, 7L, false, setOf(GroupRole.WRITER, GroupRole.LEADER), false)
+            .requirePermission(1L, 10L, 7L, false, setOf(GroupPermission.RECORD_AUTHOR, GroupPermission.LEADER), false)
         assertThrows<ForbiddenException> { controller.record(1L, 10L) }
         assertEquals(0, target.calls)
     }
@@ -80,7 +80,7 @@ class GroupAuthAspectTest {
         var calls = 0
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         open fun group(
             unused: String,
@@ -91,7 +91,12 @@ class GroupAuthAspectTest {
         }
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.WRITER, GroupRole.LEADER], groupId = "teamId", recordId = "entryId", allowManager = false)
+        @GroupAuth(
+            [GroupPermission.RECORD_AUTHOR, GroupPermission.LEADER],
+            groupId = "teamId",
+            recordId = "entryId",
+            allowManager = false,
+        )
         @GetMapping("/groups/{teamId}/records/{entryId}")
         open fun record(
             @PathVariable("teamId") groupId: Long,

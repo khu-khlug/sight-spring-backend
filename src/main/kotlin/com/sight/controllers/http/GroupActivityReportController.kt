@@ -10,7 +10,7 @@ import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
-import com.sight.core.groupauth.GroupRole
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.ActivityReportResult
 import com.sight.service.GroupActivityReportService
 import jakarta.validation.Valid
@@ -33,7 +33,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/activity-report/upload-link")
     fun getUploadLink(
         @PathVariable groupId: Long,
@@ -48,7 +48,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/activity-report")
     @ResponseStatus(HttpStatus.CREATED)
     fun submitReport(
@@ -68,7 +68,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PatchMapping("/groups/{groupId}/activity-report/{reportId}")
     fun editReport(
         @PathVariable groupId: Long,
@@ -89,7 +89,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = true)
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = true)
     @DeleteMapping("/groups/{groupId}/activity-report/{reportId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelReport(
@@ -103,7 +103,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = true)
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = true)
     @GetMapping("/groups/{groupId}/activity-report")
     fun listReports(
         @PathVariable groupId: Long,

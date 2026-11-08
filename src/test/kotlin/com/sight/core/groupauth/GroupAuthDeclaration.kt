@@ -27,10 +27,10 @@ object GroupAuthDeclaration {
             auth != null && auth.roles.size == 2 && auth.roles.toSet() == setOf(UserRole.USER, UserRole.MANAGER),
             "GroupAuth에는 Auth의 USER·MANAGER 역할을 직접 함께 선언해야 합니다.",
         )
-        requireDeclaration(groupAuth.roles.isNotEmpty(), "그룹 권한 배열은 비어 있을 수 없습니다.")
+        requireDeclaration(groupAuth.permissions.isNotEmpty(), "그룹 권한 배열은 비어 있을 수 없습니다.")
         requireDeclaration(groupAuth.groupId.isNotBlank(), "그룹 경로 변수 이름이 필요합니다.")
         requireDeclaration(
-            GroupRole.WRITER !in groupAuth.roles || groupAuth.recordId.isNotBlank(),
+            GroupPermission.RECORD_AUTHOR !in groupAuth.permissions || groupAuth.recordId.isNotBlank(),
             "작성자 권한에는 기록 경로 변수가 필요합니다.",
         )
         requireDeclaration(groupAuth.recordId.isEmpty() || groupAuth.recordId.isNotBlank(), "기록 경로 변수 이름은 공백일 수 없습니다.")

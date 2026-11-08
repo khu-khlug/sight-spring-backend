@@ -6,7 +6,7 @@ import com.sight.controllers.http.dto.ListGroupLogsResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
-import com.sight.core.groupauth.GroupRole
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupLogService
 import jakarta.validation.constraints.Min
 import org.springframework.validation.annotation.Validated
@@ -21,7 +21,7 @@ class GroupLogController(
     private val groupLogService: GroupLogService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @GetMapping("/groups/{groupId}/logs")
     fun listGroupLogs(
         @PathVariable groupId: Long,

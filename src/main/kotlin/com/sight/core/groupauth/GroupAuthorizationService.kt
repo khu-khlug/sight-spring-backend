@@ -20,7 +20,7 @@ class GroupAuthorizationService(
         recordId: Long?,
         requesterId: Long,
         isManager: Boolean,
-        roles: Set<GroupRole>,
+        permissions: Set<GroupPermission>,
         allowManager: Boolean,
     ) {
         // 운영진 예외는 그룹 권한 판정만 생략한다. 업무 서비스의 대상 존재·상태 검사는 그대로 적용된다.
@@ -36,12 +36,12 @@ class GroupAuthorizationService(
         var missingMember = false
 
         val allowed =
-            roles.any { role ->
-                when (role) {
-                    GroupRole.LEADER -> group.isLeader(requesterId)
-                    GroupRole.MEMBER -> hasMemberPermission
-                    GroupRole.MANAGER -> isManager && isManageGroup
-                    GroupRole.VIEWER -> {
+            permissions.any { permission ->
+                when (permission) {
+                    GroupPermission.LEADER -> group.isLeader(requesterId)
+                    GroupPermission.MEMBER -> hasMemberPermission
+                    GroupPermission.MANAGER -> isManager && isManageGroup
+                    GroupPermission.VIEWER -> {
                         when (group.visibility) {
                             // 그룹 멤버만
                             GroupVisibility.PRIVATE -> hasMemberPermission
@@ -59,7 +59,7 @@ class GroupAuthorizationService(
                             GroupVisibility.PUBLIC -> true
                         }
                     }
-                    GroupRole.WRITER -> {
+                    GroupPermission.RECORD_AUTHOR -> {
                         // lazy 위임 프로퍼티는 스마트 캐스트할 수 없어 지역 val로 받아 null 검사 후 접근한다.
                         val author = recordAuthor
                         if (author == null) missingRecord = true

@@ -50,7 +50,7 @@ class GroupAuthAspect(
             recordId = groupAuth.recordId.takeIf { it.isNotEmpty() }?.let(::readId),
             requesterId = requester.userId,
             isManager = requester.role == UserRole.MANAGER,
-            roles = groupAuth.roles.toSet(),
+            permissions = groupAuth.permissions.toSet(),
             allowManager = groupAuth.allowManager,
         )
         return joinPoint.proceed()

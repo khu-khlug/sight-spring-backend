@@ -7,7 +7,7 @@ import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
-import com.sight.core.groupauth.GroupRole
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupMemberService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -25,7 +25,7 @@ class GroupMemberController(
     private val groupMemberService: GroupMemberService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.VIEWER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @GetMapping("/groups/{groupId}/members")
     fun listGroupMembers(
         @PathVariable groupId: Long,
@@ -49,7 +49,7 @@ class GroupMemberController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PatchMapping("/groups/{groupId}/master")
     fun delegateGroupMaster(
@@ -65,7 +65,7 @@ class GroupMemberController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.VIEWER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/groups/{groupId}/members/@me")
     fun joinGroup(
@@ -79,7 +79,7 @@ class GroupMemberController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.LEADER, GroupRole.MANAGER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.LEADER, GroupPermission.MANAGER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/groups/{groupId}/members/{memberId}")
     fun kickGroupMember(
@@ -95,7 +95,7 @@ class GroupMemberController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/groups/{groupId}/members/@me")
     fun leaveGroup(

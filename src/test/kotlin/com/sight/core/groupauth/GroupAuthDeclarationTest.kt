@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 
 class GroupAuthDeclarationTest {
     @Test
-    fun `그룹 권한 선언은 Auth 다음에 이름 있는 인자로 작성한다`() {
+    fun `그룹 권한 선언은 Auth 다음에 작성하고 권한 목록 외의 인자에는 이름을 붙인다`() {
         val violations = mutableListOf<String>()
         Konsist.scopeFromDirectory("src/main/kotlin").functions().forEach { function ->
             val groupAuth =
@@ -28,15 +28,17 @@ class GroupAuthDeclarationTest {
             if (auth == null || function.annotations.indexOf(auth) > function.annotations.indexOf(groupAuth)) {
                 violations += "${function.location}: Auth는 GroupAuth 위에 직접 선언해야 합니다."
             }
-            if (groupAuth.arguments.any { !Regex("^\\s*(roles|groupId|recordId|allowManager)\\s*=").containsMatchIn(it.text) }) {
-                violations += "${function.location}: GroupAuth에는 이름 있는 인자만 사용해야 합니다."
+            // 경로 변수 이름 문자열과 운영진 예외 여부는 이름 없이 쓰면 무엇을 뜻하는지 알 수 없으므로, 첫 번째 권한 목록만 이름 없이 허용한다.
+            val namedArgument = Regex("^\\s*(permissions|groupId|recordId|allowManager)\\s*=")
+            if (groupAuth.arguments.drop(1).any { !namedArgument.containsMatchIn(it.text) }) {
+                violations += "${function.location}: GroupAuth의 groupId·recordId·allowManager는 이름 있는 인자로 작성해야 합니다."
             }
         }
         assertTrue(violations.isEmpty(), violations.joinToString("\n"))
     }
 
     @Test
-    fun `그룹 권한의 역할과 경로 변수 선언을 검사한다`() {
+    fun `그룹 권한과 경로 변수 선언을 검사한다`() {
         val scanner = ClassPathScanningCandidateComponentProvider(false)
         scanner.addIncludeFilter(AnnotationTypeFilter(RestController::class.java))
         scanner.findCandidateComponents("com.sight.controllers.http").forEach { bean ->
@@ -55,47 +57,47 @@ class GroupAuthDeclarationTest {
     }
 
     class InvalidDeclarations {
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun missingAuth(
             @PathVariable groupId: Long,
         ): Long = groupId
 
         @Auth([UserRole.USER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun wrongUserRoles(
             @PathVariable groupId: Long,
         ): Long = groupId
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.WRITER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.RECORD_AUTHOR], groupId = "groupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun missingRecord(
             @PathVariable groupId: Long,
         ): Long = groupId
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun blankGroup(
             @PathVariable groupId: Long,
         ): Long = groupId
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "targetGroupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "targetGroupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun wrongPathVariable(
             @PathVariable groupId: Long,
         ): Long = groupId
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
         @GetMapping("/groups/{groupId}")
         fun missingParameter(): Unit = Unit
 
         @Auth([UserRole.USER, UserRole.MANAGER])
-        @GroupAuth(roles = [GroupRole.MEMBER], groupId = "groupId", allowManager = false)
+        @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
         fun missingMapping(
             @PathVariable groupId: Long,
         ): Long = groupId

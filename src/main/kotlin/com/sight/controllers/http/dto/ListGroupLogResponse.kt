@@ -8,7 +8,7 @@ data class ListGroupLogActorResponse(
 )
 
 data class ListGroupLogResponse(
-    val id: Long,
+    val id: String,
     val actor: ListGroupLogActorResponse?,
     val logType: String,
     val logData: Map<String, Any?>,
@@ -16,7 +16,7 @@ data class ListGroupLogResponse(
 )
 
 data class ListGroupLogsResponse(
-    val skip: Int,
+    val page: Int,
     val totalCount: Long,
     val receivedCount: Int,
     val logs: List<ListGroupLogResponse>,

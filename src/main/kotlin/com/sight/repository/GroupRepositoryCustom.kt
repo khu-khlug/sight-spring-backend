@@ -34,7 +34,7 @@ interface GroupRepositoryCustom {
     // 그룹 활동 로그를 최신순(발생 일시 내림차순, 같으면 아이디 내림차순)으로 조회한다.
     fun findGroupLogsByGroupIdOrderByLatest(
         groupId: Long,
-        offset: Int,
+        offset: Long,
         limit: Int,
     ): List<GroupLog>
 

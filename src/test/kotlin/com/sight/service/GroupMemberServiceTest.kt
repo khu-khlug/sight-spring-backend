@@ -6,7 +6,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupLogType
+import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupPolicy
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
@@ -165,18 +165,15 @@ class GroupMemberServiceTest {
 
         // log 호출: 위임 전후 그룹장 정보를 로그데이터로 남긴다
         verify(groupLogService).createLog(
-            eq(100L),
-            eq(1L),
-            eq(GroupLogType.GROUP_LEADER_DELEGATED),
-            eq(
-                mapOf(
-                    "fromUserId" to 1L,
-                    "fromUserName" to "이름1",
-                    "fromUserCollege" to "공과대학",
-                    "toUserId" to 2L,
-                    "toUserName" to "이름2",
-                    "toUserCollege" to "공과대학",
-                ),
+            100L,
+            1L,
+            GroupLogData.GroupLeaderDelegated(
+                fromUserId = 1L,
+                fromUserName = "이름1",
+                fromUserCollege = "공과대학",
+                toUserId = 2L,
+                toUserName = "이름2",
+                toUserCollege = "공과대학",
             ),
         )
 
@@ -268,7 +265,7 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).save(eq(100L), eq(2L), any())
-        verify(groupLogService).createLog(eq(100L), eq(2L), eq(GroupLogType.GROUP_MEMBER_JOINED), eq(emptyMap()))
+        verify(groupLogService).createLog(100L, 2L, GroupLogData.GroupMemberJoined)
 
         val expectedContent =
             "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에 참여했습니다."
@@ -491,10 +488,9 @@ class GroupMemberServiceTest {
         // then
         verify(groupMemberRepository).delete(100L, 5L)
         verify(groupLogService).createLog(
-            eq(100L),
-            eq(1L),
-            eq(GroupLogType.GROUP_MEMBER_KICKED),
-            eq(mapOf("targetUserId" to 5L, "targetUserName" to "이름5", "targetUserCollege" to "공과대학")),
+            100L,
+            1L,
+            GroupLogData.GroupMemberKicked(targetUserId = 5L, targetUserName = "이름5", targetUserCollege = "공과대학"),
         )
         verify(notificationService).createNotification(
             userId = eq(5L),
@@ -570,7 +566,7 @@ class GroupMemberServiceTest {
             groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
         }
         verify(pointService, never()).givePoint(any(), any(), any())
-        verify(groupLogService, never()).createLog(any(), any(), any(), any())
+        verify(groupLogService, never()).createLog(any(), any(), any())
         verify(groupRepository, never()).addMemberCountById(any(), any())
     }
 
@@ -625,7 +621,7 @@ class GroupMemberServiceTest {
 
         // then
         verify(groupMemberRepository).delete(100L, 5L)
-        verify(groupLogService).createLog(eq(100L), eq(5L), eq(GroupLogType.GROUP_MEMBER_LEFT), eq(emptyMap()))
+        verify(groupLogService).createLog(100L, 5L, GroupLogData.GroupMemberLeft)
 
         val expectedContent = "<a href=\"/group/100\"><u>테스트 그룹</u></a> 그룹에서 나갔습니다."
         verify(notificationService, times(2)).createNotification(

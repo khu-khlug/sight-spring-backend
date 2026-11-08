@@ -78,14 +78,14 @@ class GroupRepositoryImpl(
 
     override fun findGroupLogsByGroupIdOrderByLatest(
         groupId: Long,
-        offset: Int,
+        offset: Long,
         limit: Int,
     ): List<GroupLog> =
         queryFactory
             .selectFrom(groupLog)
             .where(groupLog.groupId.eq(groupId))
             .orderBy(groupLog.createdAt.desc(), groupLog.id.desc())
-            .offset(offset.toLong())
+            .offset(offset)
             .limit(limit.toLong())
             .fetch()
 

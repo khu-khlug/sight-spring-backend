@@ -5,7 +5,7 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupLogType
+import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupPolicy
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupMemberRepository
@@ -98,15 +98,14 @@ class GroupMemberService(
         groupLogService.createLog(
             groupId = groupId,
             actorMemberId = requesterId,
-            logType = GroupLogType.GROUP_LEADER_DELEGATED,
-            logData =
-                mapOf(
-                    "fromUserId" to oldMaster.id,
-                    "fromUserName" to oldMaster.realname,
-                    "fromUserCollege" to oldMaster.college,
-                    "toUserId" to newMaster.id,
-                    "toUserName" to newMaster.realname,
-                    "toUserCollege" to newMaster.college,
+            data =
+                GroupLogData.GroupLeaderDelegated(
+                    fromUserId = oldMaster.id,
+                    fromUserName = oldMaster.realname,
+                    fromUserCollege = oldMaster.college,
+                    toUserId = newMaster.id,
+                    toUserName = newMaster.realname,
+                    toUserCollege = newMaster.college,
                 ),
         )
 
@@ -153,8 +152,7 @@ class GroupMemberService(
         groupLogService.createLog(
             groupId = groupId,
             actorMemberId = requesterId,
-            logType = GroupLogType.GROUP_MEMBER_JOINED,
-            logData = emptyMap(),
+            data = GroupLogData.GroupMemberJoined,
         )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
@@ -227,12 +225,11 @@ class GroupMemberService(
         groupLogService.createLog(
             groupId = groupId,
             actorMemberId = requesterId,
-            logType = GroupLogType.GROUP_MEMBER_KICKED,
-            logData =
-                mapOf(
-                    "targetUserId" to kickedMember.id,
-                    "targetUserName" to kickedMember.realname,
-                    "targetUserCollege" to kickedMember.college,
+            data =
+                GroupLogData.GroupMemberKicked(
+                    targetUserId = kickedMember.id,
+                    targetUserName = kickedMember.realname,
+                    targetUserCollege = kickedMember.college,
                 ),
         )
 
@@ -279,8 +276,7 @@ class GroupMemberService(
         groupLogService.createLog(
             groupId = groupId,
             actorMemberId = requesterId,
-            logType = GroupLogType.GROUP_MEMBER_LEFT,
-            logData = emptyMap(),
+            data = GroupLogData.GroupMemberLeft,
         )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)

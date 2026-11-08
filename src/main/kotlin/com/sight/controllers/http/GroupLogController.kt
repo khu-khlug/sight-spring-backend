@@ -25,22 +25,22 @@ class GroupLogController(
     @GetMapping("/groups/{groupId}/logs")
     fun listGroupLogs(
         @PathVariable groupId: Long,
-        @RequestParam(defaultValue = "0") @Min(0) skip: Int,
+        @RequestParam(defaultValue = "0") @Min(0) page: Int,
     ): ListGroupLogsResponse {
         val result =
             groupLogService.listGroupLogs(
                 groupId = groupId,
-                skip = skip,
+                page = page,
             )
 
         return ListGroupLogsResponse(
-            skip = result.skip,
+            page = result.page,
             totalCount = result.totalCount,
             receivedCount = result.receivedCount,
             logs =
                 result.logs.map { log ->
                     ListGroupLogResponse(
-                        id = log.id,
+                        id = log.id.toString(),
                         actor = log.actor?.let { ListGroupLogActorResponse(userId = it.userId, name = it.name) },
                         logType = log.logType.name,
                         logData = log.logData,

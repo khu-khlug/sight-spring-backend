@@ -62,7 +62,7 @@ class GroupLogControllerTest {
             .willReturn(Optional.of(testGroup(id = GROUP_ID, leaderMemberId = LEADER_ID, visibility = GroupVisibility.PUBLIC)))
         given(groupMemberRepository.existsByGroupIdAndMemberId(GROUP_ID, MEMBER_ID)).willReturn(true)
         given(groupLogService.listGroupLogs(GROUP_ID, 0))
-            .willReturn(GroupLogListResult(skip = 0, totalCount = 0, receivedCount = 0, logs = emptyList()))
+            .willReturn(GroupLogListResult(page = 0, totalCount = 0, receivedCount = 0, logs = emptyList()))
 
         authenticate(OUTSIDER_ID, UserRole.USER)
         mockMvc.perform(get("/groups/$GROUP_ID/logs")).andExpect(status().isForbidden)

@@ -50,7 +50,7 @@ USER and 열람권한
 | `requesterInfo`                   |      객체       | 요청자 기준 정보                                                                                       |
 | `requesterInfo.userRole`          |      enum       | 요청자의 그룹원 여부. `NONE`(아님) \| `MEMBER`(그룹원) \| `LEADER`(그룹장)                             |
 | `requesterInfo.isBookmarked`      |     불리언      | 요청자의 즐겨찾기 여부                                                                                 |
-| `requesterInfo.isInChatRoom`      |     불리언      | 요청자의 채팅방 참여 여부. 채팅방이 없거나 그룹원이 아니면 false |
+| `requesterInfo.isInChatRoom`      | 불리언 \| null | 요청자의 채팅방 참여 여부. 채팅방이 없거나 그룹원이 아니면 false, Discord 조회에 실패하면 null |
 | `specialOrganization`             |   enum \| null  | 특수 조직. (보안해킹트랙 등). 이번 구현에선 관련 테이블을 만들지 않으므로 컨트롤러에서 항상 null로 설정 |
 | `interests`                       | enum 배열 \| null | 관심 분야 배열. `WEB_APP_SERVICE` \| `UX_UI_DESIGN` \| `GAME_GRAPHICS` \| `AI_DATA_SCIENCE` \| `CIRCUIT_IOT` \| `NETWORK_CLOUD` \| `SYSTEM_PROGRAMMING` \| `SECURITY_HACKING` \| `ALGORITHM_THEORY` |
 | `techStack`                       | 문자열 배열 \| null | 사용 기술 목록                                                                                       |
@@ -77,7 +77,7 @@ USER and 열람권한
 
 채널 URL은 그룹 정보 API의 `chatRoomUrl`로 제공한다. 서버에 설정된 Discord 서버 아이디와 그룹의 실제 채널 아이디로 만든 `https://discord.com/channels/{guildId}/{channelId}`이며, `hasChatRoom`이 true이면 URL을, false이면 null을 반환한다.
 
-채팅방 존재 여부·요청자의 참여 여부·채널 URL은 그룹 정보 응답을 기준으로 사용한다. 채팅방 생성·참여 후에는 그룹 정보를 재조회한다. 채널 URL은 메시지 조회와 독립적으로 얻을 수 있으므로 메시지가 없거나 조회에 실패해도 바로가기에 사용할 수 있다.
+채팅방 존재 여부·요청자의 참여 여부·채널 URL은 그룹 정보 응답을 기준으로 사용한다. 채팅방 생성·참여 후에는 그룹 정보를 재조회한다. 요청자의 참여 여부는 백엔드가 Discord에서 조회하며, 조회에 실패해도 그룹 정보 조회는 성공하고 `isInChatRoom`만 null이다. 채널 URL은 메시지 조회와 독립적으로 얻을 수 있으므로 메시지가 없거나 조회에 실패해도 바로가기에 사용할 수 있다.
 
 ## 집계 기준
 
@@ -91,6 +91,7 @@ memberCount는 현재 그룹원 수다. 활동 리스트 수는 현재 그룹 �
 2. 요청자 기준 정보는 요청자별로 반환한다
    - `userRole`은 그룹장 `LEADER`, 그룹원 `MEMBER`, 그 밖에는 `NONE`이다. `leaderMemberId`가 null이면 어떤 요청자에게도 `LEADER`를 반환하지 않는다
    - 즐겨찾기·채팅방 참여 여부는 요청자 본인 값이며, 채팅방이 없거나 그룹원이 아니면 `isInChatRoom`은 false다
+   - Discord 조회에 실패하면 200 응답과 함께 `isInChatRoom`만 null이다
    - 채팅방이 있으면 `chatRoomUrl`은 서버·채널 아이디를 포함한 Discord 웹 URL이고, 없으면 null이다. 생성·참여 후 재조회에도 같은 기준을 적용한다
 3. 활동 집계는 삭제되지 않은 항목으로 센다
    - `memberCount`는 현재 그룹원 수, `cardCount`는 비활성을 포함한 삭제되지 않은 카드 수, `recordCount`는 삭제되지 않은 카드의 삭제되지 않은 기록 수다

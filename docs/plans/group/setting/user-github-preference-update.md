@@ -1,7 +1,7 @@
 # GitHub API 개인 사용량 사용 설정
 
 저장소 조회에 요청자 개인의 GitHub API 사용량을 쓸지 설정합니다. 그룹 단위가 아니라 회원 전역 설정이며, 모든 그룹의 저장소 조회에 동일하게 적용됩니다.
-회원 개인 설정(`user-preference`) 중 요청 바디에 담은 항목만 바꿉니다. 설정한 적 없는 회원의 `usePersonalGithubUsage` 값은 `false`(사용 안 함)입니다.
+회원 설정 중 요청 바디에 담은 항목만 바꿉니다. 설정한 적 없는 회원의 `usePersonalGithubUsage` 값은 `false`(사용 안 함)입니다.
 
 ## 운영 그룹인 경우
 
@@ -10,7 +10,7 @@
 ## API 경로
 
 ```
-PATCH /groups/user-preference
+PATCH /users/@me/preference
 ```
 
 ## 권한

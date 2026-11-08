@@ -108,5 +108,5 @@
 | `PUT /groups/:groupId/status/end` | [그룹 활동 종료](../../plans/group/setting/group-status-end.md) |
 | `PUT /groups/:groupId/status/stop` | [그룹 활동 중단](../../plans/group/setting/group-status-stop.md) |
 | `PUT /groups/:groupId/status/progress` | [그룹 활동 재진행](../../plans/group/setting/group-status-progress.md) |
-| `PATCH /groups/user-preference` | [GitHub API 개인 사용량 사용 설정](../../plans/group/setting/user-github-preference-update.md) |
-| `GET /groups/user-preference` | [GitHub API 개인 사용량 설정 조회](../../plans/group/setting/user-github-preference-get.md) |
+| `PATCH /users/@me/preference` | [GitHub API 개인 사용량 사용 설정](../../plans/group/setting/user-github-preference-update.md) |
+| `GET /users/@me/preference` | [GitHub API 개인 사용량 설정 조회](../../plans/group/setting/user-github-preference-get.md) |

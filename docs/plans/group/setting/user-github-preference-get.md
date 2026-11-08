@@ -9,7 +9,7 @@
 ## API 경로
 
 ```
-GET /groups/user-preference
+GET /users/@me/preference
 ```
 
 ## 권한

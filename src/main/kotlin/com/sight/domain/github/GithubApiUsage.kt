@@ -2,8 +2,6 @@ package com.sight.domain.github
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -17,14 +15,14 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],
 )
 class GithubApiUsage(
+    id: Long,
     memberId: Long,
     countStartAt: Instant,
 ) {
     // 사용량 행의 DB 식별자. 회원 식별자와 구분해 해당 행을 조회·갱신하는 기본 키다.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 사용량을 집계할 회원. 그룹·저장소와 관계없이 합산하며 회원당 최대 한 행만 둔다.
     @Column(name = "member_id", nullable = false)
@@ -48,6 +46,7 @@ class GithubApiUsage(
         private set
 
     init {
+        require(id > 0) { "사용량 식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
     }
 
@@ -96,11 +95,13 @@ class GithubApiUsage(
 
         // 사용량 행이 없는 회원의 첫 외부 호출을 예약할 때만 생성한다.
         fun createWithReservation(
+            id: Long,
             memberId: Long,
             at: Instant,
             count: Int = 1,
         ): GithubApiUsage =
             GithubApiUsage(
+                id = id,
                 memberId = memberId,
                 countStartAt = at,
             ).apply { reserve(at, count) }

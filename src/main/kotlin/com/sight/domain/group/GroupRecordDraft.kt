@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -17,6 +15,7 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],
 )
 class GroupRecordDraft(
+    id: Long,
     memberId: Long,
     groupId: Long,
     cardId: Long,
@@ -25,9 +24,8 @@ class GroupRecordDraft(
     updatedAt: Instant,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 임시저장한 회원.
     @Column(name = "member_id", nullable = false)
@@ -59,6 +57,7 @@ class GroupRecordDraft(
         private set
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
         validateTarget(groupId, cardId, recordId)
         validateContent(content)

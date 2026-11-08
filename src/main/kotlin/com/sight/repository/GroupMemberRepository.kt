@@ -15,6 +15,7 @@ class GroupMemberRepository(
     private val groupMemberRowMapper =
         RowMapper { rs, _ ->
             GroupMember(
+                id = rs.getLong("id"),
                 groupId = rs.getLong("group_id"),
                 memberId = rs.getLong("member_id"),
                 joinedAt = rs.getTimestamp("joined_at").toInstant(),
@@ -43,7 +44,7 @@ class GroupMemberRepository(
 
     fun findByGroupId(groupId: Long): List<GroupMember> {
         return jdbcTemplate.query(
-            "SELECT group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ?",
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ?",
             groupMemberRowMapper,
             groupId,
         )
@@ -51,7 +52,7 @@ class GroupMemberRepository(
 
     fun findByMemberId(memberId: Long): List<GroupMember> {
         return jdbcTemplate.query(
-            "SELECT group_id, member_id, joined_at FROM khlug_group_member WHERE member_id = ?",
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE member_id = ?",
             groupMemberRowMapper,
             memberId,
         )
@@ -62,7 +63,7 @@ class GroupMemberRepository(
         memberId: Long,
     ): GroupMember? {
         return jdbcTemplate.query(
-            "SELECT group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
             groupMemberRowMapper,
             groupId,
             memberId,
@@ -85,12 +86,14 @@ class GroupMemberRepository(
     }
 
     fun save(
+        id: Long,
         groupId: Long,
         memberId: Long,
         joinedAt: Instant,
     ) {
         jdbcTemplate.update(
-            "INSERT INTO khlug_group_member (group_id, member_id, joined_at) VALUES (?, ?, ?)",
+            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
+            id,
             groupId,
             memberId,
             Timestamp.from(joinedAt),
@@ -111,13 +114,14 @@ class GroupMemberRepository(
 
     fun saveAll(groupMembers: List<GroupMember>) {
         jdbcTemplate.batchUpdate(
-            "INSERT INTO khlug_group_member (group_id, member_id, joined_at) VALUES (?, ?, ?)",
+            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
             groupMembers,
             groupMembers.size,
         ) { ps, groupMember ->
-            ps.setLong(1, groupMember.groupId)
-            ps.setLong(2, groupMember.memberId)
-            ps.setTimestamp(3, Timestamp.from(groupMember.joinedAt))
+            ps.setLong(1, groupMember.id)
+            ps.setLong(2, groupMember.groupId)
+            ps.setLong(3, groupMember.memberId)
+            ps.setTimestamp(4, Timestamp.from(groupMember.joinedAt))
         }
     }
 }

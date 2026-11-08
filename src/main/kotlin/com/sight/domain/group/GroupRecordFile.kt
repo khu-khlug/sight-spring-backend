@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
@@ -23,15 +21,15 @@ import jakarta.persistence.UniqueConstraint
     indexes = [Index(columnList = "file_upload_id")],
 )
 class GroupRecordFile private constructor(
+    id: Long,
     recordId: Long?,
     draftId: Long?,
     fileIdentifier: String,
     fileUploadId: String,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 소유 기록. 임시저장 소유면 null이다.
     @Column(name = "record_id")
@@ -50,6 +48,7 @@ class GroupRecordFile private constructor(
     val fileUploadId: String = fileUploadId
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require((recordId == null) != (draftId == null)) { "연결 소유자는 기록 또는 임시저장 중 하나여야 합니다." }
         require(recordId == null || recordId > 0) { "기록 식별자가 올바르지 않습니다." }
         require(draftId == null || draftId > 0) { "임시저장 식별자가 올바르지 않습니다." }
@@ -63,17 +62,19 @@ class GroupRecordFile private constructor(
         const val FILE_IDENTIFIER_MAX_LENGTH: Int = 100
 
         fun ofRecord(
+            id: Long,
             recordId: Long,
             fileIdentifier: String,
             fileUploadId: String,
         ): GroupRecordFile =
-            GroupRecordFile(recordId = recordId, draftId = null, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
+            GroupRecordFile(id = id, recordId = recordId, draftId = null, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
 
         fun ofDraft(
+            id: Long,
             draftId: Long,
             fileIdentifier: String,
             fileUploadId: String,
         ): GroupRecordFile =
-            GroupRecordFile(recordId = null, draftId = draftId, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
+            GroupRecordFile(id = id, recordId = null, draftId = draftId, fileIdentifier = fileIdentifier, fileUploadId = fileUploadId)
     }
 }

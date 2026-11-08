@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
@@ -19,15 +17,15 @@ import java.time.Instant
     indexes = [Index(columnList = "member_id")],
 )
 class GroupMember(
+    id: Long,
     groupId: Long,
     memberId: Long,
     joinedAt: Instant,
 ) {
     // 그룹원 관계 행의 식별자.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 소속 그룹. 회원과 함께 유일해 동시 참가 요청에도 관계가 한 번만 생긴다.
     @Column(name = "group_id", nullable = false)
@@ -42,6 +40,7 @@ class GroupMember(
     val joinedAt: Instant = joinedAt
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
     }

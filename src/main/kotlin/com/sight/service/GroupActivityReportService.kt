@@ -50,6 +50,7 @@ data class ActivityReportListResult(
 // 새 도메인은 파일을 업로드 기록 아이디로 참조하므로, 파일 key는 각 함수에서 업로드 기록을 조회해 채운다.
 @Service
 class GroupActivityReportService(
+    private val integerIdService: IntegerIdService,
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val groupActivityReportRepository: GroupActivityReportRepository,
@@ -70,7 +71,7 @@ class GroupActivityReportService(
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
 
         val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath)
-        groupFileRepository.save(GroupFile(groupId = groupId, fileUploadId = uploadLink.fileUploadId))
+        groupFileRepository.save(GroupFile(id = integerIdService.nextId(), groupId = groupId, fileUploadId = uploadLink.fileUploadId))
         return uploadLink
     }
 

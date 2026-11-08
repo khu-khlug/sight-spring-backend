@@ -52,6 +52,7 @@ class GroupMatchingServiceTest {
     fun setUp() {
         groupMatchingService =
             GroupMatchingService(
+                integerIdService = mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
                 groupMatchingAnswerRepository = groupMatchingAnswerRepository,
                 matchedGroupRepository = matchedGroupRepository,
                 groupRepository = groupRepository,
@@ -409,7 +410,7 @@ class GroupMatchingServiceTest {
         groupMatchingService.addMemberToGroup(groupId, answerId)
 
         // then
-        verify(groupMemberRepository).save(eq(groupId), eq(memberId), any())
+        verify(groupMemberRepository).save(any(), eq(groupId), eq(memberId), any())
         verify(matchedGroupRepository).save(any<MatchedGroup>())
     }
 
@@ -433,7 +434,7 @@ class GroupMatchingServiceTest {
         groupMatchingService.addMemberToGroup(groupId, answerId)
 
         // then
-        verify(groupMemberRepository).save(eq(groupId), eq(memberId), any())
+        verify(groupMemberRepository).save(any(), eq(groupId), eq(memberId), any())
         verify(matchedGroupRepository, never()).save(any<MatchedGroup>())
     }
 

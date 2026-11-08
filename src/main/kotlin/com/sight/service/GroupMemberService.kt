@@ -29,6 +29,7 @@ data class GroupMemberListResult(
 
 @Service
 class GroupMemberService(
+    private val integerIdService: IntegerIdService,
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val memberRepository: MemberRepository,
@@ -147,7 +148,7 @@ class GroupMemberService(
             throw BadRequestException("이미 그룹 멤버입니다")
         }
 
-        groupMemberRepository.save(groupId, requesterId, Instant.now())
+        groupMemberRepository.save(integerIdService.nextId(), groupId, requesterId, Instant.now())
 
         groupLogService.createLog(
             groupId = groupId,

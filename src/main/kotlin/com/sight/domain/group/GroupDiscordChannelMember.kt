@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -17,14 +15,14 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["discord_channel_id", "member_id"])],
 )
 class GroupDiscordChannelMember(
+    id: Long,
     discordChannelId: String,
     memberId: Long,
     createdAt: Instant,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 참여할 그룹 Discord 채널 행(GroupDiscordChannel.id). 회원과 함께 유일해 회원·채널별 참여를 하나로 직렬화한다.
     @Column(name = "discord_channel_id", nullable = false, length = GroupDiscordChannel.ID_MAX_LENGTH)
@@ -44,6 +42,7 @@ class GroupDiscordChannelMember(
         private set
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(discordChannelId.isNotBlank()) { "Discord 채널 식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
     }

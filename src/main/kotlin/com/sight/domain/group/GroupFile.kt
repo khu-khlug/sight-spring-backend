@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -18,13 +16,13 @@ import jakarta.persistence.UniqueConstraint
     uniqueConstraints = [UniqueConstraint(columnNames = ["file_upload_id"])],
 )
 class GroupFile(
+    id: Long,
     groupId: Long,
     fileUploadId: String,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 파일을 쓰는 그룹.
     @Column(name = "group_id", nullable = false)
@@ -35,6 +33,7 @@ class GroupFile(
     val fileUploadId: String = fileUploadId
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
         require(fileUploadId.isNotBlank()) { "업로드 파일 식별자가 올바르지 않습니다." }
     }

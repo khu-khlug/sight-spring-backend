@@ -41,6 +41,7 @@ class GroupMemberServiceTest {
     private val pointService = mock<PointService>()
     private val groupMemberService =
         GroupMemberService(
+            integerIdService = mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
             groupRepository = groupRepository,
             groupMemberRepository = groupMemberRepository,
             memberRepository = memberRepository,
@@ -264,7 +265,7 @@ class GroupMemberServiceTest {
         groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
 
         // then
-        verify(groupMemberRepository).save(eq(100L), eq(2L), any())
+        verify(groupMemberRepository).save(any(), eq(100L), eq(2L), any())
         verify(groupLogService).createLog(100L, 2L, GroupLogData.GroupMemberJoined)
 
         val expectedContent =

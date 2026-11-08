@@ -49,6 +49,7 @@ class GroupServiceTest {
     fun setUp() {
         groupService =
             GroupService(
+                mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
                 groupRepository,
                 groupBookmarkRepository,
                 groupMemberRepository,

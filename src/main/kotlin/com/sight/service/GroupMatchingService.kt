@@ -34,6 +34,7 @@ import java.time.ZoneId
 
 @Service
 class GroupMatchingService(
+    private val integerIdService: IntegerIdService,
     private val groupMatchingAnswerRepository: GroupMatchingAnswerRepository,
     private val matchedGroupRepository: MatchedGroupRepository,
     private val groupRepository: GroupRepository,
@@ -228,7 +229,7 @@ class GroupMatchingService(
             throw BadRequestException("이미 그룹에 속한 멤버입니다")
         }
 
-        groupMemberRepository.save(groupId, answer.userId, Instant.now())
+        groupMemberRepository.save(integerIdService.nextId(), groupId, answer.userId, Instant.now())
         groupRepository.addMemberCountById(groupId, 1)
 
         if (!matchedGroupRepository.existsByGroupIdAndAnswerId(groupId, answerId)) {
@@ -298,6 +299,7 @@ class GroupMatchingService(
         val now = Instant.now()
         val newGroup =
             Group(
+                id = integerIdService.nextId(),
                 title = title,
                 description = null,
                 category = groupCategory,
@@ -312,7 +314,7 @@ class GroupMatchingService(
         repeat(userIds.size) { newGroup.increaseMemberCount() }
         val savedGroup = groupRepository.save(newGroup)
 
-        val newGroupMembers = userIds.map { GroupMember(groupId = savedGroup.id, memberId = it, joinedAt = now) }
+        val newGroupMembers = userIds.map { GroupMember(id = integerIdService.nextId(), groupId = savedGroup.id, memberId = it, joinedAt = now) }
         groupMemberRepository.saveAll(newGroupMembers)
 
         return savedGroup.id

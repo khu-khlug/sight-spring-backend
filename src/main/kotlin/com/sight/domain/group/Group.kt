@@ -5,8 +5,6 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
@@ -16,6 +14,7 @@ import java.time.Instant
 // 인덱스 없음: 그룹 수가 적어 목록 필터·정렬은 전체 조회로 충분하다.
 @Table(name = "khlug_group")
 class Group(
+    id: Long,
     title: String,
     description: String?,
     category: GroupCategory,
@@ -29,9 +28,8 @@ class Group(
 ) {
     // 그룹 식별자.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 그룹 이름. HTML로 해석하지 않는 일반 텍스트이며 제어 문자를 허용하지 않는다.
     @Column(name = "title", nullable = false, length = TITLE_MAX_LENGTH)
@@ -125,6 +123,7 @@ class Group(
         private set
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(authorMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         validateInfo(title, description, category, interests, visibility)
         this.title = title.trim()

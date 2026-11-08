@@ -93,6 +93,7 @@ class GroupActivityReportServiceTest {
     fun setUp() {
         service =
             GroupActivityReportService(
+                mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
                 groupRepository,
                 groupMemberRepository,
                 groupActivityReportRepository,

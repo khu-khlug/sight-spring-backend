@@ -3,7 +3,7 @@ package com.sight.domain.group
 import com.sight.core.groupauth.GroupVisibility
 import java.time.Instant
 
-// 테스트에서 저장된 상태의 그룹 도메인을 만든다. DB가 채번하는 id는 리플렉션으로 넣고, 나머지 상태는 도메인 메서드로 만든다.
+// 지정한 식별자와 상태로 그룹 도메인을 만든다.
 fun testGroup(
     id: Long = 1L,
     title: String = "테스트 그룹",
@@ -19,6 +19,7 @@ fun testGroup(
 ): Group {
     val group =
         Group(
+            id = id,
             title = title,
             description = null,
             category = category,
@@ -30,7 +31,6 @@ fun testGroup(
             authorMemberId = authorMemberId,
             createdAt = createdAt,
         )
-    setField(group, "id", id)
     group.changeLeader(leaderMemberId)
     when (status) {
         GroupStatus.PROGRESS -> Unit
@@ -46,7 +46,7 @@ fun testGroupMember(
     groupId: Long,
     memberId: Long,
     joinedAt: Instant = Instant.parse("2025-01-01T00:00:00Z"),
-): GroupMember = GroupMember(groupId = groupId, memberId = memberId, joinedAt = joinedAt)
+): GroupMember = GroupMember(id = memberId, groupId = groupId, memberId = memberId, joinedAt = joinedAt)
 
 // 생성을 완료해 Discord 채널이 연결된 그룹 Discord 채널을 만든다.
 fun testGroupDiscordChannel(

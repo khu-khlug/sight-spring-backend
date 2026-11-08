@@ -2,8 +2,6 @@ package com.sight.domain.member
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -19,12 +17,12 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id"])],
 )
 class MemberPreference(
+    id: Long,
     memberId: Long,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 설정한 회원. 회원당 한 행만 둔다.
     @Column(name = "member_id", nullable = false)
@@ -41,6 +39,7 @@ class MemberPreference(
         private set
 
     init {
+        require(id > 0) { "회원 설정 식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
     }
 

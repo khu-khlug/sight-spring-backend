@@ -4,8 +4,6 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Index
 import jakarta.persistence.Table
@@ -19,6 +17,7 @@ import java.time.Instant
     indexes = [Index(columnList = "card_id, deleted_at")],
 )
 class GroupRecord(
+    id: Long,
     cardId: Long,
     authorMemberId: Long,
     content: String,
@@ -26,9 +25,8 @@ class GroupRecord(
 ) {
     // 기록 식별자. 그룹 API 아이디 기준에 따라 숫자(Long)다.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 현재 소속 카드. 같은 그룹의 다른 카드로 옮길 수 있으며, 기록의 그룹은 이 카드의 그룹으로 판단한다.
     @Column(name = "card_id", nullable = false)
@@ -68,6 +66,7 @@ class GroupRecord(
         private set
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(cardId > 0) { "카드 식별자가 올바르지 않습니다." }
         require(authorMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         validateContent(content)

@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -16,15 +14,15 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id", "group_id"])],
 )
 class GroupBookmark(
+    id: Long,
     memberId: Long,
     groupId: Long,
     createdAt: Instant,
 ) {
     // 즐겨찾기 행의 식별자.
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 즐겨찾기한 회원. 그룹과 함께 유일해 동시 요청에도 한 번만 추가된다.
     @Column(name = "member_id", nullable = false)
@@ -39,6 +37,7 @@ class GroupBookmark(
     val createdAt: Instant = createdAt
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
     }

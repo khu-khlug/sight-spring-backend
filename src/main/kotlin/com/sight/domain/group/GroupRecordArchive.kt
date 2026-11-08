@@ -2,8 +2,6 @@ package com.sight.domain.group
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
@@ -18,15 +16,15 @@ import java.time.Instant
     uniqueConstraints = [UniqueConstraint(columnNames = ["member_id", "record_id"])],
 )
 class GroupRecordArchive(
+    id: Long,
     memberId: Long,
     recordId: Long,
     groupId: Long,
     savedAt: Instant,
 ) {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    val id: Long = 0
+    val id: Long = id
 
     // 보관한 회원. 기록과 함께 유일해 같은 기록을 두 번 보관하지 않는다.
     @Column(name = "member_id", nullable = false)
@@ -45,6 +43,7 @@ class GroupRecordArchive(
     val savedAt: Instant = savedAt
 
     init {
+        require(id > 0) { "식별자가 올바르지 않습니다." }
         require(memberId > 0) { "회원 식별자가 올바르지 않습니다." }
         require(recordId > 0) { "기록 식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }

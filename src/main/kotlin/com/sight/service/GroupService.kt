@@ -43,6 +43,7 @@ data class GroupListResult(
 
 @Service
 class GroupService(
+    private val integerIdService: IntegerIdService,
     private val groupRepository: GroupRepository,
     private val groupBookmarkRepository: GroupBookmarkRepository,
     private val groupMemberRepository: GroupMemberRepository,
@@ -157,7 +158,7 @@ class GroupService(
             throw UnprocessableEntityException("이미 즐겨찾기한 그룹입니다.")
         }
         groupBookmarkRepository.save(
-            GroupBookmark(memberId = requesterId, groupId = groupId, createdAt = Instant.now()),
+            GroupBookmark(id = integerIdService.nextId(), memberId = requesterId, groupId = groupId, createdAt = Instant.now()),
         )
     }
 

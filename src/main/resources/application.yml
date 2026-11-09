@@ -76,10 +76,6 @@ discord:
     system-alert-url: ${SYSTEM_ALERT_DISCORD_WEBHOOK:}
     door-lock-alert-url: ${DOOR_LOCK_ALERT_DISCORD_WEBHOOK:}
 
-naver:
-  client-id: ${NAVER_CLIENT_ID:}
-  client-secret: ${NAVER_CLIENT_SECRET:}
-
 data4library:
   auth-key: ${DATA4LIBRARY_AUTH_KEY:}
 

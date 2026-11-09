@@ -39,6 +39,8 @@
 기존코드는 삭제하지 않고 `@Deprecated`로 표시만 해서 코드에 남겨둔다.
 새로 추가한 코드가 정상동작됨이 프로덕션에서 확인되면 삭제한다.
 
+삭제 완료: 도서관정보나루 동작이 확인되어 `NaverBookClient`, `application.yml`의 `naver.*` 설정, `.env.example`의 `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET`을 제거했다.
+
 ## 새 API: 도서관정보나루 `srchDtlList`
 
 ```

@@ -356,4 +356,102 @@ class BookServiceTest {
             bookService.previewBook(isbn)
         }
     }
+
+    @Test
+    fun `외부 조회 결과에 값이 없는 필드가 있으면 미리보기에서 null로 전달한다`() {
+        // given
+        val isbn = "9780000000001"
+        given(bookInfoRepository.findByIsbn(isbn)).willReturn(null)
+        given(bookInfoClient.searchByIsbn(isbn)).willReturn(
+            BookInfoItem(
+                title = "정보나루 도서",
+                author = null,
+                publisher = null,
+                publishedYear = null,
+                coverImageUrl = null,
+                description = null,
+            ),
+        )
+
+        // when
+        val result = bookService.previewBook(isbn)
+
+        // then
+        assertEquals("정보나루 도서", result.title)
+        assertNull(result.author)
+        assertNull(result.publisher)
+        assertNull(result.publishedYear)
+        assertNull(result.coverImageUrl)
+        assertNull(result.description)
+    }
+
+    // 빈 문자열/0 → null 변환 (DB에는 값이 없을 때 ""/0이 저장돼 있다)
+
+    private fun createBlankValueBookInfo(id: String = "book1") =
+        BookInfo(
+            id = id,
+            isbn = "9780000000001",
+            title = "테스트 도서",
+            author = "",
+            publisher = "  ",
+            publishedYear = 0,
+            coverImageUrl = "",
+            description = "",
+            category = BookCategory.OTHER,
+        )
+
+    @Test
+    fun `previewBook은 DB에 빈 문자열과 0으로 저장된 값을 null로 반환한다`() {
+        // given
+        given(bookInfoRepository.findByIsbn("9780000000001")).willReturn(createBlankValueBookInfo())
+
+        // when
+        val result = bookService.previewBook("9780000000001")
+
+        // then
+        assertEquals("테스트 도서", result.title)
+        assertNull(result.author)
+        assertNull(result.publisher)
+        assertNull(result.publishedYear)
+        assertNull(result.coverImageUrl)
+        assertNull(result.description)
+    }
+
+    @Test
+    fun `listBooks는 DB에 빈 문자열과 0으로 저장된 값을 null로 반환한다`() {
+        // given
+        given(bookInfoRepository.findAll()).willReturn(listOf(createBlankValueBookInfo()))
+        given(bookItemRepository.findAll()).willReturn(emptyList())
+        given(bookBorrowRecordRepository.findAllByReturnedAtIsNull()).willReturn(emptyList())
+
+        // when
+        val result = bookService.listBooks()
+
+        // then
+        assertEquals("테스트 도서", result[0].title)
+        assertNull(result[0].author)
+        assertNull(result[0].publisher)
+        assertNull(result[0].publishedYear)
+        assertNull(result[0].coverImageUrl)
+    }
+
+    @Test
+    fun `getBook은 DB에 빈 문자열과 0으로 저장된 값을 null로 반환한다`() {
+        // given
+        given(bookInfoRepository.findById("book1")).willReturn(Optional.of(createBlankValueBookInfo()))
+        given(bookItemRepository.findAllByBookInfoId("book1")).willReturn(emptyList())
+        given(bookBorrowRecordRepository.findAllByItemIdInAndReturnedAtIsNull(emptyList())).willReturn(emptyList())
+        given(memberRepository.findAllById(emptyList())).willReturn(emptyList())
+
+        // when
+        val result = bookService.getBook("book1")
+
+        // then
+        assertEquals("테스트 도서", result.title)
+        assertNull(result.author)
+        assertNull(result.publisher)
+        assertNull(result.publishedYear)
+        assertNull(result.coverImageUrl)
+        assertNull(result.description)
+    }
 }

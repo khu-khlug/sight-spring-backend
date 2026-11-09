@@ -1,6 +1,8 @@
 package com.sight.service
 
 import com.sight.core.book.BookInfoClient
+import com.sight.core.book.orNullIfBlank
+import com.sight.core.book.toPublishedYearOrNull
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.book.BookInfo
@@ -50,10 +52,10 @@ class BookService(
             ListBookResult(
                 bookId = bookInfo.id,
                 title = bookInfo.title,
-                coverImageUrl = bookInfo.coverImageUrl,
-                author = bookInfo.author,
-                publisher = bookInfo.publisher,
-                publishedYear = bookInfo.publishedYear,
+                coverImageUrl = bookInfo.coverImageUrl.orNullIfBlank(),
+                author = bookInfo.author.orNullIfBlank(),
+                publisher = bookInfo.publisher.orNullIfBlank(),
+                publishedYear = bookInfo.publishedYear.toPublishedYearOrNull(),
                 totalCount = totalCount,
                 availableCount = availableCount,
                 category = bookInfo.category,
@@ -87,11 +89,11 @@ class BookService(
         if (existing != null) {
             return GetBookPreviewResult(
                 title = existing.title,
-                author = existing.author,
-                coverImageUrl = existing.coverImageUrl,
-                publisher = existing.publisher,
-                publishedYear = existing.publishedYear,
-                description = existing.description,
+                author = existing.author.orNullIfBlank(),
+                coverImageUrl = existing.coverImageUrl.orNullIfBlank(),
+                publisher = existing.publisher.orNullIfBlank(),
+                publishedYear = existing.publishedYear.toPublishedYearOrNull(),
+                description = existing.description.orNullIfBlank(),
             )
         }
         val bookItem =
@@ -143,14 +145,14 @@ class BookService(
         return GetBookResult(
             bookId = bookInfo.id,
             title = bookInfo.title,
-            coverImageUrl = bookInfo.coverImageUrl,
-            author = bookInfo.author,
-            publisher = bookInfo.publisher,
-            publishedYear = bookInfo.publishedYear,
+            coverImageUrl = bookInfo.coverImageUrl.orNullIfBlank(),
+            author = bookInfo.author.orNullIfBlank(),
+            publisher = bookInfo.publisher.orNullIfBlank(),
+            publishedYear = bookInfo.publishedYear.toPublishedYearOrNull(),
             totalCount = totalCount,
             availableCount = availableCount,
             isbn = bookInfo.isbn,
-            description = bookInfo.description,
+            description = bookInfo.description.orNullIfBlank(),
             category = bookInfo.category,
             itemList = itemList,
         )

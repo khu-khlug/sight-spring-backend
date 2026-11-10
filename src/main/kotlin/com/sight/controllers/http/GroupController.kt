@@ -67,7 +67,7 @@ class GroupController(
             groups =
                 result.groups.map { group ->
                     GroupResponse(
-                        id = group.id,
+                        id = group.id.toString(),
                         category = group.category,
                         title = group.title,
                         state = group.state,
@@ -99,7 +99,7 @@ class GroupController(
 
         return CreateGroupDiscordChannelResponse(
             id = groupDiscordChannel.id,
-            groupId = groupDiscordChannel.groupId,
+            groupId = groupDiscordChannel.groupId.toString(),
             discordChannelId = groupDiscordChannel.discordChannelId,
             createdAt = groupDiscordChannel.createdAt,
         )
@@ -190,7 +190,7 @@ class GroupController(
                     answerIds = request.groupMatchingParams!!.answerIds,
                     leaderUserId = request.groupMatchingParams.leaderUserId,
                 )
-            return CreateGroupResponse(id)
+            return CreateGroupResponse(id.toString())
         }
         throw IllegalArgumentException("Unsupported method: ${request.method}")
     }

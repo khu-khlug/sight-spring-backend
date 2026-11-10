@@ -27,7 +27,6 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.time.Month
 import java.time.ZoneId
 import kotlin.random.Random
 
@@ -40,6 +39,7 @@ class ScheduleService(
     private val memberRepository: MemberRepository,
     private val scheduleMemberApplyRepository: ScheduleMemberApplyRepository,
     private val pointService: PointService,
+    private val integerIdService: IntegerIdService,
 ) {
     @Transactional(readOnly = true)
     fun listSchedules(
@@ -430,7 +430,7 @@ class ScheduleService(
         }
         val schedule =
             Schedule(
-                id = pickAvailableScheduleId(),
+                id = integerIdService.nextId(),
                 category = category,
                 title = title,
                 author = requesterUserId,
@@ -525,28 +525,8 @@ class ScheduleService(
 
     private fun createCheckCode(): String = "%04d".format(Random.nextInt(10000))
 
-    private fun pickAvailableScheduleId(): Long {
-        repeat(MAX_SCHEDULE_ID_RETRY + 1) {
-            val id = createNewScheduleId()
-            if (!scheduleRepository.existsById(id)) return id
-        }
-        throw IllegalStateException("schedule ID 채번 $MAX_SCHEDULE_ID_RETRY 회 retry 후에도 충돌")
-    }
-
-    private fun createNewScheduleId(): Long {
-        val minimumId = 1_000_000
-        val millisUntil20250101 =
-            LocalDateTime.of(2025, Month.JANUARY, 1, 0, 0, 0)
-                .atZone(KST).toInstant().toEpochMilli()
-        val currentTimestamp = System.currentTimeMillis()
-        val timePart = (currentTimestamp - millisUntil20250101) / 1000 / 60
-        val randomPart = Random.nextLong(0L, 1000L)
-        return minimumId + timePart * 1000 + randomPart
-    }
-
     companion object {
         private val KST: ZoneId = ZoneId.of("Asia/Seoul")
         private const val DEFAULT_ACTIVE_SCHEDULE_LIMIT = 50
-        private const val MAX_SCHEDULE_ID_RETRY = 3
     }
 }

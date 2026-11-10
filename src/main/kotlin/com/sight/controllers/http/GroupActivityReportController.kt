@@ -117,7 +117,7 @@ class GroupActivityReportController(
                 result.reports.map { item ->
                     ListActivityReportResponse(
                         id = item.id,
-                        groupId = item.groupId,
+                        groupId = item.groupId.toString(),
                         seminarDate = item.seminarDate,
                         seminarId = item.seminarId,
                         seminarIsSummerSeason = item.seminarIsSummerSeason,
@@ -134,7 +134,7 @@ class GroupActivityReportController(
     private fun ActivityReportResult.toResponse(): ActivityReportResponse =
         ActivityReportResponse(
             id = id,
-            groupId = groupId,
+            groupId = groupId.toString(),
             seminarId = seminarId,
             isPresentation = isPresentation,
             reportFileKey = reportFileKey,

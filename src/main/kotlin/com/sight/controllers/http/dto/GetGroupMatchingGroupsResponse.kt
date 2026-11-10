@@ -3,7 +3,7 @@ package com.sight.controllers.http.dto
 import java.time.LocalDateTime
 
 data class GetGroupMatchingGroupsResponse(
-    val id: Long,
+    val id: String,
     val title: String,
     val members: List<GroupMatchingGroupMemberResponse>,
     val createdAt: LocalDateTime,

@@ -314,7 +314,15 @@ class GroupMatchingService(
         repeat(userIds.size) { newGroup.increaseMemberCount() }
         val savedGroup = groupRepository.save(newGroup)
 
-        val newGroupMembers = userIds.map { GroupMember(id = integerIdService.nextId(), groupId = savedGroup.id, memberId = it, joinedAt = now) }
+        val newGroupMembers =
+            userIds.map {
+                GroupMember(
+                    id = integerIdService.nextId(),
+                    groupId = savedGroup.id,
+                    memberId = it,
+                    joinedAt = now,
+                )
+            }
         groupMemberRepository.saveAll(newGroupMembers)
 
         return savedGroup.id

@@ -30,11 +30,9 @@ solapi:
   base-url: ${SOLAPI_BASE_URL:https://api.solapi.com}
   timeout: 10s
 
-# 문자열 ID API와 기존 채번 중단을 준비한 뒤 활성화한다.
+# TSID 발급기의 JVM별 노드 번호. 기본값 없이 필수다.
 integer-id:
-  enabled: ${INTEGER_ID_ENABLED:false}
   node-id: ${INTEGER_ID_NODE_ID:}
-  legacy-max-id: ${INTEGER_ID_LEGACY_MAX_ID:}
 
 ---
 spring:

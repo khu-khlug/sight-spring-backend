@@ -14,7 +14,7 @@ data class GroupLeaderResponse(
 )
 
 data class GroupResponse(
-    val id: Long,
+    val id: String,
     val category: GroupCategory,
     val title: String,
     val state: String,

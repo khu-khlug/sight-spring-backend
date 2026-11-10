@@ -18,7 +18,7 @@ data class ListSchedulesResponse(
 }
 
 data class ScheduleDto(
-    val id: Long,
+    val id: String,
     val title: String,
     val category: ScheduleCategory,
     val location: String?,
@@ -27,12 +27,12 @@ data class ScheduleDto(
     val endAt: String,
     val expoint: Int,
     val author: Long,
-    val groupId: Long?,
+    val groupId: String?,
 ) {
     companion object {
         fun from(schedule: Schedule): ScheduleDto {
             return ScheduleDto(
-                id = schedule.id,
+                id = schedule.id.toString(),
                 title = schedule.title,
                 category = schedule.category,
                 location = schedule.location,
@@ -41,7 +41,7 @@ data class ScheduleDto(
                 endAt = schedule.endAt.toString(),
                 expoint = schedule.expoint,
                 author = schedule.author,
-                groupId = schedule.groupId,
+                groupId = schedule.groupId?.toString(),
             )
         }
     }

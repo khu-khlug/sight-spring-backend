@@ -62,6 +62,7 @@ class ScheduleServiceTest {
                 memberRepository = memberRepository,
                 scheduleMemberApplyRepository = scheduleMemberApplyRepository,
                 pointService = pointService,
+                integerIdService = mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
             )
     }
 

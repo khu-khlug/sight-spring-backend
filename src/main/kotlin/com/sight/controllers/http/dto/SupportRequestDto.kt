@@ -1,5 +1,6 @@
 package com.sight.controllers.http.dto
 
+import com.sight.core.id.IntegerId
 import com.sight.domain.supportrequest.SupportRequestCategory
 import com.sight.service.SupportRequestCommentResult
 import com.sight.service.SupportRequestDetail
@@ -21,11 +22,11 @@ data class SupportRequestUserResponse(
 }
 
 data class SupportRequestGroupResponse(
-    val id: Long,
+    val id: String,
     val title: String,
 ) {
     companion object {
-        fun from(group: SupportRequestGroup): SupportRequestGroupResponse = SupportRequestGroupResponse(group.id, group.title)
+        fun from(group: SupportRequestGroup): SupportRequestGroupResponse = SupportRequestGroupResponse(group.id.toString(), group.title)
     }
 }
 
@@ -108,7 +109,8 @@ data class GetSupportRequestResponse(
 }
 
 data class CreateSupportRequestRequest(
-    val groupId: Long? = null,
+    @field:IntegerId
+    val groupId: String? = null,
     @field:NotNull
     val category: SupportRequestCategory?,
     @field:NotBlank
@@ -146,7 +148,8 @@ data class CreateSupportRequestResponse(
 }
 
 data class UpdateSupportRequestRequest(
-    val groupId: Long? = null,
+    @field:IntegerId
+    val groupId: String? = null,
     @field:NotNull
     val category: SupportRequestCategory?,
     @field:NotBlank

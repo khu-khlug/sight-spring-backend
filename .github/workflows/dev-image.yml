@@ -1,0 +1,50 @@
+name: Build Dev Group Image
+
+# 개발 서버(x86_64)가 가져갈 dev/group 브랜치 이미지를 만든다.
+# 운영 배포용 latest 태그와 sight-infra는 건드리지 않는다.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev/group
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/sight-spring-backend
+
+jobs:
+  build-and-push-image:
+    if: github.ref == 'refs/heads/dev/group'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=dev-group
+            type=sha,prefix=dev-group-,format=long
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.Build
+          platforms: "linux/amd64"
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

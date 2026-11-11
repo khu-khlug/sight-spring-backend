@@ -6,14 +6,20 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuthAspect
 import com.sight.core.groupauth.GroupAuthorizationService
 import com.sight.core.groupauth.GroupVisibility
+import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupDiscordChannel
+import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
 import com.sight.repository.GroupAuthorizationRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.service.GroupDiscordChannelService
+import com.sight.service.GroupInfoResult
+import com.sight.service.GroupInfoService
 import com.sight.service.GroupMatchingService
+import com.sight.service.GroupRequesterRole
 import com.sight.service.GroupService
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.given
@@ -28,8 +34,11 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.time.Instant
 import java.time.LocalDateTime
 import java.util.Optional
 
@@ -51,6 +60,9 @@ class GroupControllerTest {
 
     @MockBean
     private lateinit var groupService: GroupService
+
+    @MockBean
+    private lateinit var groupInfoService: GroupInfoService
 
     @MockBean
     private lateinit var groupRepository: GroupRepository
@@ -118,6 +130,65 @@ class GroupControllerTest {
         mockMvc.perform(post("/groups/$GROUP_ID/portfolio")).andExpect(status().isOk)
         mockMvc.perform(delete("/groups/$GROUP_ID/portfolio")).andExpect(status().isNoContent)
     }
+
+    @Test
+    fun `그룹 정보는 그룹을 열람할 수 있는 회원만 조회할 수 있다`() {
+        givenGroup(GroupVisibility.PRIVATE)
+        given(groupInfoService.getGroupInfoById(GROUP_ID, MEMBER_ID)).willReturn(groupInfoResult(GROUP_ID))
+
+        authenticate(OUTSIDER_ID, UserRole.USER)
+        mockMvc.perform(get("/groups/$GROUP_ID/info")).andExpect(status().isForbidden)
+
+        authenticate(MEMBER_ID, UserRole.USER)
+        mockMvc.perform(get("/groups/$GROUP_ID/info")).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `그룹 정보의 그룹 아이디는 10진 문자열, 시각은 UTC Z 형식이고 특수 조직은 null이다`() {
+        val groupId = 906558544281600001L
+        given(groupRepository.findById(groupId))
+            .willReturn(Optional.of(testGroup(id = groupId, leaderMemberId = LEADER_ID, visibility = GroupVisibility.PUBLIC)))
+        given(groupInfoService.getGroupInfoById(groupId, MEMBER_ID)).willReturn(groupInfoResult(groupId))
+
+        authenticate(MEMBER_ID, UserRole.USER)
+        mockMvc
+            .perform(get("/groups/$groupId/info"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value("906558544281600001"))
+            .andExpect(jsonPath("$.createdAt").value("2026-03-02T00:00:00Z"))
+            .andExpect(jsonPath("$.lastActivityAt").value("2026-09-20T09:00:00Z"))
+            .andExpect(jsonPath("$.specialOrganization").value(nullValue()))
+    }
+
+    private fun groupInfoResult(id: Long): GroupInfoResult =
+        GroupInfoResult(
+            id = id,
+            title = "테스트 그룹",
+            description = null,
+            category = GroupCategory.STUDY,
+            status = GroupStatus.PROGRESS,
+            requesterRole = GroupRequesterRole.MEMBER,
+            isBookmarked = false,
+            isInChatRoom = false,
+            interests = null,
+            techStack = null,
+            repositoryUrls = null,
+            memberCount = 1,
+            listCount = 0,
+            cardCount = 0,
+            recordCount = 0,
+            createdAt = Instant.parse("2026-03-02T00:00:00Z"),
+            lastActivityAt = Instant.parse("2026-09-20T09:00:00Z"),
+            allowJoin = true,
+            visibility = GroupVisibility.PUBLIC,
+            isPortfolioPublished = false,
+            portfolioListCount = 0,
+            portfolioCardCount = 0,
+            seminarCount = 0,
+            reportCount = 0,
+            hasChatRoom = false,
+            chatRoomUrl = null,
+        )
 
     private fun givenGroup(visibility: GroupVisibility) {
         given(groupRepository.findById(GROUP_ID))

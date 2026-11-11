@@ -4,6 +4,10 @@ import com.sight.controllers.http.dto.AddGroupDiscordChannelMemberRequest
 import com.sight.controllers.http.dto.CreateGroupDiscordChannelResponse
 import com.sight.controllers.http.dto.CreateGroupRequest
 import com.sight.controllers.http.dto.CreateGroupResponse
+import com.sight.controllers.http.dto.GetGroupInfoResponse
+import com.sight.controllers.http.dto.GroupInfoActivityResponse
+import com.sight.controllers.http.dto.GroupInfoExposureResponse
+import com.sight.controllers.http.dto.GroupInfoRequesterResponse
 import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
@@ -14,6 +18,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupDiscordChannelService
+import com.sight.service.GroupInfoService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -33,6 +38,7 @@ class GroupController(
     private val groupDiscordChannelService: GroupDiscordChannelService,
     private val groupMatchingService: com.sight.service.GroupMatchingService,
     private val groupService: GroupService,
+    private val groupInfoService: GroupInfoService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/groups")
@@ -81,6 +87,56 @@ class GroupController(
                             ),
                     )
                 },
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
+    @GetMapping("/groups/{groupId}/info")
+    fun getGroupInfo(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ): GetGroupInfoResponse {
+        val result = groupInfoService.getGroupInfoById(groupId = groupId, requesterId = requester.userId)
+
+        return GetGroupInfoResponse(
+            id = result.id.toString(),
+            title = result.title,
+            description = result.description,
+            category = result.category.name,
+            status = result.status.name,
+            requesterInfo =
+                GroupInfoRequesterResponse(
+                    userRole = result.requesterRole.name,
+                    isBookmarked = result.isBookmarked,
+                    isInChatRoom = result.isInChatRoom,
+                ),
+            // 현재 특수 조직이나 트랙 관련 구현이 없어 항상 null이다.
+            specialOrganization = null,
+            interests = result.interests?.map { it.name },
+            techStack = result.techStack,
+            repositoryUrls = result.repositoryUrls,
+            memberCount = result.memberCount,
+            activity =
+                GroupInfoActivityResponse(
+                    listCount = result.listCount,
+                    cardCount = result.cardCount,
+                    recordCount = result.recordCount,
+                ),
+            createdAt = result.createdAt,
+            lastActivityAt = result.lastActivityAt,
+            allowJoin = result.allowJoin,
+            visibility = result.visibility.name,
+            exposure =
+                GroupInfoExposureResponse(
+                    isPortfolioPublished = result.isPortfolioPublished,
+                    portfolioListCount = result.portfolioListCount,
+                    portfolioCardCount = result.portfolioCardCount,
+                    seminarCount = result.seminarCount,
+                    reportCount = result.reportCount,
+                ),
+            hasChatRoom = result.hasChatRoom,
+            chatRoomUrl = result.chatRoomUrl,
         )
     }
 

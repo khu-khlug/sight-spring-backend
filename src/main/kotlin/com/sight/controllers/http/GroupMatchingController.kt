@@ -39,7 +39,7 @@ class GroupMatchingController(
     ): List<GetGroupMatchingGroupsResponse> {
         return groupMatchingService.getGroupsByQuery(groupMatchingId, groupType).map { groupDto ->
             GetGroupMatchingGroupsResponse(
-                id = groupDto.id,
+                id = groupDto.id.toString(),
                 title = groupDto.title,
                 members =
                     groupDto.members.map { memberDto ->
@@ -86,7 +86,7 @@ class GroupMatchingController(
                 answerDto.matchedGroups.map { matchedGroup ->
                     GetGroupMatchingAnswerResponse.MatchedGroupResponse(
                         id = matchedGroup.id,
-                        groupId = matchedGroup.groupId,
+                        groupId = matchedGroup.groupId.toString(),
                         createdAt = matchedGroup.createdAt,
                     )
                 },
@@ -159,7 +159,7 @@ class GroupMatchingController(
                 answerDto.matchedGroups.map { matchedGroup ->
                     GetGroupMatchingAnswerResponse.MatchedGroupResponse(
                         id = matchedGroup.id,
-                        groupId = matchedGroup.groupId,
+                        groupId = matchedGroup.groupId.toString(),
                         createdAt = matchedGroup.createdAt,
                     )
                 },

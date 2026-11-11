@@ -38,6 +38,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("net.dv8tion:JDA:5.0.0")
     implementation("com.github.f4b6a3:ulid-creator:5.2.3")
+    implementation("com.github.f4b6a3:tsid-creator:5.2.6")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

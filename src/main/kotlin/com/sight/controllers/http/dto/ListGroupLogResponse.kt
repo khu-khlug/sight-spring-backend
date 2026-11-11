@@ -1,15 +1,23 @@
 package com.sight.controllers.http.dto
 
-import java.time.LocalDateTime
+import java.time.Instant
+
+data class ListGroupLogActorResponse(
+    val userId: Long,
+    val name: String,
+)
 
 data class ListGroupLogResponse(
-    val id: Long,
-    val memberId: Long,
-    val message: String,
-    val createdAt: LocalDateTime,
+    val id: String,
+    val actor: ListGroupLogActorResponse?,
+    val logType: String,
+    val logData: Map<String, Any?>,
+    val createdAt: Instant,
 )
 
 data class ListGroupLogsResponse(
-    val count: Long,
+    val page: Int,
+    val totalCount: Long,
+    val receivedCount: Int,
     val logs: List<ListGroupLogResponse>,
 )

@@ -205,7 +205,7 @@ erDiagram
 ## 호환성 및 배포
 
 - 조회 응답의 페이지·행위자·식별자·로그 표현이 바뀌므로 백엔드와 프런트의 활동 로그 조회를 함께 배포한다.
-- 신규 로그 아이디는 TSID로 발급하므로 [TSID 도입](../../decisions/integer-id-tsid.md) 설정을 활성화한 상태로 배포한다.
+- 신규 로그 아이디는 TSID로 발급하므로 [TSID 도입](../../decisions/integer-id-tsid.md)의 노드 번호(`INTEGER_ID_NODE_ID`)를 설정해 배포한다.
 - 신규 JSON 로그가 저장된 뒤에는 logType·logData를 해석할 수 있는 버전으로만 rollback한다.
 
 ## 검증

@@ -9,6 +9,8 @@ import com.sight.controllers.http.dto.SubmitActivityReportRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.core.groupauth.GroupAuth
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.ActivityReportResult
 import com.sight.service.GroupActivityReportService
 import jakarta.validation.Valid
@@ -31,6 +33,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/activity-report/upload-link")
     fun getUploadLink(
         @PathVariable groupId: Long,
@@ -45,6 +48,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/activity-report")
     @ResponseStatus(HttpStatus.CREATED)
     fun submitReport(
@@ -64,6 +68,7 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PatchMapping("/groups/{groupId}/activity-report/{reportId}")
     fun editReport(
         @PathVariable groupId: Long,
@@ -84,40 +89,37 @@ class GroupActivityReportController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = true)
     @DeleteMapping("/groups/{groupId}/activity-report/{reportId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelReport(
         @PathVariable groupId: Long,
         @PathVariable reportId: String,
-        requester: Requester,
     ) {
         groupActivityReportService.cancelReport(
             groupId = groupId,
             reportId = reportId,
-            requesterId = requester.userId,
-            isManager = requester.role == UserRole.MANAGER,
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = true)
     @GetMapping("/groups/{groupId}/activity-report")
     fun listReports(
         @PathVariable groupId: Long,
-        requester: Requester,
     ): ListActivityReportsResponse {
         val result =
             groupActivityReportService.listReports(
                 groupId = groupId,
-                requesterId = requester.userId,
-                isManager = requester.role == UserRole.MANAGER,
             )
         return ListActivityReportsResponse(
             reports =
                 result.reports.map { item ->
                     ListActivityReportResponse(
                         id = item.id,
-                        groupId = item.groupId,
+                        groupId = item.groupId.toString(),
                         seminarDate = item.seminarDate,
+                        seminarId = item.seminarId,
                         seminarIsSummerSeason = item.seminarIsSummerSeason,
                         seminarIsSpeakAfter = item.seminarIsSpeakAfter,
                         isPresentation = item.isPresentation,
@@ -132,7 +134,7 @@ class GroupActivityReportController(
     private fun ActivityReportResult.toResponse(): ActivityReportResponse =
         ActivityReportResponse(
             id = id,
-            groupId = groupId,
+            groupId = groupId.toString(),
             seminarId = seminarId,
             isPresentation = isPresentation,
             reportFileKey = reportFileKey,

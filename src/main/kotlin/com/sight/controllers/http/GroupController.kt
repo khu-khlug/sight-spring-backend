@@ -4,6 +4,10 @@ import com.sight.controllers.http.dto.AddGroupDiscordChannelMemberRequest
 import com.sight.controllers.http.dto.CreateGroupDiscordChannelResponse
 import com.sight.controllers.http.dto.CreateGroupRequest
 import com.sight.controllers.http.dto.CreateGroupResponse
+import com.sight.controllers.http.dto.GetGroupInfoResponse
+import com.sight.controllers.http.dto.GroupInfoActivityResponse
+import com.sight.controllers.http.dto.GroupInfoExposureResponse
+import com.sight.controllers.http.dto.GroupInfoRequesterResponse
 import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
@@ -11,7 +15,10 @@ import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.core.groupauth.GroupAuth
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupDiscordChannelService
+import com.sight.service.GroupInfoService
 import com.sight.service.GroupService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -31,6 +38,7 @@ class GroupController(
     private val groupDiscordChannelService: GroupDiscordChannelService,
     private val groupMatchingService: com.sight.service.GroupMatchingService,
     private val groupService: GroupService,
+    private val groupInfoService: GroupInfoService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/groups")
@@ -65,7 +73,7 @@ class GroupController(
             groups =
                 result.groups.map { group ->
                     GroupResponse(
-                        id = group.id,
+                        id = group.id.toString(),
                         category = group.category,
                         title = group.title,
                         state = group.state,
@@ -83,6 +91,57 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
+    @GetMapping("/groups/{groupId}/info")
+    fun getGroupInfo(
+        @PathVariable groupId: Long,
+        requester: Requester,
+    ): GetGroupInfoResponse {
+        val result = groupInfoService.getGroupInfoById(groupId = groupId, requesterId = requester.userId)
+
+        return GetGroupInfoResponse(
+            id = result.id.toString(),
+            title = result.title,
+            description = result.description,
+            category = result.category.name,
+            status = result.status.name,
+            requesterInfo =
+                GroupInfoRequesterResponse(
+                    userRole = result.requesterRole.name,
+                    isBookmarked = result.isBookmarked,
+                    isInChatRoom = result.isInChatRoom,
+                ),
+            // 현재 특수 조직이나 트랙 관련 구현이 없어 항상 null이다.
+            specialOrganization = null,
+            interests = result.interests?.map { it.name },
+            techStack = result.techStack,
+            repositoryUrls = result.repositoryUrls,
+            memberCount = result.memberCount,
+            activity =
+                GroupInfoActivityResponse(
+                    listCount = result.listCount,
+                    cardCount = result.cardCount,
+                    recordCount = result.recordCount,
+                ),
+            createdAt = result.createdAt,
+            lastActivityAt = result.lastActivityAt,
+            allowJoin = result.allowJoin,
+            visibility = result.visibility.name,
+            exposure =
+                GroupInfoExposureResponse(
+                    isPortfolioPublished = result.isPortfolioPublished,
+                    portfolioListCount = result.portfolioListCount,
+                    portfolioCardCount = result.portfolioCardCount,
+                    seminarCount = result.seminarCount,
+                    reportCount = result.reportCount,
+                ),
+            hasChatRoom = result.hasChatRoom,
+            chatRoomUrl = result.chatRoomUrl,
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/discord-channel")
     fun createGroupDiscordChannel(
         @PathVariable groupId: Long,
@@ -96,7 +155,7 @@ class GroupController(
 
         return CreateGroupDiscordChannelResponse(
             id = groupDiscordChannel.id,
-            groupId = groupDiscordChannel.groupId,
+            groupId = groupDiscordChannel.groupId.toString(),
             discordChannelId = groupDiscordChannel.discordChannelId,
             createdAt = groupDiscordChannel.createdAt,
         )
@@ -133,6 +192,7 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.CREATED)
     fun addBookmark(
@@ -143,6 +203,7 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @DeleteMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelBookmark(
@@ -153,23 +214,23 @@ class GroupController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/portfolio")
     fun publishPortfolio(
         @PathVariable groupId: Long,
-        requester: Requester,
     ): PublishPortfolioResponse {
-        val published = groupService.publishPortfolio(groupId, requester.userId)
+        val published = groupService.publishPortfolio(groupId)
         return PublishPortfolioResponse(published = published)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @DeleteMapping("/groups/{groupId}/portfolio")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelPortfolio(
         @PathVariable groupId: Long,
-        requester: Requester,
     ) {
-        groupService.cancelPortfolio(groupId, requester.userId)
+        groupService.cancelPortfolio(groupId)
     }
 
     @Auth([UserRole.MANAGER])
@@ -185,7 +246,7 @@ class GroupController(
                     answerIds = request.groupMatchingParams!!.answerIds,
                     leaderUserId = request.groupMatchingParams.leaderUserId,
                 )
-            return CreateGroupResponse(id)
+            return CreateGroupResponse(id.toString())
         }
         throw IllegalArgumentException("Unsupported method: ${request.method}")
     }

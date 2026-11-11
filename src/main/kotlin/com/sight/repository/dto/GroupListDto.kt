@@ -1,15 +1,17 @@
 package com.sight.repository.dto
 
-import java.time.LocalDateTime
+import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupStatus
+import java.time.Instant
 
 data class GroupListDto(
     val id: Long,
-    val category: String,
+    val category: GroupCategory,
     val title: String,
-    val state: String,
-    val countMember: Long,
+    val status: GroupStatus,
+    val memberCount: Long,
     val allowJoin: Boolean,
-    val createdAt: LocalDateTime,
+    val createdAt: Instant,
     val leaderUserId: Long,
     val leaderName: String,
 )

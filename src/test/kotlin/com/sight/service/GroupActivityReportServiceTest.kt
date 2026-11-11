@@ -1,20 +1,21 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
-import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.file.FileUpload
-import com.sight.domain.group.Group
+import com.sight.domain.file.testFileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupMember
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.GroupFile
+import com.sight.domain.group.GroupStatus
+import com.sight.domain.group.testGroup
+import com.sight.domain.group.testGroupMember
 import com.sight.domain.schedule.Schedule
 import com.sight.domain.schedule.ScheduleCategory
 import com.sight.domain.schedule.ScheduleState
 import com.sight.domain.seminar.BigSeminar
 import com.sight.repository.BigSeminarRepository
 import com.sight.repository.GroupActivityReportRepository
+import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.ScheduleRepository
@@ -26,6 +27,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import java.time.Instant
 import java.time.LocalDateTime
 import java.util.Optional
 import kotlin.test.assertEquals
@@ -41,17 +43,17 @@ class GroupActivityReportServiceTest {
     private val pointService = mock<PointService>()
     private val notificationService = mock<NotificationService>()
     private val fileUploadService = mock<FileUploadService>()
+    private val groupFileRepository = mock<GroupFileRepository>()
     private lateinit var service: GroupActivityReportService
 
     private val now = LocalDateTime.now()
     private val baseGroup =
-        Group(
+        testGroup(
             id = 1L,
             category = GroupCategory.STUDY,
             title = "테스트 그룹",
-            author = 10L,
-            master = 10L,
-            state = GroupState.PROGRESS,
+            leaderMemberId = 10L,
+            status = GroupStatus.PROGRESS,
         )
     private val baseSchedule =
         Schedule(
@@ -71,26 +73,27 @@ class GroupActivityReportServiceTest {
             isSpeakAfter = false,
         )
     private val baseFileUpload =
-        FileUpload(
-            id = "file-1",
-            fileKey = "key-1",
-            memberId = 10L,
-            apiPath = "/groups/1/activity-report/upload-link",
-        )
-    private val baseReport =
+        testFileUpload(id = "file-1", fileKey = "key-1", uploaderMemberId = 10L)
+
+    private val baseReport = createReport()
+
+    private fun createReport(groupId: Long = 1L) =
         GroupActivityReport(
             id = "report-1",
-            groupId = 1L,
+            groupId = groupId,
             seminarId = "seminar-1",
-            reportFileKey = "key-1",
             isPresentation = false,
+            reportFileUploadId = "file-1",
+            createdAt = Instant.parse("2025-01-01T00:00:00Z"),
         )
-    private val baseMembers = listOf(GroupMember(group = 1L, member = 20L), GroupMember(group = 1L, member = 30L))
+
+    private val baseMembers = listOf(testGroupMember(groupId = 1L, memberId = 20L), testGroupMember(groupId = 1L, memberId = 30L))
 
     @BeforeEach
     fun setUp() {
         service =
             GroupActivityReportService(
+                mock<IntegerIdService>().apply { given(nextId()).willReturn(900000000000000001L) },
                 groupRepository,
                 groupMemberRepository,
                 groupActivityReportRepository,
@@ -100,12 +103,14 @@ class GroupActivityReportServiceTest {
                 pointService,
                 notificationService,
                 fileUploadService,
+                groupFileRepository,
             )
         given(storageService.getDownloadUrl(any())).willReturn("https://download.example.com")
         given(fileUploadService.createUploadLink(any(), any())).willReturn(
             UploadLinkResult(url = "https://upload.example.com", fileKey = "key-1", fileUploadId = "file-1"),
         )
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
+        given(fileUploadService.getFileUploadById("file-1")).willReturn(baseFileUpload)
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
 
@@ -119,15 +124,7 @@ class GroupActivityReportServiceTest {
 
         assertEquals("https://upload.example.com", result.url)
         verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link")
-    }
-
-    @Test
-    fun `getUploadLink는 그룹원이 요청하면 403을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-
-        assertFailsWith<ForbiddenException> {
-            service.getUploadLink(groupId = 1L, requesterId = 99L, requestPath = "/groups/1/activity-report/upload-link")
-        }
+        verify(groupFileRepository).save(argThat<GroupFile> { groupId == 1L && fileUploadId == "file-1" })
     }
 
     @Test
@@ -189,21 +186,6 @@ class GroupActivityReportServiceTest {
             service.submitReport(
                 groupId = 1L,
                 requesterId = 10L,
-                isPresentation = false,
-                fileUploadId = "file-1",
-                uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
-            )
-        }
-    }
-
-    @Test
-    fun `submitReport는 그룹원이 요청하면 403을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-
-        assertFailsWith<ForbiddenException> {
-            service.submitReport(
-                groupId = 1L,
-                requesterId = 99L,
                 isPresentation = false,
                 fileUploadId = "file-1",
                 uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
@@ -282,22 +264,6 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `editReport는 그룹원이 요청하면 403을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-
-        assertFailsWith<ForbiddenException> {
-            service.editReport(
-                groupId = 1L,
-                reportId = "report-1",
-                requesterId = 99L,
-                isPresentation = true,
-                fileUploadId = null,
-                uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
-            )
-        }
-    }
-
-    @Test
     fun `editReport는 존재하지 않는 reportId 요청 시 404를 반환한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.empty())
@@ -316,7 +282,7 @@ class GroupActivityReportServiceTest {
 
     @Test
     fun `editReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
-        val otherGroupReport = baseReport.copy(groupId = 99L)
+        val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
 
@@ -369,56 +335,36 @@ class GroupActivityReportServiceTest {
             uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
         )
 
-        verify(groupActivityReportRepository).save(argThat { isPresentation && reportFileKey == "key-1" })
+        verify(groupActivityReportRepository).save(argThat { isPresentation && reportFileUploadId == "file-1" })
         verify(storageService, never()).deleteFile(any())
     }
 
     // ── cancelReport ──────────────────────────────────────────────────────────
 
     @Test
-    fun `cancelReport는 그룹장이 요청하면 보고서를 삭제한다`() {
+    fun `cancelReport는 접수 기간 안의 활동보고를 삭제한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
 
-        service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
+        service.cancelReport(groupId = 1L, reportId = "report-1")
 
         verify(groupActivityReportRepository).delete(baseReport)
-        verify(fileUploadService).deleteByFileKey("key-1")
-    }
-
-    @Test
-    fun `cancelReport는 운영진이 요청하면 보고서를 삭제한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
-        given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
-        given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
-        given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
-
-        service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 99L, isManager = true)
-
-        verify(groupActivityReportRepository).delete(baseReport)
-    }
-
-    @Test
-    fun `cancelReport는 그룹원이 요청하면 403을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-
-        assertFailsWith<ForbiddenException> {
-            service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 99L, isManager = false)
-        }
+        verify(groupFileRepository).deleteByFileUploadId("file-1")
+        verify(fileUploadService).deleteFileUpload("file-1")
+        verify(storageService).deleteFile("key-1")
     }
 
     @Test
     fun `cancelReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
-        val otherGroupReport = baseReport.copy(groupId = 99L)
+        val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
 
         assertFailsWith<NotFoundException> {
-            service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
+            service.cancelReport(groupId = 1L, reportId = "report-1")
         }
     }
 
@@ -431,7 +377,7 @@ class GroupActivityReportServiceTest {
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(expiredSchedule))
 
         assertFailsWith<BadRequestException> {
-            service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
+            service.cancelReport(groupId = 1L, reportId = "report-1")
         }
     }
 
@@ -443,7 +389,7 @@ class GroupActivityReportServiceTest {
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
 
-        service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L, isManager = false)
+        service.cancelReport(groupId = 1L, reportId = "report-1")
 
         verify(pointService).givePoint(20L, -150, "활동보고 취소")
         verify(pointService).givePoint(30L, -150, "활동보고 취소")
@@ -452,38 +398,15 @@ class GroupActivityReportServiceTest {
     // ── listReports ───────────────────────────────────────────────────────────
 
     @Test
-    fun `listReports는 그룹원이 요청하면 활동보고 목록을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(1L, 20L)).willReturn(true)
-        given(groupActivityReportRepository.findByGroupId(1L)).willReturn(listOf(baseReport))
-        given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
-        given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
-
-        val result = service.listReports(groupId = 1L, requesterId = 20L, isManager = false)
-
-        assertEquals(1, result.reports.size)
-    }
-
-    @Test
-    fun `listReports는 운영진이 요청하면 활동보고 목록을 반환한다`() {
+    fun `listReports는 그룹의 활동보고 목록을 반환한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findByGroupId(1L)).willReturn(listOf(baseReport))
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
 
-        val result = service.listReports(groupId = 1L, requesterId = 99L, isManager = true)
+        val result = service.listReports(groupId = 1L)
 
         assertEquals(1, result.reports.size)
-    }
-
-    @Test
-    fun `listReports는 그룹 멤버가 아닌 사용자가 요청하면 403을 반환한다`() {
-        given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(1L, 99L)).willReturn(false)
-
-        assertFailsWith<ForbiddenException> {
-            service.listReports(groupId = 1L, requesterId = 99L, isManager = false)
-        }
     }
 
     @Test
@@ -491,7 +414,7 @@ class GroupActivityReportServiceTest {
         given(groupRepository.findById(1L)).willReturn(Optional.empty())
 
         assertFailsWith<NotFoundException> {
-            service.listReports(groupId = 1L, requesterId = 10L, isManager = false)
+            service.listReports(groupId = 1L)
         }
     }
 }

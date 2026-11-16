@@ -33,6 +33,7 @@ dependencies {
     implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")
     kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.jsoup:jsoup:1.18.1")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")

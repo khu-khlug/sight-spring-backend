@@ -402,27 +402,24 @@ sealed interface GroupLogData {
 
     // 기록
 
-    // contentText는 당시 기록 본문에서 추출한 텍스트이며 문단·줄바꿈을 보존한다.
     data class RecordUpdated(
         val recordId: Long,
         val cardId: Long,
         val cardTitle: String,
-        val contentText: String,
     ) : GroupLogData {
         override val logType = GroupLogType.RECORD_UPDATED
 
-        override fun fields() = recordFields(recordId, cardId, cardTitle) + ("contentText" to contentText)
+        override fun fields() = recordFields(recordId, cardId, cardTitle)
     }
 
     data class RecordCreated(
         val recordId: Long,
         val cardId: Long,
         val cardTitle: String,
-        val contentText: String,
     ) : GroupLogData {
         override val logType = GroupLogType.RECORD_CREATED
 
-        override fun fields() = recordFields(recordId, cardId, cardTitle) + ("contentText" to contentText)
+        override fun fields() = recordFields(recordId, cardId, cardTitle)
     }
 
     data class RecordDeleted(

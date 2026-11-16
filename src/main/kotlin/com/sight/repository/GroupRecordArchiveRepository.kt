@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface GroupRecordArchiveRepository : JpaRepository<GroupRecordArchive, Long>, GroupRecordArchiveRepositoryCustom {
     fun countByMemberId(memberId: Long): Long
+
+    fun existsByMemberIdAndRecordId(memberId: Long, recordId: Long): Boolean
 }

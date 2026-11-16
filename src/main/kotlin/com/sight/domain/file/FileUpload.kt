@@ -18,6 +18,7 @@ import java.time.Instant
         Index(columnList = "deleted_at"),
         // 인덱스(is_uploaded, upload_check_at): 업로드 확인 예약, 미사용 업로드 청소.
         Index(columnList = "is_uploaded, upload_check_at"),
+        Index(name = "idx_file_upload_pending_check", columnList = "is_uploaded, upload_checked_at, upload_check_at, id"),
     ],
 )
 class FileUpload(
@@ -73,6 +74,11 @@ class FileUpload(
     @Column(name = "upload_check_at", nullable = false)
     val uploadCheckAt: Instant = createdAt.plus(UPLOAD_LINK_VALIDITY).plus(uploadCheckGrace)
 
+    // 예약 확인 완료 시각. 일반 업로드의 실제 사용 여부(isUploaded)와 별개다.
+    @Column(name = "upload_checked_at")
+    var uploadCheckedAt: Instant? = null
+        private set
+
     // 삭제 표시 시각. null이 아니면 유효한 파일이 아니며 R2 삭제를 기다리는 상태다.
     @Column(name = "deleted_at")
     var deletedAt: Instant? = null
@@ -108,6 +114,12 @@ class FileUpload(
         if (isUploaded) return false
         isUploaded = true
         return true
+    }
+
+    fun markUploadChecked(at: Instant) {
+        require(!isDeleted) { "삭제 처리된 파일입니다." }
+        require(!at.isBefore(uploadCheckAt)) { "업로드 확인 시각 전에는 확인을 완료할 수 없습니다." }
+        if (uploadCheckedAt == null) uploadCheckedAt = at
     }
 
     // 삭제 표시를 남긴다. 커밋 후 R2 객체를 지우고 성공하면 업로드 기록을 지운다.

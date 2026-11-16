@@ -7,4 +7,6 @@ interface GroupRecordArchiveRepository : JpaRepository<GroupRecordArchive, Long>
     fun countByMemberId(memberId: Long): Long
 
     fun existsByMemberIdAndRecordId(memberId: Long, recordId: Long): Boolean
+
+    fun findByMemberIdAndRecordIdIn(memberId: Long, recordIds: Collection<Long>): List<GroupRecordArchive>
 }

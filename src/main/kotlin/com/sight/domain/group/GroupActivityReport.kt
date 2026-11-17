@@ -18,7 +18,6 @@ class GroupActivityReport(
     groupId: Long,
     seminarId: String,
     isPresentation: Boolean,
-    reportFileUploadId: String,
     createdAt: Instant,
 ) {
     // 활동보고 식별자.
@@ -39,11 +38,6 @@ class GroupActivityReport(
     var isPresentation: Boolean = isPresentation
         private set
 
-    // 보고 파일의 업로드 기록. 파일 key와 읽기 링크는 이 업로드 기록에서 얻는다.
-    @Column(name = "report_file_upload_id", nullable = false, length = 100)
-    var reportFileUploadId: String = reportFileUploadId
-        private set
-
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = createdAt
 
@@ -56,34 +50,14 @@ class GroupActivityReport(
         require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "활동보고 식별자가 올바르지 않습니다." }
         require(groupId > 0) { "그룹 식별자가 올바르지 않습니다." }
         require(seminarId.isNotBlank()) { "세미나 식별자가 올바르지 않습니다." }
-        require(reportFileUploadId.isNotBlank()) { "업로드 파일 식별자가 올바르지 않습니다." }
     }
 
-    // 보낸 항목만 바꾼다. 알림 종류를 정하도록 실제로 바뀐 항목을 구분해 반환한다.
-    fun change(
-        isPresentation: Boolean?,
-        reportFileUploadId: String?,
-        at: Instant,
-    ): ChangeResult {
-        require(isPresentation != null || reportFileUploadId != null) { "수정할 항목이 필요합니다." }
-        require(reportFileUploadId == null || reportFileUploadId.isNotBlank()) { "업로드 파일 식별자가 올바르지 않습니다." }
-        val result =
-            ChangeResult(
-                isPresentationChanged = isPresentation != null && isPresentation != this.isPresentation,
-                isFileChanged = reportFileUploadId != null && reportFileUploadId != this.reportFileUploadId,
-            )
-        if (isPresentation != null) this.isPresentation = isPresentation
-        if (reportFileUploadId != null) this.reportFileUploadId = reportFileUploadId
-        if (result.isChanged) updatedAt = at
-        return result
-    }
-
-    data class ChangeResult(
-        val isPresentationChanged: Boolean,
-        val isFileChanged: Boolean,
+    fun update(
+        isPresentation: Boolean,
+        updatedAt: Instant,
     ) {
-        val isChanged: Boolean
-            get() = isPresentationChanged || isFileChanged
+        this.isPresentation = isPresentation
+        this.updatedAt = updatedAt
     }
 
     companion object {

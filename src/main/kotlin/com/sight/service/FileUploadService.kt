@@ -20,6 +20,7 @@ data class UploadLinkResult(
 class FileUploadService(
     private val fileUploadRepository: FileUploadRepository,
     private val storageService: StorageService,
+    private val deletions: FileUploadDeletionService,
 ) {
     @Transactional
     fun createUploadLink(
@@ -29,7 +30,7 @@ class FileUploadService(
         val fileKey = UlidCreator.getUlid().toString()
         val url = storageService.generateUploadUrl(fileKey)
         val fileUpload =
-            fileUploadRepository.save(
+            fileUploadRepository.saveAndFlush(
                 FileUpload(
                     id = UlidCreator.getUlid().toString(),
                     fileKey = fileKey,
@@ -51,8 +52,8 @@ class FileUploadService(
         apiPath: String,
     ): FileUpload {
         val fileUpload =
-            fileUploadRepository.findById(fileUploadId)
-                .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+            fileUploadRepository.findForUpdateById(fileUploadId)
+                ?: throw NotFoundException("파일을 찾을 수 없습니다.")
         if (fileUpload.apiPath != apiPath) throw UnprocessableEntityException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
         if (!fileUpload.isIssuedBy(memberId)) throw ForbiddenException("링크 발급자가 아닙니다.")
         if (fileUpload.isUploaded) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
@@ -76,6 +77,6 @@ class FileUploadService(
 
     @Transactional
     fun deleteFileUpload(fileUploadId: String) {
-        fileUploadRepository.deleteById(fileUploadId)
+        deletions.deleteFileUpload(fileUploadId)
     }
 }

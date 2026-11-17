@@ -14,22 +14,22 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import java.time.Instant
-import java.util.Optional
 import kotlin.test.assertFailsWith
 
 class FileUploadServiceTest {
     private val fileUploadRepository = mock<FileUploadRepository>()
     private val storageService = mock<StorageService>()
+    private val deletions = mock<FileUploadDeletionService>()
     private lateinit var service: FileUploadService
 
     private val baseFileUpload = testFileUpload()
 
     @BeforeEach
     fun setUp() {
-        service = FileUploadService(fileUploadRepository, storageService)
+        service = FileUploadService(fileUploadRepository, storageService, deletions)
         given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
-        given(fileUploadRepository.save(any<FileUpload>())).willReturn(baseFileUpload)
+        given(fileUploadRepository.saveAndFlush(any<FileUpload>())).willReturn(baseFileUpload)
     }
 
     // ── createUploadLink ──────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ class FileUploadServiceTest {
                 apiPath = "/groups/1/activity-report/upload-link",
             )
 
-        verify(fileUploadRepository).save(
+        verify(fileUploadRepository).saveAndFlush(
             argThat {
                 uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link"
             },
@@ -55,7 +55,7 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 유효한 파일이면 FileUpload를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(Optional.of(baseFileUpload))
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(baseFileUpload)
 
         val result =
             service.validateFileUpload(
@@ -69,7 +69,7 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 fileUploadId에 해당하는 row가 없으면 404를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(Optional.empty())
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(null)
 
         assertFailsWith<NotFoundException> {
             service.validateFileUpload(
@@ -82,8 +82,8 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 apiPath가 불일치하면 422를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(testFileUpload(apiPath = "/other/path")),
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(
+            testFileUpload(apiPath = "/other/path"),
         )
 
         assertFailsWith<UnprocessableEntityException> {
@@ -97,8 +97,8 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 발급자가 불일치하면 403을 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(testFileUpload(uploaderMemberId = 99L)),
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(
+            testFileUpload(uploaderMemberId = 99L),
         )
 
         assertFailsWith<ForbiddenException> {
@@ -112,8 +112,8 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 이미 업로드 완료된 파일이면 422를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(testFileUpload(isUploaded = true)),
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(
+            testFileUpload(isUploaded = true),
         )
 
         assertFailsWith<UnprocessableEntityException> {
@@ -127,8 +127,8 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 삭제 표시된 파일이면 422를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(
-            Optional.of(testFileUpload(deletedAt = Instant.parse("2025-01-02T00:00:00Z"))),
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(
+            testFileUpload(deletedAt = Instant.parse("2025-01-02T00:00:00Z")),
         )
 
         assertFailsWith<UnprocessableEntityException> {
@@ -142,7 +142,7 @@ class FileUploadServiceTest {
 
     @Test
     fun `validateFileUpload는 스토리지에 파일이 없으면 404를 반환한다`() {
-        given(fileUploadRepository.findById("file-1")).willReturn(Optional.of(baseFileUpload))
+        given(fileUploadRepository.findForUpdateById("file-1")).willReturn(baseFileUpload)
         given(storageService.isFileExists("key-1")).willReturn(false)
 
         assertFailsWith<NotFoundException> {

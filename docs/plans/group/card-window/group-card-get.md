@@ -58,7 +58,7 @@ USER and 열람권한
 ### 레거시 카드와 커버
 
 - 카드에 `is_legacy BOOLEAN NOT NULL`을 두고 신규 카드는 false, SQL로 가져온 기존 카드는 true로 저장한다. 커버 교체·제거로 카드의 레거시 여부를 바꾸지 않는다.
-- `cover_file_upload_id`가 있으면 신규 업로드 커버를 제공한다. 없고 `is_legacy`가 true이면 기존 `khlug_files`에서 `article = 카드 ID`, `type = 'image'`인 커버를 조회해 `/image/{name}` 주소로 제공한다. 신규 카드는 레거시 파일을 조회하지 않는다.
+- `(reference_type = GROUP_CARD_COVER, owner_id = 카드 ID의 10진 문자열)`로 공통 참조를 조회해 신규 업로드 커버를 제공한다. 참조가 없고 `is_legacy`가 true이면 기존 `khlug_files`에서 `article = 카드 ID`, `type = 'image'`인 커버를 조회해 `/image/{name}` 주소로 제공한다. 신규 카드는 레거시 파일을 조회하지 않는다.
 - 레거시 커버를 신규 파일 테이블로 복제하거나 신규 업로드 ID를 발급하지 않는다. 레거시 여부는 서버 내부에서 판단하며 응답 필드를 추가하지 않는다.
 
 ### 레거시 기록 이어 받기 연결

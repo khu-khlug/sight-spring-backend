@@ -75,11 +75,6 @@ class GroupCard(
     var assigneeMemberId: Long? = null
         private set
 
-    // 신규 업로드 커버. null인 레거시 카드는 기존 파일 테이블의 카드 연결로 커버를 찾는다.
-    @Column(name = "cover_file_upload_id", length = 100)
-    var coverFileUploadId: String? = null
-        private set
-
     // 레이블 비트마스크. API에는 레이블 목록으로만 노출한다.
     @Column(name = "label_bits", nullable = false)
     var labelBits: Int = 0
@@ -183,28 +178,21 @@ class GroupCard(
         return true
     }
 
-    // 업로드 파일을 커버로 지정한다. 업로드 파일은 매번 새로 발급받으므로 항상 바뀐다.
-    // 기존 커버 파일의 삭제는 호출한 쪽이 같은 트랜잭션에서 처리한다.
-    fun changeCover(
-        fileUploadId: String,
-        at: Instant,
-    ) {
-        require(fileUploadId.isNotBlank()) { "업로드 파일 식별자가 올바르지 않습니다." }
+    // 커버 참조를 변경한 호출자가 카드의 수정 일시를 함께 갱신한다.
+    fun changeCover(at: Instant) {
         requireEditable()
-        require(coverFileUploadId != fileUploadId) { "이미 커버로 사용 중인 파일입니다." }
-        coverFileUploadId = fileUploadId
         updatedAt = at
     }
 
-    // 레거시 커버 존재 여부는 기존 파일 연결을 조회한 호출자가 전달하고 연결 제거도 함께 처리한다.
+    // 공통 참조와 레거시 커버의 존재 여부는 연결을 조회한 호출자가 전달한다.
     fun removeCover(
         at: Instant,
+        hasCover: Boolean,
         hasLegacyCover: Boolean = false,
     ): Boolean {
         requireEditable()
         require(!hasLegacyCover || isLegacy) { "레거시 카드만 기존 파일 커버를 가질 수 있습니다." }
-        if (coverFileUploadId == null && !hasLegacyCover) return false
-        coverFileUploadId = null
+        if (!hasCover && !hasLegacyCover) return false
         updatedAt = at
         return true
     }

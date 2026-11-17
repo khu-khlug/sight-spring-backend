@@ -5,11 +5,6 @@ enum class FileUploadPurpose {
     SINGLE_USE,
     ;
 
-    fun isInUse(
-        isUploaded: Boolean,
-        hasRecordLinks: Boolean,
-    ): Boolean = if (this == RECORD_ATTACHMENT) hasRecordLinks else isUploaded
-
     companion object {
         private val recordPath = Regex("/groups/([1-9][0-9]{0,18})/records/files")
 

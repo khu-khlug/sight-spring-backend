@@ -6,6 +6,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -21,6 +22,7 @@ class FileUploadService(
     private val fileUploadRepository: FileUploadRepository,
     private val storageService: StorageService,
     private val deletions: FileUploadDeletionService,
+    private val events: ApplicationEventPublisher,
 ) {
     @Transactional
     fun createUploadLink(
@@ -42,6 +44,7 @@ class FileUploadService(
                     createdAt = Instant.now(),
                 ),
             )
+        events.publishEvent(FileUploadCreatedEvent(fileUpload.id, fileUpload.uploadCheckAt))
         return UploadLinkResult(url = url, fileKey = fileKey, fileUploadId = fileUpload.id)
     }
 

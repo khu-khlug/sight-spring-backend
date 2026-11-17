@@ -74,7 +74,7 @@ class FileUpload(
     @Column(name = "upload_check_at", nullable = false)
     val uploadCheckAt: Instant = createdAt.plus(UPLOAD_LINK_VALIDITY).plus(uploadCheckGrace)
 
-    // 예약 확인 완료 시각. 일반 업로드의 실제 사용 여부(isUploaded)와 별개다.
+    // 예약 확인 완료 시각. 파일의 사용 여부는 공통 참조의 존재로 판단한다.
     @Column(name = "upload_checked_at")
     var uploadCheckedAt: Instant? = null
         private set

@@ -13,6 +13,7 @@ import org.mockito.kotlin.argThat
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
 import kotlin.test.assertFailsWith
 
@@ -20,13 +21,14 @@ class FileUploadServiceTest {
     private val fileUploadRepository = mock<FileUploadRepository>()
     private val storageService = mock<StorageService>()
     private val deletions = mock<FileUploadDeletionService>()
+    private val events = mock<ApplicationEventPublisher>()
     private lateinit var service: FileUploadService
 
     private val baseFileUpload = testFileUpload()
 
     @BeforeEach
     fun setUp() {
-        service = FileUploadService(fileUploadRepository, storageService, deletions)
+        service = FileUploadService(fileUploadRepository, storageService, deletions, events)
         given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
         given(fileUploadRepository.saveAndFlush(any<FileUpload>())).willReturn(baseFileUpload)

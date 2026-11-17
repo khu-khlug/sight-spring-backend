@@ -1,8 +1,11 @@
 package com.sight.service
 
+import com.sight.domain.file.FileUploadMissingEvent
 import com.sight.domain.file.FileUploadPurpose
-import com.sight.repository.FileUploadMaintenanceRepository
+import com.sight.repository.FileReferenceRepository
+import com.sight.repository.FileUploadRepository
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
@@ -12,9 +15,11 @@ import java.time.ZoneOffset
 
 @Service
 class FileUploadMaintenanceService(
-    private val uploads: FileUploadMaintenanceRepository,
+    private val uploads: FileUploadRepository,
+    private val references: FileReferenceRepository,
     private val storage: StorageService,
-    private val lifecycle: FileUploadLifecycleService,
+    private val deletions: FileUploadDeletionService,
+    private val events: ApplicationEventPublisher,
     transactionManager: PlatformTransactionManager,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -26,7 +31,7 @@ class FileUploadMaintenanceService(
     fun checkUpload(id: String): FileUploadDeletionResult {
         val key =
             transaction.execute {
-                uploads.findById(id)?.takeIf {
+                uploads.findById(id).orElse(null)?.takeIf {
                     !it.isDeleted && !it.isUploaded && it.uploadCheckedAt == null &&
                         !it.uploadCheckAt.isAfter(Instant.now())
                 }?.fileKey
@@ -40,26 +45,25 @@ class FileUploadMaintenanceService(
             }
         val marked =
             transaction.execute {
-                val file = uploads.findLockedById(id) ?: return@execute false
-                if (file.isDeleted || file.isUploaded || file.uploadCheckedAt != null ||
-                    file.uploadCheckAt.isAfter(Instant.now())
-                ) {
+                val file = uploads.findForUpdateById(id) ?: return@execute false
+                val at = Instant.now()
+                if (file.isDeleted || file.isUploaded || file.uploadCheckedAt != null || file.uploadCheckAt.isAfter(at)) {
                     return@execute false
                 }
-                val purpose = FileUploadPurpose.fromApiPath(file.apiPath)
                 if (exists) {
-                    if (purpose == FileUploadPurpose.RECORD_ATTACHMENT) file.markUploaded()
-                    file.markUploadChecked(Instant.now())
+                    if (FileUploadPurpose.fromApiPath(file.apiPath) == FileUploadPurpose.RECORD_ATTACHMENT) file.markUploaded()
+                    file.markUploadChecked(at)
                     false
                 } else {
-                    if (uploads.hasSingleUseOwnerReferences(id)) return@execute false
-                    if (purpose != FileUploadPurpose.RECORD_ATTACHMENT && uploads.hasRecordLinks(id)) return@execute false
-                    if (purpose == FileUploadPurpose.RECORD_ATTACHMENT) uploads.deleteRecordLinks(id)
-                    file.markDeleted(Instant.now())
-                    true
+                    // 부가 행은 각 도메인이 같은 트랜잭션에서 해제하며, 남은 공통 참조는 보호한다.
+                    events.publishEvent(FileUploadMissingEvent(id))
+                    if (references.existsByFileUploadId(id)) return@execute false
+                    val changed = uploads.markUnreferencedForDeletion(id, at) == 1
+                    if (changed) file.markDeleted(at)
+                    changed
                 }
             } == true
-        return if (marked) lifecycle.deleteMarkedUploadForMaintenance(id) else FileUploadDeletionResult.SKIPPED
+        return if (marked) deletions.deleteMarkedFileUploadForMaintenance(id) else FileUploadDeletionResult.SKIPPED
     }
 
     fun cleanupUpload(
@@ -68,21 +72,17 @@ class FileUploadMaintenanceService(
     ): FileUploadDeletionResult {
         val marked =
             transaction.execute {
-                val file = uploads.findLockedById(id) ?: return@execute false
-                val purpose = FileUploadPurpose.fromApiPath(file.apiPath)
-                val hasLinks = purpose == FileUploadPurpose.RECORD_ATTACHMENT && uploads.hasRecordLinks(id)
+                val file = uploads.findForUpdateById(id) ?: return@execute false
                 if (file.deletedAt?.isBefore(at.atOffset(ZoneOffset.UTC).minusMonths(2).toInstant()) == true) {
                     logger.warn("장기 미삭제 업로드 파일: fileId={}, key={}, deletedAt={}", id, file.fileKey, file.deletedAt)
                 }
-                if (file.isDeleted) return@execute !uploads.hasOwnerReferences(id)
-                if (purpose.isInUse(file.isUploaded, hasLinks)) return@execute false
-                if (uploads.hasOwnerReferences(id)) return@execute false
-                if (purpose == FileUploadPurpose.RECORD_ATTACHMENT) {
-                    uploads.markUnreferencedUploadDeleted(id, at)
-                } else {
-                    uploads.markUnusedUploadDeleted(id, at)
-                }
+                if (references.existsByFileUploadId(id)) return@execute false
+                if (file.isDeleted) return@execute true
+                if (file.uploadCheckAt.isAfter(at)) return@execute false
+                val changed = uploads.markUnreferencedForDeletion(id, at) == 1
+                if (changed) file.markDeleted(at)
+                changed
             } == true
-        return if (marked) lifecycle.deleteMarkedUploadForMaintenance(id) else FileUploadDeletionResult.SKIPPED
+        return if (marked) deletions.deleteMarkedFileUploadForMaintenance(id) else FileUploadDeletionResult.SKIPPED
     }
 }

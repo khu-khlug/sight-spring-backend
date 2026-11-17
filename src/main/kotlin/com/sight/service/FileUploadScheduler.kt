@@ -2,6 +2,7 @@ package com.sight.service
 
 import com.sight.repository.FileMaintenanceLockRepository
 import com.sight.repository.FileUploadMaintenanceRepository
+import com.sight.repository.FileUploadRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 @ConditionalOnProperty(name = ["file-upload.maintenance.enabled"], havingValue = "true")
 class FileUploadScheduler(
     private val uploads: FileUploadMaintenanceRepository,
+    private val files: FileUploadRepository,
     private val locks: FileMaintenanceLockRepository,
     private val maintenance: FileUploadMaintenanceService,
     @Qualifier("fileUploadTaskScheduler") private val scheduler: TaskScheduler,
@@ -122,7 +124,7 @@ class FileUploadScheduler(
                         }
                     } catch (e: Exception) {
                         failed++
-                        val key = readTransaction.execute { uploads.findById(id)?.fileKey }
+                        val key = readTransaction.execute { files.findById(id).orElse(null)?.fileKey }
                         logger.error("업로드 파일 청소 실패: fileId={}, key={}", id, key, e)
                         if (e is StorageOperationException && e.stopsMaintenance) throw e
                     }

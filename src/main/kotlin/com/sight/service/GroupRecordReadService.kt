@@ -2,8 +2,8 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.group.GroupRecord
-import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupCardRepository
 import com.sight.repository.GroupKanbanListRepository
 import com.sight.repository.GroupRecordArchiveRepository
@@ -43,7 +43,6 @@ class GroupRecordReadService(
     private val members: MemberRepository,
     private val archives: GroupRecordArchiveRepository,
     private val links: GroupRecordFileRepository,
-    private val uploads: FileUploadRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroupRecordById(
@@ -84,9 +83,8 @@ class GroupRecordReadService(
     ): List<GroupRecordResult> {
         if (records.isEmpty()) return emptyList()
         val recordIds = records.map { it.id }
-        val fileLinks = links.findByRecordIdInOrderByIdAsc(recordIds)
-        val linksByRecord = fileLinks.groupBy { it.recordId }
-        val files = uploads.findAllById(fileLinks.map { it.fileUploadId }).associateBy { it.id }
+        val fileLinks = links.findByTypeAndOwnerInOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordIds.map { it.toString() })
+        val linksByRecord = fileLinks.groupBy { it.reference.ownerId }
         val authors = members.findAllById(records.map { it.authorMemberId }.distinct()).associateBy { it.id }
         val savedIds = archives.findByMemberIdAndRecordIdIn(memberId, recordIds).map { it.recordId }.toSet()
         return records.map { record ->
@@ -95,10 +93,10 @@ class GroupRecordReadService(
                 authors[record.authorMemberId]?.realname ?: throw NotFoundException("작성자를 찾을 수 없습니다."),
                 record.content, record.createdAt, record.updatedAt, record.isDeleted, record.isInPortfolio,
                 record.id in savedIds,
-                linksByRecord[record.id].orEmpty().mapNotNull { link ->
-                    files[link.fileUploadId]?.takeUnless { it.isDeleted }?.let { file ->
+                linksByRecord[record.id.toString()].orEmpty().mapNotNull { view ->
+                    view.upload.takeUnless { it.isDeleted }?.let { file ->
                         RecordFileResult(
-                            link.fileIdentifier,
+                            view.link.fileBlockId,
                             file.id,
                             if (file.isUploaded) "/groups/$groupId/files/${file.id}" else null,
                             requireNotNull(file.fileName),

@@ -20,7 +20,7 @@ data class GroupRecordFileResponse(
     }
 }
 
-data class GroupRecordResponse(
+data class ListGroupRecordResponse(
     val id: String,
     val type: String,
     val authorName: String,
@@ -34,7 +34,7 @@ data class GroupRecordResponse(
 ) {
     companion object {
         fun from(record: GroupRecordResult) =
-            GroupRecordResponse(
+            ListGroupRecordResponse(
                 record.id.toString(), record.type, record.authorName,
                 record.content, record.createdAt, record.updatedAt, record.isDeleted, record.isInPortfolio,
                 record.isInUserArchive, record.files.map(GroupRecordFileResponse::from),
@@ -43,7 +43,7 @@ data class GroupRecordResponse(
 }
 
 data class GetGroupRecordResponse(
-    @get:JsonUnwrapped val record: GroupRecordResponse,
+    @get:JsonUnwrapped val record: ListGroupRecordResponse,
     val cardId: String,
     val cardTitle: String,
     val listId: String,
@@ -52,7 +52,7 @@ data class GetGroupRecordResponse(
     companion object {
         fun from(result: GroupRecordDetailsResult) =
             GetGroupRecordResponse(
-                GroupRecordResponse.from(result.record),
+                ListGroupRecordResponse.from(result.record),
                 result.cardId.toString(),
                 result.cardTitle,
                 result.listId.toString(),

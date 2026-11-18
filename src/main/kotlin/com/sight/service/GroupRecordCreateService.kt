@@ -38,7 +38,7 @@ class GroupRecordCreateService(
     private val ids: IntegerIdService,
     private val logs: GroupLogService,
     private val notifications: NotificationService,
-    private val points: PointService,
+    private val points: PointClient,
 ) {
     @Transactional
     fun createGroupRecord(
@@ -54,11 +54,14 @@ class GroupRecordCreateService(
         if (card.groupId != groupId) throw NotFoundException("카드를 찾을 수 없습니다.")
         if (group.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
         if (card.isDeleted || card.isDisabled) throw BadRequestException("삭제되거나 비활성 상태인 카드입니다.")
-        if (content.isEmpty() || content.toByteArray(Charsets.UTF_8).size > GroupRecord.CONTENT_MAX_BYTES) {
-            throw BadRequestException("기록 본문은 비어 있지 않은 1 MiB 이하 문자열이어야 합니다.")
-        }
         val now = Instant.now()
-        val record = records.save(GroupRecord(ids.nextId(), cardId, memberId, content, now))
+        val newRecord =
+            try {
+                GroupRecord(ids.nextId(), cardId, memberId, content, now)
+            } catch (e: IllegalArgumentException) {
+                throw BadRequestException(requireNotNull(e.message))
+            }
+        val record = records.save(newRecord)
         val change = attachments.replaceRecordFiles(groupId, memberId, record.id, files)
         val draft = drafts.findByMemberId(memberId)
         if (draft != null && draft.isSameTarget(groupId, cardId, null)) {

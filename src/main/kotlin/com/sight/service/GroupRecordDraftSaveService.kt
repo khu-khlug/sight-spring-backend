@@ -4,7 +4,6 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ConflictException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.group.GroupRecord
 import com.sight.domain.group.GroupRecordDraft
 import com.sight.domain.group.GroupRecordType
 import com.sight.repository.GroupCardRepository
@@ -49,23 +48,31 @@ class GroupRecordDraftSaveService(
         val card = cards.findById(cardId).orElseThrow { BadRequestException("이 그룹의 카드가 아닙니다.") }
         if (card.groupId != groupId || card.isDeleted) throw BadRequestException("임시저장 대상이 올바르지 않습니다.")
         if (recordId != null) {
-            val record = records.findById(recordId).orElseThrow { BadRequestException("기록을 찾을 수 없습니다.") }
-            if (record.cardId != cardId || record.isDeleted || record.type != GroupRecordType.TIPTAP) {
+            val record =
+                records.findByIdAndDeletedAtIsNull(recordId) ?: run {
+                    if (records.existsDeletedByIdAndGroupId(recordId, groupId)) {
+                        throw BadRequestException("임시저장 대상이 올바르지 않습니다.")
+                    }
+                    throw BadRequestException("기록을 찾을 수 없습니다.")
+                }
+            if (record.cardId != cardId || record.type != GroupRecordType.TIPTAP) {
                 throw BadRequestException("임시저장 대상이 올바르지 않습니다.")
             }
             if (!record.isAuthor(memberId)) throw ForbiddenException("기록 작성자만 수정 내용을 임시저장할 수 있습니다.")
         }
-        if (content.toByteArray(Charsets.UTF_8).size > GroupRecord.CONTENT_MAX_BYTES) {
-            throw BadRequestException("임시저장 본문은 1 MiB 이하여야 합니다.")
-        }
         val reset = draft != null && !draft.isSameTarget(groupId, cardId, recordId)
         val saved =
-            if (draft == null) {
-                drafts.save(GroupRecordDraft(ids.nextId(), memberId, groupId, cardId, recordId, content, updatedAt))
-            } else {
-                draft.overwrite(groupId, cardId, recordId, content, updatedAt)
-                draft
+            try {
+                if (draft == null) {
+                    GroupRecordDraft(ids.nextId(), memberId, groupId, cardId, recordId, content, updatedAt)
+                } else {
+                    draft.overwrite(groupId, cardId, recordId, content, updatedAt)
+                    draft
+                }
+            } catch (e: IllegalArgumentException) {
+                throw BadRequestException(requireNotNull(e.message))
             }
+        if (draft == null) drafts.save(saved)
         return attachments.replaceDraftFiles(groupId, memberId, saved.id, files, reset).uploads
     }
 }

@@ -7,9 +7,11 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.GroupRecordArchiveService
 import jakarta.validation.constraints.Min
+import org.springframework.http.HttpStatus
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @Validated
@@ -19,6 +21,7 @@ class SavedRecordController(
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GetMapping("/saved-records")
+    @ResponseStatus(HttpStatus.OK)
     fun listSavedRecords(
         @RequestParam(defaultValue = "0") @Min(0) page: Int,
         requester: Requester,

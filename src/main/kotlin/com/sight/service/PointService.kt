@@ -20,10 +20,10 @@ class PointService(
     private val restTemplate: RestTemplate,
     @Value("\${auth.service.endpoint}") private val authServiceEndpoint: String,
     @Value("\${auth.service.api-key}") private val authServiceApiKey: String,
-) {
+) : PointClient {
     private val logger = LoggerFactory.getLogger(PointService::class.java)
 
-    fun givePoint(
+    override fun givePoint(
         targetUserId: Long,
         point: Int,
         message: String,

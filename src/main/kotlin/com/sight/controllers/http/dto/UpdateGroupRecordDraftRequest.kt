@@ -10,7 +10,7 @@ data class UpdateGroupRecordDraftRequest(
     val recordId: String?,
     val content: String,
     val updatedAt: Instant,
-    val files: List<DraftRecordFileRequest>,
+    val files: List<RecordFileRequest>,
 ) {
     companion object {
         @JvmStatic
@@ -42,42 +42,11 @@ data class UpdateGroupRecordDraftRequest(
                 } catch (_: RuntimeException) {
                     throw BadRequestException("updatedAt은 UTC ISO 8601 Z 형식이어야 합니다.")
                 }
-            val fileNodes =
-                node["files"]?.takeIf { it.isArray }
-                    ?: throw BadRequestException("files 배열이 필요합니다.")
-            val files =
-                fileNodes.map { file ->
-                    val id =
-                        file["id"]?.takeIf { it.isTextual }?.asText()
-                            ?: throw BadRequestException("파일 식별자 문자열이 필요합니다.")
-                    val fileIdNode = file["fileId"] ?: throw BadRequestException("fileId가 필요합니다.")
-                    val fileId =
-                        if (fileIdNode.isNull) {
-                            null
-                        } else {
-                            fileIdNode.takeIf { it.isTextual }?.asText()
-                                ?: throw BadRequestException("fileId는 문자열 또는 null이어야 합니다.")
-                        }
-                    val name = file["name"]?.takeIf { it.isTextual }?.asText()
-                    val size = file["size"]?.takeIf { it.isIntegralNumber && it.canConvertToLong() }?.longValue()
-                    val contentType = file["contentType"]?.takeIf { it.isTextual }?.asText()
-                    if (fileId == null && (name == null || size == null || contentType == null)) {
-                        throw BadRequestException("새 파일의 이름·크기·MIME 타입이 필요합니다.")
-                    }
-                    DraftRecordFileRequest(id, fileId, name, size, contentType)
-                }
+            val files = readRecordFiles(node["files"])
             return UpdateGroupRecordDraftRequest(identifier(text("cardId")), recordId, text("content"), instant, files)
         }
     }
 }
-
-data class DraftRecordFileRequest(
-    val id: String,
-    val fileId: String?,
-    val name: String?,
-    val size: Long?,
-    val contentType: String?,
-)
 
 data class UpdateGroupRecordDraftResponse(val uploads: List<DraftRecordFileUploadResponse>)
 

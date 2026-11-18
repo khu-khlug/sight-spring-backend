@@ -1,6 +1,6 @@
 package com.sight.controllers.http
 
-import com.sight.controllers.http.dto.GroupRecordResponse
+import com.sight.controllers.http.dto.ListGroupRecordResponse
 import com.sight.controllers.http.dto.ListGroupRecordsResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
@@ -42,7 +42,7 @@ class GroupRecordListController(private val service: GroupRecordListService) {
             result.offset,
             result.totalCount,
             result.records.size,
-            result.records.map(GroupRecordResponse::from),
+            result.records.map(ListGroupRecordResponse::from),
         )
     }
 }

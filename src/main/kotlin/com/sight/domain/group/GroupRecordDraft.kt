@@ -109,7 +109,7 @@ class GroupRecordDraft(
 
         private fun validateContent(content: String) {
             require(content.toByteArray(Charsets.UTF_8).size <= GroupRecord.CONTENT_MAX_BYTES) {
-                "임시저장 본문은 ${GroupRecord.CONTENT_MAX_BYTES}바이트 이하여야 합니다."
+                "임시저장 본문은 1 MiB 이하여야 합니다."
             }
         }
     }

@@ -15,9 +15,6 @@ data class CreateGroupRecordRequest(
             val content =
                 node["content"]?.takeIf { it.isTextual }?.textValue()
                     ?: throw BadRequestException("기록 본문은 문자열이어야 합니다.")
-            if (content.isEmpty() || content.toByteArray(Charsets.UTF_8).size > 1_048_576) {
-                throw BadRequestException("기록 본문은 비어 있지 않은 1 MiB 이하 문자열이어야 합니다.")
-            }
             return CreateGroupRecordRequest(content, readRecordFiles(node["files"]))
         }
     }

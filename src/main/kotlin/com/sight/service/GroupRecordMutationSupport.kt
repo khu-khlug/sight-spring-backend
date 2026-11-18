@@ -26,7 +26,7 @@ class GroupRecordMutationSupport(
     private val records: GroupRecordRepository,
     private val cards: GroupCardRepository,
     private val logs: GroupLogService,
-    private val points: PointService,
+    private val points: PointClient,
 ) {
     @Transactional
     fun getLockedRecordContext(
@@ -37,7 +37,7 @@ class GroupRecordMutationSupport(
     ): GroupRecordMutationContext {
         members.findForUpdateById(memberId) ?: throw NotFoundException("회원을 찾을 수 없습니다.")
         val group = groups.findLockedById(groupId) ?: throw NotFoundException("그룹을 찾을 수 없습니다.")
-        val record = records.findLockedById(recordId) ?: throw NotFoundException("기록을 찾을 수 없습니다.")
+        val record = records.findLockedIncludingDeletedById(recordId) ?: throw NotFoundException("기록을 찾을 수 없습니다.")
         val card = cards.findById(record.cardId).orElseThrow { NotFoundException("카드를 찾을 수 없습니다.") }
         if (card.groupId != groupId) throw NotFoundException("기록을 찾을 수 없습니다.")
         if (group.status.isEnded || (!allowStopped && group.status == GroupStatus.STOP)) {

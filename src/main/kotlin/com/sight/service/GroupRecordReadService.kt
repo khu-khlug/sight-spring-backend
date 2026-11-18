@@ -50,20 +50,14 @@ class GroupRecordReadService(
         recordId: Long,
         memberId: Long,
     ): GroupRecordDetailsResult {
-        val record = records.findById(recordId).orElseThrow { NotFoundException("기록을 찾을 수 없습니다.") }
+        val record =
+            records.findByIdAndDeletedAtIsNull(recordId) ?: run {
+                if (records.existsDeletedByIdAndGroupId(recordId, groupId)) throw BadRequestException("삭제된 카드 또는 기록입니다.")
+                throw NotFoundException("기록을 찾을 수 없습니다.")
+            }
         val card = cards.findById(record.cardId).orElseThrow { NotFoundException("카드를 찾을 수 없습니다.") }
         if (card.groupId != groupId) throw NotFoundException("기록을 찾을 수 없습니다.")
-        if (card.isDeleted || record.isDeleted) throw BadRequestException("삭제된 카드 또는 기록입니다.")
-        return getRecordDetails(recordId, memberId)
-    }
-
-    @Transactional(readOnly = true)
-    fun getRecordDetails(
-        recordId: Long,
-        memberId: Long,
-    ): GroupRecordDetailsResult {
-        val record = records.findById(recordId).orElseThrow { NotFoundException("기록을 찾을 수 없습니다.") }
-        val card = cards.findById(record.cardId).orElseThrow { NotFoundException("카드를 찾을 수 없습니다.") }
+        if (card.isDeleted) throw BadRequestException("삭제된 카드 또는 기록입니다.")
         val list = lists.findById(requireNotNull(card.listId)).orElseThrow { NotFoundException("리스트를 찾을 수 없습니다.") }
         return GroupRecordDetailsResult(toRecordResult(record, card.groupId, memberId), card.id, card.title, list.id, list.title)
     }

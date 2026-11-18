@@ -1,24 +1,22 @@
-package com.sight.config
+package com.sight.controllers.http
 
 import com.sight.core.exception.BadRequestException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.context.annotation.Configuration
+import org.springframework.stereotype.Component
 import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.servlet.HandlerMapping
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
-@Configuration
-class RecordApiWebConfig : WebMvcConfigurer {
+@Component
+class RecordPathInterceptor : HandlerInterceptor, WebMvcConfigurer {
+    private val decimalId = Regex("[1-9][0-9]{0,18}")
+
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(RecordPathInterceptor())
+        registry.addInterceptor(this)
             .addPathPatterns("/groups/*/records/**", "/groups/*/cards/*/records")
     }
-}
-
-private class RecordPathInterceptor : HandlerInterceptor {
-    private val decimalId = Regex("[1-9][0-9]{0,18}")
 
     override fun preHandle(
         request: HttpServletRequest,

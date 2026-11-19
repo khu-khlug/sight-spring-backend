@@ -6,6 +6,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordRestoreService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -19,8 +20,8 @@ class GroupRecordRestoreController(private val service: GroupRecordRestoreServic
     @PostMapping("/groups/{groupId}/records/{recordId}/restore")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun restoreGroupRecord(
-        @PathVariable groupId: Long,
-        @PathVariable recordId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive recordId: Long,
         requester: Requester,
     ) {
         service.updateGroupRecordRestored(groupId, requester.userId, recordId)

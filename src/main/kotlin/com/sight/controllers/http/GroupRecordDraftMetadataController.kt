@@ -8,6 +8,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordDraftMetadataService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -21,7 +22,7 @@ class GroupRecordDraftMetadataController(private val service: GroupRecordDraftMe
     @GetMapping("/groups/{groupId}/records/draft/meta")
     @ResponseStatus(HttpStatus.OK)
     fun getGroupRecordDraftMetadata(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive groupId: Long,
         requester: Requester,
     ): GetGroupRecordDraftMetadataResponse {
         val result = service.getGroupRecordDraftMetadataByMemberId(groupId, requester.userId)

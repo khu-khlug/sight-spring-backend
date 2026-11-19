@@ -6,6 +6,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordDraftDeleteService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -19,7 +20,7 @@ class GroupRecordDraftDeleteController(private val service: GroupRecordDraftDele
     @DeleteMapping("/groups/{groupId}/records/draft")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteGroupRecordDraft(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive groupId: Long,
         requester: Requester,
     ) {
         service.deleteGroupRecordDraft(groupId, requester.userId)

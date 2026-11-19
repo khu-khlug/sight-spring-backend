@@ -10,6 +10,7 @@ import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordDraftSaveService
 import com.sight.service.RecordFileInput
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
@@ -24,7 +25,7 @@ class GroupRecordDraftSaveController(private val service: GroupRecordDraftSaveSe
     @PutMapping("/groups/{groupId}/records/draft")
     @ResponseStatus(HttpStatus.OK)
     fun updateGroupRecordDraft(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive groupId: Long,
         @RequestBody request: UpdateGroupRecordDraftRequest,
         requester: Requester,
     ): UpdateGroupRecordDraftResponse {

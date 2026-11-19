@@ -7,6 +7,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordReadService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -20,8 +21,8 @@ class GroupRecordReadController(private val service: GroupRecordReadService) {
     @GetMapping("/groups/{groupId}/records/{recordId}")
     @ResponseStatus(HttpStatus.OK)
     fun getGroupRecord(
-        @PathVariable groupId: Long,
-        @PathVariable recordId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive recordId: Long,
         requester: Requester,
     ): GetGroupRecordResponse = GetGroupRecordResponse.from(service.getGroupRecordById(groupId, recordId, requester.userId))
 }

@@ -10,6 +10,7 @@ import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordUpdateService
 import com.sight.service.RecordFileInput
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,8 +25,8 @@ class GroupRecordUpdateController(private val service: GroupRecordUpdateService)
     @PatchMapping("/groups/{groupId}/records/{recordId}")
     @ResponseStatus(HttpStatus.OK)
     fun updateGroupRecord(
-        @PathVariable groupId: Long,
-        @PathVariable recordId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive recordId: Long,
         @RequestBody request: UpdateGroupRecordRequest,
         requester: Requester,
     ): UpdateGroupRecordResponse {

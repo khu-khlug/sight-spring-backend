@@ -11,6 +11,7 @@ import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordCreateService
 import com.sight.service.RecordFileInput
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -25,8 +26,8 @@ class GroupRecordCreateController(private val service: GroupRecordCreateService)
     @PostMapping("/groups/{groupId}/cards/{cardId}/records")
     @ResponseStatus(HttpStatus.CREATED)
     fun createGroupRecord(
-        @PathVariable groupId: Long,
-        @PathVariable cardId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive cardId: Long,
         @RequestBody request: CreateGroupRecordRequest,
         requester: Requester,
     ): CreateGroupRecordResponse {

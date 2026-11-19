@@ -9,6 +9,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordListService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -23,8 +24,8 @@ class GroupRecordListController(private val service: GroupRecordListService) {
     @GetMapping("/groups/{groupId}/cards/{cardId}/records")
     @ResponseStatus(HttpStatus.OK)
     fun listGroupRecords(
-        @PathVariable groupId: Long,
-        @PathVariable cardId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive cardId: Long,
         @RequestParam(defaultValue = "0") offset: String,
         @RequestParam(defaultValue = "10") limit: String,
         @RequestParam(defaultValue = "false") includeDeleted: String,

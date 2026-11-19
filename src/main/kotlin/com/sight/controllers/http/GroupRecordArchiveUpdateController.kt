@@ -7,6 +7,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordArchiveUpdateService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
@@ -21,8 +22,8 @@ class GroupRecordArchiveUpdateController(private val service: GroupRecordArchive
     @PutMapping("/groups/{groupId}/records/{recordId}/archive")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun updateGroupRecordArchive(
-        @PathVariable groupId: Long,
-        @PathVariable recordId: Long,
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive recordId: Long,
         @RequestBody request: UpdateGroupRecordArchiveRequest,
         requester: Requester,
     ) {

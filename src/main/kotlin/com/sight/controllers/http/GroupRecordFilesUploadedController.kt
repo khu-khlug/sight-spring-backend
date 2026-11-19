@@ -9,6 +9,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordFilesUploadedService
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
@@ -22,7 +23,7 @@ class GroupRecordFilesUploadedController(private val service: GroupRecordFilesUp
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/records/files/uploaded")
     fun updateGroupRecordFilesUploaded(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive groupId: Long,
         @RequestBody request: UpdateGroupRecordFilesUploadedRequest,
         requester: Requester,
     ): ResponseEntity<UpdateGroupRecordFilesUploadedResponse> {

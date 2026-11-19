@@ -82,9 +82,10 @@ class R2StorageService(
                 objectRequest.responseContentType(options.contentType)
                     .responseContentDisposition(disposition.filename(options.fileName, UTF_8).build().toString())
             }
-            val signed = presigner.presignGetObject {
-                it.signatureDuration(FileUpload.DOWNLOAD_LINK_VALIDITY).getObjectRequest(objectRequest.build())
-            }
+            val signed =
+                presigner.presignGetObject {
+                    it.signatureDuration(FileUpload.DOWNLOAD_LINK_VALIDITY).getObjectRequest(objectRequest.build())
+                }
             if (!signed.isBrowserExecutable) {
                 throw StorageOperationException(StorageFailureReason.TRANSIENT, "브라우저에서 사용할 수 있는 파일 읽기 주소를 발급하지 못했습니다.")
             }

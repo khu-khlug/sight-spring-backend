@@ -27,8 +27,9 @@ class R2StorageConfig(
         S3Configuration.builder().pathStyleAccessEnabled(true).checksumValidationEnabled(false).build()
 
     init {
-        require(endpointUri.scheme == "https" && endpointUri.host != null && endpointUri.rawUserInfo == null &&
-            endpointUri.rawQuery == null && endpointUri.rawFragment == null && endpointUri.path in listOf("", "/")
+        require(
+            endpointUri.scheme == "https" && endpointUri.host != null && endpointUri.rawUserInfo == null &&
+                endpointUri.rawQuery == null && endpointUri.rawFragment == null && endpointUri.path in listOf("", "/"),
         ) { "R2_ENDPOINT는 HTTPS 계정 엔드포인트여야 합니다." }
         require(accessKeyId.isNotBlank() && secretAccessKey.isNotBlank()) { "R2 접근 키를 설정해야 합니다." }
         credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId, secretAccessKey))

@@ -12,10 +12,15 @@ class GroupFileDownloadService(
     private val references: FileReferenceRepository,
     private val downloads: FileDownloadService,
 ) {
-    fun getGroupFileUrl(groupId: Long, fileId: String): String =
-        downloads.getDownloadUrl(fileId) { uploadId -> isGroupFileAllowed(groupId, uploadId) }
+    fun getGroupFileUrl(
+        groupId: Long,
+        fileId: String,
+    ): String = downloads.getDownloadUrl(fileId) { uploadId -> isGroupFileAllowed(groupId, uploadId) }
 
-    private fun isGroupFileAllowed(groupId: Long, fileId: String): Boolean {
+    private fun isGroupFileAllowed(
+        groupId: Long,
+        fileId: String,
+    ): Boolean {
         if (!groupFiles.existsByGroupIdAndFileUploadId(groupId, fileId)) return false
         val types = resolveGroupFileTypes(fileId)
         return types.isNotEmpty() && ALLOWED_TYPES.containsAll(types)

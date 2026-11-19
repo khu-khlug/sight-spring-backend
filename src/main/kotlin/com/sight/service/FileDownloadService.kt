@@ -28,11 +28,12 @@ class FileDownloadService(
         isAllowed: (String) -> Boolean,
     ): String {
         if (!FileUpload.isValidId(fileId)) throw BadRequestException("파일 아이디 형식이 올바르지 않습니다.")
-        val fileKey = requireNotNull(
-            readTransaction.execute {
-                requireDownloadableFile(uploads.findById(fileId).orElse(null), isAllowed).fileKey
-            },
-        )
+        val fileKey =
+            requireNotNull(
+                readTransaction.execute {
+                    requireDownloadableFile(uploads.findById(fileId).orElse(null), isAllowed).fileKey
+                },
+            )
         try {
             if (!storage.isFileExists(fileKey)) throw NotFoundException("파일을 찾을 수 없습니다.")
             return requireNotNull(
@@ -57,34 +58,37 @@ class FileDownloadService(
 
     private fun issueFileUrl(file: FileUpload): String {
         val contentType = resolveContentType(file.contentType)
-        val signed = storage.getDownloadUrl(
-            file.fileKey,
-            FileDownloadOptions(
-                fileName = file.fileName.orEmpty().replace(UNSAFE_FILE_NAME_CHARS, "_").ifBlank { file.id },
-                contentType = contentType,
-                inline = contentType in INLINE_CONTENT_TYPES,
-            ),
-        )
+        val signed =
+            storage.getDownloadUrl(
+                file.fileKey,
+                FileDownloadOptions(
+                    fileName = file.fileName.orEmpty().replace(UNSAFE_FILE_NAME_CHARS, "_").ifBlank { file.id },
+                    contentType = contentType,
+                    inline = contentType in INLINE_CONTENT_TYPES,
+                ),
+            )
         file.cacheFileUrl(signed.url, signed.expiresAt, Instant.now())
         return signed.url
     }
 
     private fun resolveContentType(value: String?): String {
-        val mimeType = try {
-            value?.let(MimeTypeUtils::parseMimeType)
-        } catch (_: IllegalArgumentException) {
-            null
-        }
+        val mimeType =
+            try {
+                value?.let(MimeTypeUtils::parseMimeType)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
         return mimeType?.takeIf { !it.isWildcardType && !it.isWildcardSubtype }
             ?.let { "${it.type}/${it.subtype}" } ?: "application/octet-stream"
     }
 
     private companion object {
-        val INLINE_CONTENT_TYPES = setOf(
-            "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
-            "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/wav", "audio/flac", "audio/webm",
-            "video/mp4", "video/webm",
-        )
+        val INLINE_CONTENT_TYPES =
+            setOf(
+                "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+                "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/wav", "audio/flac", "audio/webm",
+                "video/mp4", "video/webm",
+            )
         val UNSAFE_FILE_NAME_CHARS = Regex("[\\p{Cc}/\\\\]")
     }
 }

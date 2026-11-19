@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
@@ -8,10 +9,12 @@ import com.sight.domain.file.testFileUpload
 import com.sight.repository.FileUploadRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.Instant
 import kotlin.test.assertFailsWith
@@ -27,7 +30,7 @@ class FileUploadServiceTest {
     @BeforeEach
     fun setUp() {
         service = FileUploadService(fileUploadRepository, storageService, deletions)
-        given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
+        given(storageService.generateUploadUrl(any(), any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
         given(fileUploadRepository.saveAndFlush(any<FileUpload>())).willReturn(baseFileUpload)
     }
@@ -40,15 +43,27 @@ class FileUploadServiceTest {
             service.createUploadLink(
                 memberId = 10L,
                 apiPath = "/groups/1/activity-report/upload-link",
+                size = FileUpload.MAX_FILE_SIZE,
             )
 
+        verify(storageService).generateUploadUrl(result.fileKey, FileUpload.MAX_FILE_SIZE)
         verify(fileUploadRepository).saveAndFlush(
             argThat {
-                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link"
+                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link" && size == FileUpload.MAX_FILE_SIZE
             },
         )
         assert(result.url == "https://upload.example.com")
         assert(result.fileUploadId == "file-1")
+    }
+
+    @Test
+    fun `최대 크기를 초과한 파일에는 업로드 링크를 발급하지 않는다`() {
+        assertThrows<BadRequestException> {
+            service.createUploadLink(10L, "/groups/1/activity-report/upload-link", FileUpload.MAX_FILE_SIZE + 1)
+        }
+
+        verify(storageService, never()).generateUploadUrl(any(), any())
+        verify(fileUploadRepository, never()).saveAndFlush(any<FileUpload>())
     }
 
     // ── validateFileUpload ────────────────────────────────────────────────────

@@ -7,7 +7,10 @@ import org.springframework.stereotype.Service
 @Service
 @ConditionalOnProperty(prefix = "storage.r2", name = ["enabled"], havingValue = "false", matchIfMissing = true)
 class StubStorageService : StorageService {
-    override fun generateUploadUrl(key: String): String = ""
+    override fun generateUploadUrl(
+        key: String,
+        size: Long,
+    ): String = ""
 
     override fun isFileExists(key: String): Boolean = true
 

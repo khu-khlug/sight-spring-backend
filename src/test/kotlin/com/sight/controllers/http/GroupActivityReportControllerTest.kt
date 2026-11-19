@@ -84,10 +84,12 @@ class GroupActivityReportControllerTest {
 
     @Test
     fun `활동보고 업로드 링크는 그룹장만 발급받을 수 있다`() {
-        given(groupActivityReportService.getUploadLink(GROUP_ID, LEADER_ID, requestPath = UPLOAD_LINK_PATH))
+        given(groupActivityReportService.getUploadLink(GROUP_ID, LEADER_ID, requestPath = UPLOAD_LINK_PATH, size = 1024L))
             .willReturn(UploadLinkResult(url = "https://upload.example.com", fileKey = "reports/file-1.pdf", fileUploadId = "file-1"))
 
-        assertOnlyLeaderAllowed(status().isOk) { post(UPLOAD_LINK_PATH) }
+        assertOnlyLeaderAllowed(status().isOk) {
+            post(UPLOAD_LINK_PATH).contentType(MediaType.APPLICATION_JSON).content("""{"size":1024}""")
+        }
     }
 
     @Test

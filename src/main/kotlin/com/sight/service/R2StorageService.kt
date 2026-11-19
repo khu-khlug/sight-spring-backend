@@ -24,11 +24,14 @@ class R2StorageService(
         require(bucket.isNotBlank()) { "R2_BUCKET을 설정해야 합니다." }
     }
 
-    override fun generateUploadUrl(key: String): String =
+    override fun generateUploadUrl(
+        key: String,
+        size: Long,
+    ): String =
         storageRequest {
             presigner.presignPutObject { request ->
                 request.signatureDuration(FileUpload.UPLOAD_LINK_VALIDITY)
-                    .putObjectRequest { it.bucket(bucket).key(key) }
+                    .putObjectRequest { it.bucket(bucket).key(key).contentLength(size) }
             }.url().toExternalForm()
         }
 

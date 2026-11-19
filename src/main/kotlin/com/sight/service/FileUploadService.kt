@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
@@ -26,9 +27,13 @@ class FileUploadService(
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
+        size: Long,
     ): UploadLinkResult {
+        if (size !in 0..FileUpload.MAX_FILE_SIZE) {
+            throw BadRequestException("파일 크기는 0바이트 이상 ${FileUpload.MAX_FILE_SIZE}바이트 이하여야 합니다.")
+        }
         val fileKey = UlidCreator.getUlid().toString()
-        val url = storageService.generateUploadUrl(fileKey)
+        val url = storageService.generateUploadUrl(fileKey, size)
         val fileUpload =
             fileUploadRepository.saveAndFlush(
                 FileUpload(
@@ -37,7 +42,7 @@ class FileUploadService(
                     uploaderMemberId = memberId,
                     apiPath = apiPath,
                     fileName = null,
-                    size = null,
+                    size = size,
                     contentType = null,
                     createdAt = Instant.now(),
                 ),

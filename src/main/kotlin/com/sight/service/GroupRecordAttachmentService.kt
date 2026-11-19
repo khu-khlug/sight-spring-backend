@@ -147,7 +147,8 @@ class GroupRecordAttachmentService(
     ): String {
         val fileId = UlidCreator.getUlid().toString()
         val fileKey = UlidCreator.getUlid().toString()
-        val uploadUrl = storage.generateUploadUrl(fileKey)
+        val size = requireNotNull(input.size)
+        val uploadUrl = storage.generateUploadUrl(fileKey, size)
         uploads.saveAndFlush(
             FileUpload(
                 fileId,
@@ -155,7 +156,7 @@ class GroupRecordAttachmentService(
                 memberId,
                 "/groups/$groupId/records/files",
                 input.name,
-                input.size,
+                size,
                 input.contentType,
                 Instant.now(),
             ),

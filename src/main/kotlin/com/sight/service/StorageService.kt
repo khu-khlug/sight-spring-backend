@@ -1,7 +1,10 @@
 package com.sight.service
 
 interface StorageService {
-    fun generateUploadUrl(key: String): String
+    fun generateUploadUrl(
+        key: String,
+        size: Long,
+    ): String
 
     fun isFileExists(key: String): Boolean
 

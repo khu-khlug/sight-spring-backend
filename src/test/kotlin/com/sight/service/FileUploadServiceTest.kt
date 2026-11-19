@@ -1,5 +1,6 @@
 package com.sight.service
 
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
@@ -8,10 +9,13 @@ import com.sight.domain.file.testFileUpload
 import com.sight.repository.FileUploadRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import java.time.Instant
 import kotlin.test.assertFailsWith
@@ -49,6 +53,27 @@ class FileUploadServiceTest {
         )
         assert(result.url == "https://upload.example.com")
         assert(result.fileUploadId == "file-1")
+    }
+
+    @Test
+    fun `요청한 크기로 업로드 링크를 발급하고 같은 크기를 저장한다`() {
+        val size = FileUpload.MAX_FILE_SIZE
+        given(storageService.generateUploadUrl(any(), eq(size))).willReturn("https://upload.example.com")
+
+        val link = service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", size)
+
+        verify(storageService).generateUploadUrl(link.fileKey, size)
+        verify(fileUploadRepository).saveAndFlush(argThat { this.size == size && fileKey == link.fileKey })
+    }
+
+    @Test
+    fun `최대 크기를 초과한 파일에는 업로드 링크를 발급하지 않는다`() {
+        assertThrows<BadRequestException> {
+            service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", FileUpload.MAX_FILE_SIZE + 1)
+        }
+
+        verify(storageService, never()).generateUploadUrl(any(), any())
+        verify(fileUploadRepository, never()).saveAndFlush(any<FileUpload>())
     }
 
     // ── validateFileUpload ────────────────────────────────────────────────────

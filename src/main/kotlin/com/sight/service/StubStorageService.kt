@@ -9,7 +9,14 @@ import org.springframework.stereotype.Service
 class StubStorageService : StorageService {
     override fun generateUploadUrl(key: String): String = ""
 
+    override fun generateUploadUrl(
+        key: String,
+        size: Long,
+    ): String = ""
+
     override fun isFileExists(key: String): Boolean = true
+
+    override fun getFileSize(key: String): Long? = throw StorageOperationException(StorageFailureReason.TRANSIENT, "파일 저장소가 설정되지 않았습니다.")
 
     override fun deleteFile(key: String) = Unit
 

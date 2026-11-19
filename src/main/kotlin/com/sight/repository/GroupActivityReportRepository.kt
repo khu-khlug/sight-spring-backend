@@ -2,20 +2,15 @@ package com.sight.repository
 
 import com.sight.domain.group.GroupActivityReport
 import com.sight.repository.projection.GroupActivityReportCountProjection
-import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
 interface GroupActivityReportRepository : JpaRepository<GroupActivityReport, String>, GroupActivityReportRepositoryCustom {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from GroupActivityReport r where r.id = :id")
-    fun findLockedById(
-        @Param("id") id: String,
+    fun findByGroupIdAndId(
+        groupId: Long,
+        id: String,
     ): GroupActivityReport?
-
-    fun findByGroupId(groupId: Long): List<GroupActivityReport>
 
     fun existsByGroupIdAndSeminarId(
         groupId: Long,

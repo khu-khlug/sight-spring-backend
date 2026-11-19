@@ -1,5 +1,6 @@
 package com.sight.repository
 
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
 import com.sight.domain.group.GroupLog
@@ -8,6 +9,8 @@ import com.sight.domain.group.GroupStatus
 import com.sight.repository.dto.GroupListDto
 
 interface GroupRepositoryCustom {
+    fun findLockedById(id: Long): Group?
+
     fun findGroups(
         offset: Int,
         limit: Int,

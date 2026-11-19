@@ -1,9 +1,9 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.ActivityReportResponse
+import com.sight.controllers.http.dto.CreateActivityReportUploadLinkRequest
 import com.sight.controllers.http.dto.EditActivityReportRequest
 import com.sight.controllers.http.dto.GetUploadLinkResponse
-import com.sight.controllers.http.dto.ListActivityReportResponse
 import com.sight.controllers.http.dto.ListActivityReportsResponse
 import com.sight.controllers.http.dto.SubmitActivityReportRequest
 import com.sight.core.auth.Auth
@@ -11,9 +11,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.ActivityReportResult
 import com.sight.service.GroupActivityReportService
-import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -28,18 +26,16 @@ import org.springframework.web.bind.annotation.RestController
 class GroupActivityReportController(
     private val groupActivityReportService: GroupActivityReportService,
 ) {
-    companion object {
-        fun uploadLinkRequestPath(groupId: Long) = "/groups/$groupId/activity-report/upload-link"
-    }
-
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
-    @PostMapping("/groups/{groupId}/activity-report/upload-link")
+    @PostMapping("/groups/{groupId}/activity-reports/upload-link")
+    @ResponseStatus(HttpStatus.OK)
     fun getUploadLink(
         @PathVariable groupId: Long,
+        @RequestBody request: CreateActivityReportUploadLinkRequest,
         requester: Requester,
     ): GetUploadLinkResponse {
-        val result = groupActivityReportService.getUploadLink(groupId, requester.userId, requestPath = uploadLinkRequestPath(groupId))
+        val result = groupActivityReportService.getUploadLink(groupId, requester.userId, request.size)
         return GetUploadLinkResponse(
             url = result.url,
             fileKey = result.fileKey,
@@ -49,27 +45,27 @@ class GroupActivityReportController(
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
-    @PostMapping("/groups/{groupId}/activity-report")
+    @PostMapping("/groups/{groupId}/activity-reports")
     @ResponseStatus(HttpStatus.CREATED)
     fun submitReport(
         @PathVariable groupId: Long,
-        @Valid @RequestBody request: SubmitActivityReportRequest,
+        @RequestBody request: SubmitActivityReportRequest,
         requester: Requester,
     ): ActivityReportResponse {
         val result =
             groupActivityReportService.submitReport(
                 groupId = groupId,
                 requesterId = requester.userId,
-                isPresentation = request.isPresentation!!,
-                fileUploadId = request.fileUploadId!!,
-                uploadLinkRequestPath = uploadLinkRequestPath(groupId),
+                isPresentation = request.isPresentation,
+                fileUploadId = request.fileUploadId,
             )
-        return result.toResponse()
+        return ActivityReportResponse.from(result)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
-    @PatchMapping("/groups/{groupId}/activity-report/{reportId}")
+    @PatchMapping("/groups/{groupId}/activity-reports/{reportId}")
+    @ResponseStatus(HttpStatus.OK)
     fun editReport(
         @PathVariable groupId: Long,
         @PathVariable reportId: String,
@@ -83,62 +79,31 @@ class GroupActivityReportController(
                 requesterId = requester.userId,
                 isPresentation = request.isPresentation,
                 fileUploadId = request.fileUploadId,
-                uploadLinkRequestPath = uploadLinkRequestPath(groupId),
             )
-        return result.toResponse()
+        return ActivityReportResponse.from(result)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = true)
-    @DeleteMapping("/groups/{groupId}/activity-report/{reportId}")
+    @DeleteMapping("/groups/{groupId}/activity-reports/{reportId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelReport(
         @PathVariable groupId: Long,
         @PathVariable reportId: String,
+        requester: Requester,
     ) {
         groupActivityReportService.cancelReport(
             groupId = groupId,
             reportId = reportId,
+            requesterId = requester.userId,
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = true)
-    @GetMapping("/groups/{groupId}/activity-report")
+    @GetMapping("/groups/{groupId}/activity-reports")
+    @ResponseStatus(HttpStatus.OK)
     fun listReports(
         @PathVariable groupId: Long,
-    ): ListActivityReportsResponse {
-        val result =
-            groupActivityReportService.listReports(
-                groupId = groupId,
-            )
-        return ListActivityReportsResponse(
-            reports =
-                result.reports.map { item ->
-                    ListActivityReportResponse(
-                        id = item.id,
-                        groupId = item.groupId.toString(),
-                        seminarDate = item.seminarDate,
-                        seminarId = item.seminarId,
-                        seminarIsSummerSeason = item.seminarIsSummerSeason,
-                        seminarIsSpeakAfter = item.seminarIsSpeakAfter,
-                        isPresentation = item.isPresentation,
-                        reportFileUrl = item.reportFileUrl,
-                        createdAt = item.createdAt,
-                        updatedAt = item.updatedAt,
-                    )
-                },
-        )
-    }
-
-    private fun ActivityReportResult.toResponse(): ActivityReportResponse =
-        ActivityReportResponse(
-            id = id,
-            groupId = groupId.toString(),
-            seminarId = seminarId,
-            isPresentation = isPresentation,
-            reportFileKey = reportFileKey,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-        )
+    ): ListActivityReportsResponse = ListActivityReportsResponse.from(groupActivityReportService.listReports(groupId))
 }

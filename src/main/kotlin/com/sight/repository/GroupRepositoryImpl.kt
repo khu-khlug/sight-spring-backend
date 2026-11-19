@@ -5,6 +5,7 @@ import com.querydsl.core.types.Projections
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQuery
 import com.querydsl.jpa.impl.JPAQueryFactory
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
 import com.sight.domain.group.GroupLog
@@ -16,17 +17,28 @@ import com.sight.domain.group.QGroupLog
 import com.sight.domain.group.QGroupMember
 import com.sight.domain.member.QMember
 import com.sight.repository.dto.GroupListDto
+import jakarta.persistence.EntityManager
+import jakarta.persistence.LockModeType
 import org.springframework.stereotype.Repository
 
 @Repository
 class GroupRepositoryImpl(
     private val queryFactory: JPAQueryFactory,
+    private val entityManager: EntityManager,
 ) : GroupRepositoryCustom {
     private val group = QGroup.group
     private val member = QMember.member
     private val groupBookmark = QGroupBookmark.groupBookmark
     private val groupMember = QGroupMember.groupMember
     private val groupLog = QGroupLog.groupLog
+
+    override fun findLockedById(id: Long): Group? {
+        val locked =
+            queryFactory.selectFrom(group).where(group.id.eq(id)).setLockMode(LockModeType.PESSIMISTIC_WRITE).fetchOne()
+                ?: return null
+        entityManager.refresh(locked, LockModeType.PESSIMISTIC_WRITE)
+        return locked
+    }
 
     override fun findGroups(
         offset: Int,

@@ -481,6 +481,24 @@ sealed interface GroupLogData {
             )
     }
 
+    data class ActivityReportSubmitted(val reportId: String, val seminarId: String) : GroupLogData {
+        override val logType = GroupLogType.ACTIVITY_REPORT_SUBMITTED
+
+        override fun fields() = mapOf("reportId" to reportId, "seminarId" to seminarId)
+    }
+
+    data class ActivityReportUpdated(val reportId: String, val seminarId: String) : GroupLogData {
+        override val logType = GroupLogType.ACTIVITY_REPORT_UPDATED
+
+        override fun fields() = mapOf("reportId" to reportId, "seminarId" to seminarId)
+    }
+
+    data class ActivityReportCancelled(val reportId: String, val seminarId: String) : GroupLogData {
+        override val logType = GroupLogType.ACTIVITY_REPORT_CANCELLED
+
+        override fun fields() = mapOf("reportId" to reportId, "seminarId" to seminarId)
+    }
+
     // 세미나
 
     // termSemester는 당시 학기 표시명이다.

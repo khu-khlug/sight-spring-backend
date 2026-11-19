@@ -1,7 +1,13 @@
 package com.sight.repository
 
-import com.sight.repository.dto.GroupActivityReportFileView
+import com.sight.domain.group.GroupActivityReport
+import com.sight.repository.dto.GroupActivityReportView
 
 interface GroupActivityReportRepositoryCustom {
-    fun findWithFilesByGroupId(groupId: Long): List<GroupActivityReportFileView>
+    fun findLockedByGroupIdAndId(
+        groupId: Long,
+        id: String,
+    ): GroupActivityReport?
+
+    fun findWithFileAndSeminarByGroupId(groupId: Long): List<GroupActivityReportView>
 }

@@ -48,7 +48,7 @@ USER and (그룹원 or 운영진)
 | `reports[].seminarIsSummerSeason` | boolean\|null     | true: 여름, false: 겨울. 세미나 참조 row 누락 시 null                                           |
 | `reports[].seminarIsSpeakAfter`  | boolean\|null      | false:먼저말하기 true:나중에말하기. 세미나 참조 row 누락 시 null                                |
 | `reports[].isPresentation`       | boolean            | 발표 여부                                                                                   |
-| `reports[].reportFileUrl`        | string             | 보고 파일 접근 URL. R2 버킷이 public이면 URL, private이면 백엔드가 생성한 Presigned GET URL (클라에서 다운받기 위함이므로 key가 아닌 url) |
+| `reports[].reportFileUrl`        | string             | 활동보고 파일을 내려받는 Presigned GET URL. 다운로드 파일명은 업로드 아이디를 사용한다 |
 | `reports[].createdAt`            | string             | 생성 일시 (ISO 8601 UTC, `Z` 접미사)                                                        |
 | `reports[].updatedAt`            | string             | 변경 일시 (ISO 8601 UTC, `Z` 접미사)                                                        |
 
@@ -63,7 +63,7 @@ USER and (그룹원 or 운영진)
    - 200 응답과 함께 이 그룹의 활동보고를 반환한다. 그룹원이 아닌 운영진도 조회할 수 있다
    - 보고서 아이디는 문자열, 그룹 아이디는 10진 문자열, 시각은 UTC ISO 8601 `Z` 형식이다. 활동보고가 없으면 `reports: []`다
 2. 보고 파일은 내려받을 수 있는 주소로 반환한다
-   - 공개 버킷이면 접근 URL, 비공개 버킷이면 Presigned GET URL을 반환하며 파일 key로 대신하지 않는다
+   - Presigned GET URL을 반환하며, 브라우저에서 파일을 다운로드하도록 응답 헤더를 설정한다
 3. 세미나 정보가 없으면 해당 필드만 null이다
    - 세미나가 없으면 날짜·계절·발표 순서가 모두 null, 일정만 없으면 날짜만 null이다. 활동보고는 그대로 반환한다
    - DB 조회 자체가 실패하면 500 에러를 반환한다

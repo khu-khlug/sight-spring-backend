@@ -1,7 +1,6 @@
 package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.ActivityReportResponse
-import com.sight.controllers.http.dto.CreateActivityReportUploadLinkRequest
 import com.sight.controllers.http.dto.EditActivityReportRequest
 import com.sight.controllers.http.dto.GetUploadLinkResponse
 import com.sight.controllers.http.dto.ListActivityReportResponse
@@ -38,10 +37,9 @@ class GroupActivityReportController(
     @PostMapping("/groups/{groupId}/activity-report/upload-link")
     fun getUploadLink(
         @PathVariable groupId: Long,
-        @RequestBody request: CreateActivityReportUploadLinkRequest,
         requester: Requester,
     ): GetUploadLinkResponse {
-        val result = groupActivityReportService.getUploadLink(groupId, requester.userId, uploadLinkRequestPath(groupId), request.size)
+        val result = groupActivityReportService.getUploadLink(groupId, requester.userId, requestPath = uploadLinkRequestPath(groupId))
         return GetUploadLinkResponse(
             url = result.url,
             fileKey = result.fileKey,

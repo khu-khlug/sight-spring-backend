@@ -70,11 +70,10 @@ class GroupActivityReportService(
         groupId: Long,
         requesterId: Long,
         requestPath: String,
-        size: Long,
     ): UploadLinkResult {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
 
-        val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath, size)
+        val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath)
         groupFileRepository.save(GroupFile(id = integerIdService.nextId(), groupId = groupId, fileUploadId = uploadLink.fileUploadId))
         return uploadLink
     }

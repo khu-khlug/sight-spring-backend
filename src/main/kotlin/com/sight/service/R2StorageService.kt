@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse
 import software.amazon.awssdk.services.s3.model.S3Exception
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest
@@ -24,9 +25,16 @@ class R2StorageService(
         require(bucket.isNotBlank()) { "R2_BUCKET을 설정해야 합니다." }
     }
 
+    override fun generateUploadUrl(key: String): String = presignUpload(key, null)
+
     override fun generateUploadUrl(
         key: String,
         size: Long,
+    ): String = presignUpload(key, size)
+
+    private fun presignUpload(
+        key: String,
+        size: Long?,
     ): String =
         storageRequest {
             presigner.presignPutObject { request ->
@@ -35,12 +43,19 @@ class R2StorageService(
             }.url().toExternalForm()
         }
 
-    override fun isFileExists(key: String): Boolean {
+    override fun isFileExists(key: String): Boolean = headObject(key) != null
+
+    override fun getFileSize(key: String): Long? {
+        val objectInfo = headObject(key) ?: return null
+        return objectInfo.contentLength()?.takeIf { it >= 0 }
+            ?: throw StorageOperationException(StorageFailureReason.TRANSIENT, "파일 크기를 확인할 수 없습니다.")
+    }
+
+    private fun headObject(key: String): HeadObjectResponse? {
         try {
-            storageRequest { s3.headObject { it.bucket(bucket).key(key) } }
-            return true
+            return storageRequest { s3.headObject { it.bucket(bucket).key(key) } }
         } catch (e: StorageOperationException) {
-            if (e.reason == StorageFailureReason.NO_SUCH_KEY) return false
+            if (e.reason == StorageFailureReason.NO_SUCH_KEY) return null
             if (e.reason != StorageFailureReason.TRANSIENT || (e.cause as? S3Exception)?.statusCode() != 404) throw e
 
             // HEAD 응답에 오류 코드가 없을 수 있으므로 버킷이 유효한지 확인한다.
@@ -56,7 +71,7 @@ class R2StorageService(
                 }
                 throw bucketError
             }
-            return false
+            return null
         }
     }
 

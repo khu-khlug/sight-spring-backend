@@ -111,7 +111,7 @@ class GroupActivityReportServiceTest {
                 fileReferences,
             )
         given(storageService.getDownloadUrl(any())).willReturn("https://download.example.com")
-        given(fileUploadService.createUploadLink(any(), any(), any())).willReturn(
+        given(fileUploadService.createUploadLink(any(), any())).willReturn(
             UploadLinkResult(url = "https://upload.example.com", fileKey = "key-1", fileUploadId = "file-1"),
         )
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
@@ -128,10 +128,10 @@ class GroupActivityReportServiceTest {
     fun `getUploadLink는 그룹장이 요청하면 fileUploadService에 위임하고 결과를 반환한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
 
-        val result = service.getUploadLink(1L, 10L, "/groups/1/activity-report/upload-link", 1024L)
+        val result = service.getUploadLink(groupId = 1L, requesterId = 10L, requestPath = "/groups/1/activity-report/upload-link")
 
         assertEquals("https://upload.example.com", result.url)
-        verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link", 1024L)
+        verify(fileUploadService).createUploadLink(10L, "/groups/1/activity-report/upload-link")
         verify(groupFileRepository).save(argThat<GroupFile> { groupId == 1L && fileUploadId == "file-1" })
     }
 
@@ -140,7 +140,7 @@ class GroupActivityReportServiceTest {
         given(groupRepository.findById(1L)).willReturn(Optional.empty())
 
         assertFailsWith<NotFoundException> {
-            service.getUploadLink(1L, 10L, "/groups/1/activity-report/upload-link", 1024L)
+            service.getUploadLink(groupId = 1L, requesterId = 10L, requestPath = "/groups/1/activity-report/upload-link")
         }
     }
 

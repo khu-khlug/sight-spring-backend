@@ -27,13 +27,28 @@ class FileUploadService(
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
+    ): UploadLinkResult = createUpload(memberId, apiPath, null)
+
+    @Transactional
+    fun createUploadLink(
+        memberId: Long,
+        apiPath: String,
         size: Long,
     ): UploadLinkResult {
         if (size !in 0..FileUpload.MAX_FILE_SIZE) {
             throw BadRequestException("파일 크기는 0바이트 이상 ${FileUpload.MAX_FILE_SIZE}바이트 이하여야 합니다.")
         }
+        return createUpload(memberId, apiPath, size)
+    }
+
+    private fun createUpload(
+        memberId: Long,
+        apiPath: String,
+        size: Long?,
+    ): UploadLinkResult {
         val fileKey = UlidCreator.getUlid().toString()
-        val url = storageService.generateUploadUrl(fileKey, size)
+        val url =
+            if (size == null) storageService.generateUploadUrl(fileKey) else storageService.generateUploadUrl(fileKey, size)
         val fileUpload =
             fileUploadRepository.saveAndFlush(
                 FileUpload(

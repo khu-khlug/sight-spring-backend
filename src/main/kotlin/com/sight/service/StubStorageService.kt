@@ -7,12 +7,16 @@ import org.springframework.stereotype.Service
 @Service
 @ConditionalOnProperty(prefix = "storage.r2", name = ["enabled"], havingValue = "false", matchIfMissing = true)
 class StubStorageService : StorageService {
+    override fun generateUploadUrl(key: String): String = ""
+
     override fun generateUploadUrl(
         key: String,
         size: Long,
     ): String = ""
 
     override fun isFileExists(key: String): Boolean = true
+
+    override fun getFileSize(key: String): Long? = throw StorageOperationException(StorageFailureReason.TRANSIENT, "파일 저장소가 설정되지 않았습니다.")
 
     override fun deleteFile(key: String) = Unit
 

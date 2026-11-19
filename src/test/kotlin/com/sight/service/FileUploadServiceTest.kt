@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -30,7 +31,7 @@ class FileUploadServiceTest {
     @BeforeEach
     fun setUp() {
         service = FileUploadService(fileUploadRepository, storageService, deletions)
-        given(storageService.generateUploadUrl(any(), any())).willReturn("https://upload.example.com")
+        given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
         given(fileUploadRepository.saveAndFlush(any<FileUpload>())).willReturn(baseFileUpload)
     }
@@ -43,13 +44,11 @@ class FileUploadServiceTest {
             service.createUploadLink(
                 memberId = 10L,
                 apiPath = "/groups/1/activity-report/upload-link",
-                size = FileUpload.MAX_FILE_SIZE,
             )
 
-        verify(storageService).generateUploadUrl(result.fileKey, FileUpload.MAX_FILE_SIZE)
         verify(fileUploadRepository).saveAndFlush(
             argThat {
-                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link" && size == FileUpload.MAX_FILE_SIZE
+                uploaderMemberId == 10L && apiPath == "/groups/1/activity-report/upload-link"
             },
         )
         assert(result.url == "https://upload.example.com")
@@ -57,9 +56,20 @@ class FileUploadServiceTest {
     }
 
     @Test
+    fun `요청한 크기로 업로드 링크를 발급하고 같은 크기를 저장한다`() {
+        val size = FileUpload.MAX_FILE_SIZE
+        given(storageService.generateUploadUrl(any(), eq(size))).willReturn("https://upload.example.com")
+
+        val link = service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", size)
+
+        verify(storageService).generateUploadUrl(link.fileKey, size)
+        verify(fileUploadRepository).saveAndFlush(argThat { this.size == size && fileKey == link.fileKey })
+    }
+
+    @Test
     fun `최대 크기를 초과한 파일에는 업로드 링크를 발급하지 않는다`() {
         assertThrows<BadRequestException> {
-            service.createUploadLink(10L, "/groups/1/activity-report/upload-link", FileUpload.MAX_FILE_SIZE + 1)
+            service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", FileUpload.MAX_FILE_SIZE + 1)
         }
 
         verify(storageService, never()).generateUploadUrl(any(), any())

@@ -9,4 +9,9 @@ interface StorageService {
     fun deleteFile(key: String)
 
     fun getDownloadUrl(key: String): String
+
+    fun getDownloadUrl(
+        key: String,
+        options: FileDownloadOptions,
+    ): SignedFileUrl
 }

@@ -17,5 +17,5 @@ class LegacyFile(
     val countDownload: Long,
     val updatedAt: Instant,
     val createdAt: Instant,
-    val readCache: FileReadCache = FileReadCache(),
+    val urlCache: FileUrlCache? = null,
 )

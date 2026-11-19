@@ -15,6 +15,8 @@ interface FileReferenceRepository {
 
     fun existsByFileUploadId(fileUploadId: String): Boolean
 
+    fun findDistinctTypesByFileUploadId(fileUploadId: String): Set<FileReferenceType>
+
     fun save(reference: FileReference): FileReference
 
     fun deleteByIdAndTypeAndOwner(

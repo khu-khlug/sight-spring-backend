@@ -28,6 +28,12 @@ class FileReferenceRepositoryImpl(private val entityManager: EntityManager) : Fi
             String::class.java,
         ).setParameter("fileId", fileUploadId).setMaxResults(1).resultList.isNotEmpty()
 
+    override fun findDistinctTypesByFileUploadId(fileUploadId: String): Set<FileReferenceType> =
+        entityManager.createQuery(
+            "select distinct r.referenceType from FileReference r where r.fileUploadId = :fileId",
+            FileReferenceType::class.java,
+        ).setParameter("fileId", fileUploadId).resultList.toSet()
+
     override fun save(reference: FileReference): FileReference {
         entityManager.persist(reference)
         // 도메인별 부가정보가 이 참조의 FK를 저장하기 전에 참조 행을 생성한다.

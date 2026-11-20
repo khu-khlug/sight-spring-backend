@@ -34,6 +34,7 @@ class GroupServiceTest {
     private val groupMemberRepository = mock<GroupMemberRepository>()
     private val pointService = mock<PointService>()
     private val notificationService = mock<NotificationService>()
+    private val groupLogService = mock<GroupLogService>()
     private lateinit var groupService: GroupService
 
     private val baseGroup =
@@ -55,6 +56,7 @@ class GroupServiceTest {
                 groupMemberRepository,
                 pointService,
                 notificationService,
+                groupLogService,
             )
         given(
             groupRepository.findGroups(

@@ -7,10 +7,13 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.DynamicUpdate
 import java.time.Instant
 
 // JPQL 엔티티 이름 Group은 예약어 GROUP과 겹치므로 KhlugGroup을 쓴다.
 @Entity(name = "KhlugGroup")
+// 정보 변경처럼 일부 값만 바꾸는 저장이 동시에 갱신된 그룹원 수·최근 활동 일시 등 다른 컬럼을 덮어쓰지 않도록 바뀐 컬럼만 갱신한다.
+@DynamicUpdate
 // TODO: 그룹 목록 조회 API를 변경할 때 필터·정렬에 필요한 인덱스를 추가한다.
 @Table(name = "khlug_group")
 class Group(

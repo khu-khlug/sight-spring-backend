@@ -12,6 +12,7 @@ import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
 import com.sight.controllers.http.dto.PublishPortfolioResponse
+import com.sight.controllers.http.dto.UpdateGroupRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -137,6 +139,29 @@ class GroupController(
                 ),
             hasChatRoom = result.hasChatRoom,
             chatRoomUrl = result.chatRoomUrl,
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER, GroupPermission.MANAGER], groupId = "groupId", allowManager = false)
+    @PutMapping("/groups/{groupId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun updateGroup(
+        @PathVariable groupId: Long,
+        @Valid @RequestBody request: UpdateGroupRequest,
+        requester: Requester,
+    ) {
+        groupService.updateGroup(
+            groupId = groupId,
+            requester = requester,
+            title = request.title!!,
+            description = request.description,
+            category = request.category!!,
+            interests = request.interests,
+            techStack = request.techStack,
+            repositoryUrls = request.repositoryUrls,
+            allowJoin = request.allowJoin!!,
+            visibility = request.visibility!!,
         )
     }
 

@@ -25,9 +25,27 @@ class GroupMemberRepository(
     fun findMemberListByGroupId(groupId: Long): List<GroupMemberListDto> {
         return jdbcTemplate.query(
             """
-            SELECT m.id AS user_id, m.name AS name, m.realname AS realname
+            SELECT
+                m.id AS user_id,
+                m.realname AS name,
+                m.college AS college,
+                COALESCE(c.card_count, 0) AS card_count,
+                COALESCE(r.record_count, 0) AS record_count
             FROM khlug_group_member gm
             JOIN khlug_members m ON gm.member_id = m.id
+            LEFT JOIN (
+                SELECT author_member_id, COUNT(*) AS card_count
+                FROM khlug_group_card
+                WHERE group_id = ? AND deleted_at IS NULL
+                GROUP BY author_member_id
+            ) c ON c.author_member_id = m.id
+            LEFT JOIN (
+                SELECT rc.author_member_id, COUNT(*) AS record_count
+                FROM khlug_group_record rc
+                JOIN khlug_group_card gc ON rc.card_id = gc.id
+                WHERE gc.group_id = ? AND rc.deleted_at IS NULL AND gc.deleted_at IS NULL
+                GROUP BY rc.author_member_id
+            ) r ON r.author_member_id = m.id
             WHERE gm.group_id = ?
             ORDER BY m.id ASC
             """.trimIndent(),
@@ -35,9 +53,13 @@ class GroupMemberRepository(
                 GroupMemberListDto(
                     userId = rs.getLong("user_id"),
                     name = rs.getString("name"),
-                    realname = rs.getString("realname"),
+                    college = rs.getString("college"),
+                    cardCount = rs.getLong("card_count"),
+                    recordCount = rs.getLong("record_count"),
                 )
             },
+            groupId,
+            groupId,
             groupId,
         )
     }

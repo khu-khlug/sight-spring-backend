@@ -1,5 +1,6 @@
 package com.sight.controllers.http
 
+import com.sight.config.MockAuthenticationFilter
 import com.sight.core.auth.AuthAspect
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -29,7 +30,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.EnableAspectJAutoProxy
+import org.springframework.context.annotation.FilterType
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -48,6 +51,7 @@ import java.util.Optional
 @WebMvcTest(
     GroupController::class,
     excludeAutoConfiguration = [SecurityAutoConfiguration::class],
+    excludeFilters = [ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = [MockAuthenticationFilter::class])],
 )
 @Import(AuthAspect::class, GroupAuthAspect::class, GroupAuthorizationService::class)
 @EnableAspectJAutoProxy

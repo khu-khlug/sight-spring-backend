@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.sight.config.IntegerIdConfig
 import com.sight.config.QueryDslConfig
 import com.sight.core.exception.BaseException
+import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.testGroup
 import com.sight.domain.group.testGroupMember
@@ -67,6 +68,9 @@ class GroupApiTransactionTest {
 
     @Autowired
     private lateinit var service: GroupService
+
+    @Autowired
+    private lateinit var logs: GroupLogService
 
     @Autowired
     private lateinit var jdbc: JdbcTemplate
@@ -140,15 +144,12 @@ class GroupApiTransactionTest {
     @Test
     fun `알림 저장이 실패하면 즐겨찾기 추가와 취소도 롤백된다`() {
         service.addBookmark(1L, 20L)
-        jdbc.execute(
-            "ALTER TABLE notification ADD CONSTRAINT reject_test_bookmark_alert " +
-                "CHECK (user_id = 20 AND title <> '그룹 즐겨찾기 해제')",
-        )
+        jdbc.execute("ALTER TABLE notification ADD CONSTRAINT reject_test_bookmark_alert UNIQUE (category)")
         try {
             assertThrows<DataIntegrityViolationException> { service.addBookmark(1L, 10L) }
             assertThrows<DataIntegrityViolationException> { service.cancelBookmark(1L, 20L) }
         } finally {
-            jdbc.execute("ALTER TABLE notification DROP CHECK reject_test_bookmark_alert")
+            jdbc.execute("ALTER TABLE notification DROP INDEX reject_test_bookmark_alert")
         }
 
         assertEquals(0L, count("SELECT COUNT(*) FROM khlug_group_bookmark WHERE member_id = 10"))
@@ -175,18 +176,20 @@ class GroupApiTransactionTest {
 
     @Test
     fun `포트폴리오 로그 저장이 실패하면 앞선 DB 변경도 롤백된다`() {
-        jdbc.execute("ALTER TABLE khlug_group_log ADD CONSTRAINT reject_test_actor CHECK (actor_member_id <> 10)")
+        logs.createLog(1L, 10L, GroupLogData.GroupProgress)
+        jdbc.execute("ALTER TABLE khlug_group_log ADD CONSTRAINT reject_test_group_log UNIQUE (group_id)")
         try {
             assertThrows<DataIntegrityViolationException> { service.publishPortfolio(1L, 10L) }
         } finally {
-            jdbc.execute("ALTER TABLE khlug_group_log DROP CHECK reject_test_actor")
+            jdbc.execute("ALTER TABLE khlug_group_log DROP INDEX reject_test_group_log")
         }
 
         assertEquals(false, groups.findById(1L).orElseThrow().isPortfolioPublished)
         assertEquals(2L, count("SELECT COUNT(*) FROM khlug_members WHERE expoint = 0"))
         assertEquals(0L, count("SELECT COUNT(*) FROM expoint_log"))
         assertEquals(0L, count("SELECT COUNT(*) FROM notification"))
-        assertEquals(0L, count("SELECT COUNT(*) FROM khlug_group_log"))
+        assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log WHERE log_type = 'GROUP_PROGRESS'"))
+        assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log"))
     }
 
     private fun count(sql: String): Long = requireNotNull(jdbc.queryForObject(sql, Long::class.javaObjectType))

@@ -3,6 +3,7 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
 import com.sight.domain.group.GroupLogData
@@ -670,7 +671,7 @@ class GroupServiceTest {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupBookmarkRepository.existsByMemberIdAndGroupId(10L, 1L)).willReturn(false)
         val failure = DataIntegrityViolationException("즐겨찾기 저장 실패")
-        given(groupBookmarkRepository.saveAndFlush(any())).willThrow(failure)
+        given(groupBookmarkRepository.saveAndFlush(any<GroupBookmark>())).willThrow(failure)
 
         val thrown = assertThrows<DataIntegrityViolationException> {
             groupService.addBookmark(groupId = 1L, requesterId = 10L)

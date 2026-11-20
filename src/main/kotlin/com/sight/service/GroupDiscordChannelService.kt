@@ -4,6 +4,7 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupDiscordChannel
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.GroupDiscordChannelRepository
@@ -31,11 +32,7 @@ class GroupDiscordChannelService(
                 NotFoundException("그룹을 찾을 수 없습니다")
             }
 
-        if (group.master != requesterId) {
-            throw ForbiddenException("그룹장만 디스코드 채널을 생성할 수 있습니다")
-        }
-
-        if (groupDiscordChannelRepository.existsByGroupId(groupId)) {
+        if (groupDiscordChannelRepository.findByGroupId(groupId) != null) {
             throw UnprocessableEntityException("이미 디스코드 채널이 존재합니다")
         }
 
@@ -83,10 +80,7 @@ class GroupDiscordChannelService(
             discordIntegrationRepository.findByUserId(memberId)
                 ?: throw UnprocessableEntityException("해당 멤버의 디스코드 연동 정보가 존재하지 않습니다")
 
-        discordApiAdapter.addMemberToChannel(
-            groupDiscordChannel.discordChannelId,
-            discordIntegration.discordUserId,
-        )
+        discordApiAdapter.addMemberToChannel(groupDiscordChannel.discordChannelId, discordIntegration.discordUserId)
     }
 
     @Transactional(readOnly = true)
@@ -108,18 +102,15 @@ class GroupDiscordChannelService(
             discordIntegrationRepository.findByUserId(userId)
                 ?: return false
 
-        return discordApiAdapter.isUserInChannel(
-            groupDiscordChannel.discordChannelId,
-            discordIntegration.discordUserId,
-        )
+        return discordApiAdapter.isUserInChannel(groupDiscordChannel.discordChannelId, discordIntegration.discordUserId)
     }
 
     private fun validateMemberAddPermission(
-        group: com.sight.domain.group.Group,
+        group: Group,
         memberId: Long,
         requesterId: Long,
     ) {
-        if (group.master == requesterId) {
+        if (group.isLeader(requesterId)) {
             return
         }
 

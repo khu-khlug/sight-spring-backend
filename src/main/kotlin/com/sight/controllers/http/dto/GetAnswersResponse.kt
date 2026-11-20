@@ -26,7 +26,7 @@ data class AnswerDto(
     val role: String?,
     val hasIdea: Boolean?,
     val idea: String?,
-    val matchedGroupIds: List<Long>,
+    val matchedGroupIds: List<String>,
 )
 
 data class AnswerOptionDto(

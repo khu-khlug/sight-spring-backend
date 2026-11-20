@@ -3,19 +3,32 @@ package com.sight.repository
 import com.sight.domain.group.GroupMember
 import com.sight.repository.dto.GroupMemberListDto
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.RowMapper
 import org.springframework.stereotype.Repository
+import java.sql.Timestamp
+import java.time.Instant
 
 @Repository
 class GroupMemberRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
+    private val groupMemberRowMapper =
+        RowMapper { rs, _ ->
+            GroupMember(
+                id = rs.getLong("id"),
+                groupId = rs.getLong("group_id"),
+                memberId = rs.getLong("member_id"),
+                joinedAt = rs.getTimestamp("joined_at").toInstant(),
+            )
+        }
+
     fun findMemberListByGroupId(groupId: Long): List<GroupMemberListDto> {
         return jdbcTemplate.query(
             """
             SELECT m.id AS user_id, m.name AS name, m.realname AS realname
             FROM khlug_group_member gm
-            JOIN khlug_members m ON gm.member = m.id
-            WHERE gm.`group` = ?
+            JOIN khlug_members m ON gm.member_id = m.id
+            WHERE gm.group_id = ?
             ORDER BY m.id ASC
             """.trimIndent(),
             { rs, _ ->
@@ -31,26 +44,16 @@ class GroupMemberRepository(
 
     fun findByGroupId(groupId: Long): List<GroupMember> {
         return jdbcTemplate.query(
-            "SELECT `group`, member FROM khlug_group_member WHERE `group` = ?",
-            { rs, _ ->
-                GroupMember(
-                    group = rs.getLong("group"),
-                    member = rs.getLong("member"),
-                )
-            },
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ?",
+            groupMemberRowMapper,
             groupId,
         )
     }
 
     fun findByMemberId(memberId: Long): List<GroupMember> {
         return jdbcTemplate.query(
-            "SELECT `group`, member FROM khlug_group_member WHERE member = ?",
-            { rs, _ ->
-                GroupMember(
-                    group = rs.getLong("group"),
-                    member = rs.getLong("member"),
-                )
-            },
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE member_id = ?",
+            groupMemberRowMapper,
             memberId,
         )
     }
@@ -59,21 +62,12 @@ class GroupMemberRepository(
         groupId: Long,
         memberId: Long,
     ): GroupMember? {
-        return try {
-            jdbcTemplate.queryForObject(
-                "SELECT `group`, member FROM khlug_group_member WHERE `group` = ? AND member = ?",
-                { rs, _ ->
-                    GroupMember(
-                        group = rs.getLong("group"),
-                        member = rs.getLong("member"),
-                    )
-                },
-                groupId,
-                memberId,
-            )
-        } catch (e: Exception) {
-            null
-        }
+        return jdbcTemplate.query(
+            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
+            groupMemberRowMapper,
+            groupId,
+            memberId,
+        ).firstOrNull()
     }
 
     fun existsByGroupIdAndMemberId(
@@ -82,7 +76,7 @@ class GroupMemberRepository(
     ): Boolean {
         val count =
             jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM khlug_group_member WHERE `group` = ? AND member = ?",
+                "SELECT COUNT(*) FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
                 Int::class.java,
                 groupId,
                 memberId,
@@ -92,22 +86,27 @@ class GroupMemberRepository(
     }
 
     fun save(
+        id: Long,
         groupId: Long,
         memberId: Long,
+        joinedAt: Instant,
     ) {
         jdbcTemplate.update(
-            "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",
+            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
+            id,
             groupId,
             memberId,
+            Timestamp.from(joinedAt),
         )
     }
 
+    // 삭제한 행 수를 반환한다. 0이면 이미 그룹원이 아니다.
     fun delete(
         groupId: Long,
         memberId: Long,
-    ) {
-        jdbcTemplate.update(
-            "DELETE FROM khlug_group_member WHERE `group` = ? AND member = ?",
+    ): Int {
+        return jdbcTemplate.update(
+            "DELETE FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
             groupId,
             memberId,
         )
@@ -115,12 +114,14 @@ class GroupMemberRepository(
 
     fun saveAll(groupMembers: List<GroupMember>) {
         jdbcTemplate.batchUpdate(
-            "INSERT INTO khlug_group_member (`group`, member) VALUES (?, ?)",
+            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
             groupMembers,
             groupMembers.size,
         ) { ps, groupMember ->
-            ps.setLong(1, groupMember.group)
-            ps.setLong(2, groupMember.member)
+            ps.setLong(1, groupMember.id)
+            ps.setLong(2, groupMember.groupId)
+            ps.setLong(3, groupMember.memberId)
+            ps.setTimestamp(4, Timestamp.from(groupMember.joinedAt))
         }
     }
 }

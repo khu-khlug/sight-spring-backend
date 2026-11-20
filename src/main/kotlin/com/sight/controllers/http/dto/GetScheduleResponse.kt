@@ -8,7 +8,7 @@ import com.sight.domain.seminar.BigSeminar
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class GetScheduleResponse(
-    val id: Long,
+    val id: String,
     val title: String,
     val category: ScheduleCategory,
     val location: String?,
@@ -19,7 +19,7 @@ data class GetScheduleResponse(
     val checkCode: String?,
     val author: Long,
     val authorName: String?,
-    val groupId: Long?,
+    val groupId: String?,
     val groupTitle: String?,
     val createdAt: String,
     val updatedAt: String,
@@ -35,7 +35,7 @@ data class GetScheduleResponse(
             groupTitle: String? = null,
         ): GetScheduleResponse {
             return GetScheduleResponse(
-                id = schedule.id,
+                id = schedule.id.toString(),
                 title = schedule.title,
                 category = schedule.category,
                 location = schedule.location,
@@ -46,7 +46,7 @@ data class GetScheduleResponse(
                 checkCode = if (role == UserRole.MANAGER) schedule.checkCode else null,
                 author = schedule.author,
                 authorName = authorName,
-                groupId = schedule.groupId,
+                groupId = schedule.groupId?.toString(),
                 groupTitle = groupTitle,
                 createdAt = schedule.createdAt.toString(),
                 updatedAt = schedule.updatedAt.toString(),

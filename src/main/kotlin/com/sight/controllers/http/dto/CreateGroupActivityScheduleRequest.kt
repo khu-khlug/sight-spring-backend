@@ -1,5 +1,6 @@
 package com.sight.controllers.http.dto
 
+import com.sight.core.id.IntegerId
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import java.time.LocalDateTime
@@ -13,5 +14,6 @@ data class CreateGroupActivityScheduleRequest(
     @field:NotNull
     val endAt: LocalDateTime,
     @field:NotNull
-    val groupId: Long,
+    @field:IntegerId
+    val groupId: String,
 )

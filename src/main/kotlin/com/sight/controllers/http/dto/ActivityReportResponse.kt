@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 
 data class ActivityReportResponse(
     val id: String,
-    val groupId: Long,
+    val groupId: String,
     val seminarId: String,
     val isPresentation: Boolean,
     val reportFileKey: String,

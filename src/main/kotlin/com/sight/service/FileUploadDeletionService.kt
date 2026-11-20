@@ -56,25 +56,32 @@ class FileUploadDeletionService(
 
     fun deleteMarkedFileUpload(fileUploadId: String) {
         try {
-            val key =
-                transaction.execute {
-                    uploads.findById(fileUploadId).orElse(null)
-                        ?.takeIf { it.isDeleted && !references.existsByFileUploadId(fileUploadId) }?.fileKey
-                } ?: return
-            try {
-                storage.deleteFile(key)
-            } catch (e: StorageOperationException) {
-                if (e.reason != StorageFailureReason.NO_SUCH_KEY) throw e
-            }
-            transaction.executeWithoutResult {
-                val file = uploads.findForUpdateById(fileUploadId)
-                if (file != null && file.isDeleted && !references.existsByFileUploadId(fileUploadId)) {
-                    groupFiles.deleteByFileUploadId(fileUploadId)
-                    uploads.delete(file)
-                }
-            }
+            deleteMarkedFileUploadForMaintenance(fileUploadId)
         } catch (e: Exception) {
             logger.error("파일 삭제 실패: fileId={}", fileUploadId, e)
         }
+    }
+
+    fun deleteMarkedFileUploadForMaintenance(fileUploadId: String): FileUploadDeletionResult {
+        val key =
+            transaction.execute {
+                uploads.findById(fileUploadId).orElse(null)
+                    ?.takeIf { it.isDeleted && !references.existsByFileUploadId(fileUploadId) }?.fileKey
+            } ?: return FileUploadDeletionResult.SKIPPED
+        var result = FileUploadDeletionResult.DELETED
+        try {
+            storage.deleteFile(key)
+        } catch (e: StorageOperationException) {
+            if (e.reason != StorageFailureReason.NO_SUCH_KEY) throw e
+            result = FileUploadDeletionResult.ALREADY_ABSENT
+        }
+        transaction.executeWithoutResult {
+            val file = uploads.findForUpdateById(fileUploadId)
+            if (file != null && file.isDeleted && !references.existsByFileUploadId(fileUploadId)) {
+                groupFiles.deleteByFileUploadId(fileUploadId)
+                uploads.delete(file)
+            }
+        }
+        return result
     }
 }

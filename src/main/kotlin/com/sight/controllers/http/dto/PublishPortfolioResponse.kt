@@ -1,5 +1,8 @@
 package com.sight.controllers.http.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
+
 data class PublishPortfolioResponse(
-    val published: Boolean,
+    @get:JsonProperty("isPublished")
+    val isPublished: Boolean,
 )

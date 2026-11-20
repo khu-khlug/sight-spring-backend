@@ -23,6 +23,7 @@ import com.sight.service.GroupService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -196,7 +197,7 @@ class GroupController(
     @PostMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.CREATED)
     fun addBookmark(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive(message = "그룹 아이디는 양의 정수여야 합니다.") groupId: Long,
         requester: Requester,
     ) {
         groupService.addBookmark(groupId, requester.userId)
@@ -207,7 +208,7 @@ class GroupController(
     @DeleteMapping("/groups/{groupId}/bookmark")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelBookmark(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive(message = "그룹 아이디는 양의 정수여야 합니다.") groupId: Long,
         requester: Requester,
     ) {
         groupService.cancelBookmark(groupId, requester.userId)
@@ -216,11 +217,13 @@ class GroupController(
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/portfolio")
+    @ResponseStatus(HttpStatus.OK)
     fun publishPortfolio(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive(message = "그룹 아이디는 양의 정수여야 합니다.") groupId: Long,
+        requester: Requester,
     ): PublishPortfolioResponse {
-        val published = groupService.publishPortfolio(groupId)
-        return PublishPortfolioResponse(published = published)
+        val published = groupService.publishPortfolio(groupId, requester.userId)
+        return PublishPortfolioResponse(isPublished = published)
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
@@ -228,9 +231,10 @@ class GroupController(
     @DeleteMapping("/groups/{groupId}/portfolio")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun cancelPortfolio(
-        @PathVariable groupId: Long,
+        @PathVariable @Positive(message = "그룹 아이디는 양의 정수여야 합니다.") groupId: Long,
+        requester: Requester,
     ) {
-        groupService.cancelPortfolio(groupId)
+        groupService.cancelPortfolio(groupId, requester.userId)
     }
 
     @Auth([UserRole.MANAGER])

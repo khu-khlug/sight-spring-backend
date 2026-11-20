@@ -36,13 +36,15 @@ class GroupMemberController(
             )
 
         return ListGroupMembersResponse(
+            leaderUserId = result.leaderUserId,
             members =
                 result.members.map { member ->
                     ListGroupMemberResponse(
                         userId = member.userId,
                         name = member.name,
-                        realname = member.realname,
-                        isLeader = member.isLeader,
+                        college = member.college,
+                        cardCount = member.cardCount,
+                        recordCount = member.recordCount,
                     )
                 },
         )

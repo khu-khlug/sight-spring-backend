@@ -11,6 +11,7 @@ import com.sight.domain.group.testGroup
 import com.sight.repository.GroupAuthorizationRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
+import com.sight.service.GroupMemberListItem
 import com.sight.service.GroupMemberListResult
 import com.sight.service.GroupMemberService
 import org.junit.jupiter.api.AfterEach
@@ -31,6 +32,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.Optional
 
@@ -62,15 +64,36 @@ class GroupMemberControllerTest {
     }
 
     @Test
-    fun `그룹원 목록은 그룹을 열람할 수 있는 회원만 조회할 수 있다`() {
+    fun `그룹원 목록은 그룹을 열람할 수 있는 회원만 조회할 수 있고 응답 필드를 포함한다`() {
         givenGroup(visibility = GroupVisibility.PRIVATE)
-        given(groupMemberService.listGroupMembers(GROUP_ID)).willReturn(GroupMemberListResult(members = emptyList()))
+        given(groupMemberService.listGroupMembers(GROUP_ID)).willReturn(
+            GroupMemberListResult(
+                leaderUserId = LEADER_ID,
+                members =
+                    listOf(
+                        GroupMemberListItem(
+                            userId = LEADER_ID,
+                            name = "홍길동",
+                            college = "공과대학",
+                            cardCount = 3L,
+                            recordCount = 7L,
+                        ),
+                    ),
+            ),
+        )
 
         authenticate(OUTSIDER_ID, UserRole.USER)
         mockMvc.perform(get("/groups/$GROUP_ID/members")).andExpect(status().isForbidden)
 
         authenticate(MEMBER_ID, UserRole.USER)
-        mockMvc.perform(get("/groups/$GROUP_ID/members")).andExpect(status().isOk)
+        mockMvc.perform(get("/groups/$GROUP_ID/members"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.leaderUserId").value(LEADER_ID))
+            .andExpect(jsonPath("$.members[0].userId").value(LEADER_ID))
+            .andExpect(jsonPath("$.members[0].name").value("홍길동"))
+            .andExpect(jsonPath("$.members[0].college").value("공과대학"))
+            .andExpect(jsonPath("$.members[0].cardCount").value(3))
+            .andExpect(jsonPath("$.members[0].recordCount").value(7))
     }
 
     @Test

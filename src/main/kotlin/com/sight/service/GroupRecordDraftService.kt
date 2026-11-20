@@ -15,16 +15,64 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
+data class GroupRecordDraftMetadataResult(
+    val isNewRecord: Boolean,
+    val cardId: Long,
+    val cardTitle: String,
+    val recordId: Long?,
+    val updatedAt: Instant,
+)
+
+data class GroupRecordDraftResult(
+    val isNewRecord: Boolean,
+    val cardId: Long,
+    val cardTitle: String,
+    val recordId: Long?,
+    val content: String,
+    val updatedAt: Instant,
+    val files: List<RecordFileResult>,
+)
+
 @Service
-class GroupRecordDraftSaveService(
+class GroupRecordDraftService(
     private val drafts: GroupRecordDraftRepository,
-    private val groups: GroupRepository,
     private val cards: GroupCardRepository,
+    private val attachments: GroupRecordAttachmentService,
+    private val groups: GroupRepository,
     private val records: GroupRecordRepository,
     private val members: MemberRepository,
-    private val attachments: GroupRecordAttachmentService,
     private val ids: IntegerIdService,
 ) {
+    @Transactional(readOnly = true)
+    fun getGroupRecordDraftMetadataByMemberId(
+        groupId: Long,
+        memberId: Long,
+    ): GroupRecordDraftMetadataResult? {
+        val draft = drafts.findByMemberId(memberId)?.takeIf { it.belongsTo(groupId) } ?: return null
+        val card = cards.findById(draft.cardId).orElseThrow { NotFoundException("카드를 찾을 수 없습니다.") }
+        return GroupRecordDraftMetadataResult(draft.isNewRecord, draft.cardId, card.title, draft.recordId, draft.updatedAt)
+    }
+
+    @Transactional(readOnly = true)
+    fun getGroupRecordDraftByMemberId(
+        groupId: Long,
+        memberId: Long,
+    ): GroupRecordDraftResult {
+        val draft =
+            drafts.findByMemberId(memberId)?.takeIf { it.belongsTo(groupId) }
+                ?: throw NotFoundException("임시저장을 찾을 수 없습니다.")
+        val card = cards.findById(draft.cardId).orElseThrow { NotFoundException("카드를 찾을 수 없습니다.") }
+        return GroupRecordDraftResult(
+            draft.isNewRecord,
+            draft.cardId,
+            card.title,
+            draft.recordId,
+            draft.content,
+            draft.updatedAt,
+            attachments.getDraftFiles(groupId, draft.id),
+        )
+    }
+
     @Transactional
     fun updateGroupRecordDraft(
         groupId: Long,
@@ -74,5 +122,18 @@ class GroupRecordDraftSaveService(
             }
         if (draft == null) drafts.save(saved)
         return attachments.replaceDraftFiles(groupId, memberId, saved.id, files, reset).uploads
+    }
+
+    @Transactional
+    fun deleteGroupRecordDraft(
+        groupId: Long,
+        memberId: Long,
+    ) {
+        members.findForUpdateById(memberId) ?: throw NotFoundException("회원을 찾을 수 없습니다.")
+        val group = groups.findLockedById(groupId) ?: throw NotFoundException("그룹을 찾을 수 없습니다.")
+        if (group.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
+        val draft = drafts.findByMemberId(memberId)?.takeIf { it.belongsTo(groupId) } ?: return
+        attachments.deleteDraftFiles(draft.id)
+        drafts.delete(draft)
     }
 }

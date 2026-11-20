@@ -7,7 +7,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.GroupRecordDraftMetadataService
+import com.sight.service.GroupRecordDraftService
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class GroupRecordDraftMetadataController(private val service: GroupRecordDraftMetadataService) {
+class GroupRecordDraftMetadataController(private val service: GroupRecordDraftService) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @GetMapping("/groups/{groupId}/records/draft/meta")

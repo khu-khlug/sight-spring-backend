@@ -6,7 +6,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.GroupRecordMoveService
+import com.sight.service.GroupRecordStateService
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PathVariable
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class GroupRecordMoveController(private val service: GroupRecordMoveService) {
+class GroupRecordMoveController(private val service: GroupRecordStateService) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @PutMapping("/groups/{groupId}/records/{recordId}/position")

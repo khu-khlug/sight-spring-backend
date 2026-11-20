@@ -9,7 +9,8 @@ import org.mockito.kotlin.verify
 
 class GroupRecordArchiveServiceTest {
     private val groupRecordArchiveRepository = mock<GroupRecordArchiveRepository>()
-    private val groupRecordArchiveService = GroupRecordArchiveService(groupRecordArchiveRepository)
+    private val groupRecordArchiveService =
+        GroupRecordArchiveService(groupRecordArchiveRepository, mock(), mock(), mock())
 
     @Test
     fun `page만큼 10개씩 건너뛴 위치부터 요청자의 보관 기록을 조회한다`() {

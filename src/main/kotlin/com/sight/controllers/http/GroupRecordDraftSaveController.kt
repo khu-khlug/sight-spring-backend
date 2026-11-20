@@ -8,7 +8,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.GroupRecordDraftSaveService
+import com.sight.service.GroupRecordDraftService
 import com.sight.service.RecordFileInput
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class GroupRecordDraftSaveController(private val service: GroupRecordDraftSaveService) {
+class GroupRecordDraftSaveController(private val service: GroupRecordDraftService) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @PutMapping("/groups/{groupId}/records/draft")

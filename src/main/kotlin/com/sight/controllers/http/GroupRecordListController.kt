@@ -8,7 +8,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.GroupRecordListService
+import com.sight.service.GroupRecordReadService
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class GroupRecordListController(private val service: GroupRecordListService) {
+class GroupRecordListController(private val service: GroupRecordReadService) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @GetMapping("/groups/{groupId}/cards/{cardId}/records")

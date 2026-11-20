@@ -8,7 +8,7 @@ import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
-import com.sight.service.GroupRecordUpdateService
+import com.sight.service.GroupRecordWriteService
 import com.sight.service.RecordFileInput
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-class GroupRecordUpdateController(private val service: GroupRecordUpdateService) {
+class GroupRecordUpdateController(private val service: GroupRecordWriteService) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.RECORD_AUTHOR], groupId = "groupId", recordId = "recordId", allowManager = false)
     @PatchMapping("/groups/{groupId}/records/{recordId}")

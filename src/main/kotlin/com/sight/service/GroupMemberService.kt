@@ -3,7 +3,6 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupPolicy
@@ -19,11 +18,13 @@ import java.time.Instant
 data class GroupMemberListItem(
     val userId: Long,
     val name: String,
-    val realname: String,
-    val isLeader: Boolean,
+    val college: String,
+    val cardCount: Long,
+    val recordCount: Long,
 )
 
 data class GroupMemberListResult(
+    val leaderUserId: Long?,
     val members: List<GroupMemberListItem>,
 )
 
@@ -45,20 +46,26 @@ class GroupMemberService(
             }
 
         val members = groupMemberRepository.findMemberListByGroupId(groupId)
+        val leaderId = group.leaderMemberId
         val sorted =
             members
-                .map { it.toItem(group) }
-                .sortedWith(compareByDescending<GroupMemberListItem> { it.isLeader }.thenBy { it.userId })
+                .map { it.toItem() }
+                .sortedWith(
+                    compareBy<GroupMemberListItem> { if (leaderId != null && it.userId == leaderId) 0 else 1 }
+                        .thenBy { it.name }
+                        .thenBy { it.userId },
+                )
 
-        return GroupMemberListResult(members = sorted)
+        return GroupMemberListResult(leaderUserId = leaderId, members = sorted)
     }
 
-    private fun com.sight.repository.dto.GroupMemberListDto.toItem(group: Group): GroupMemberListItem =
+    private fun com.sight.repository.dto.GroupMemberListDto.toItem(): GroupMemberListItem =
         GroupMemberListItem(
             userId = this.userId,
             name = this.name,
-            realname = this.realname,
-            isLeader = group.isLeader(this.userId),
+            college = this.college,
+            cardCount = this.cardCount,
+            recordCount = this.recordCount,
         )
 
     @Transactional

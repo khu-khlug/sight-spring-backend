@@ -104,16 +104,16 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `listGroupMembers는 그룹장을 맨 앞에 두고 나머지를 userId 오름차순으로 반환한다`() {
+    fun `listGroupMembers는 그룹장을 맨 앞에 두고 나머지를 실명 오름차순으로 반환한다`() {
         // given
         val group = createGroup(id = 100L, master = 5L, visibility = GroupVisibility.PUBLIC)
         val requester = createMember(id = 1L)
         stubGroupAndRequester(group, requester, isMember = true)
         given(groupMemberRepository.findMemberListByGroupId(100L)).willReturn(
             listOf(
-                GroupMemberListDto(userId = 1L, name = "user1", realname = "이름1"),
-                GroupMemberListDto(userId = 5L, name = "user5", realname = "이름5"),
-                GroupMemberListDto(userId = 3L, name = "user3", realname = "이름3"),
+                GroupMemberListDto(userId = 1L, name = "홍길동", college = "공과대학", cardCount = 2L, recordCount = 5L),
+                GroupMemberListDto(userId = 5L, name = "김철수", college = "소프트웨어융합대학", cardCount = 3L, recordCount = 1L),
+                GroupMemberListDto(userId = 3L, name = "강감찬", college = "전자정보대학", cardCount = 0L, recordCount = 0L),
             ),
         )
 
@@ -121,13 +121,69 @@ class GroupMemberServiceTest {
         val result = groupMemberService.listGroupMembers(groupId = 100L)
 
         // then
+        assertEquals(5L, result.leaderUserId)
         assertEquals(3, result.members.size)
+        // 그룹장(5L, 김철수) 맨 앞
         assertEquals(5L, result.members[0].userId)
-        assertEquals(true, result.members[0].isLeader)
+        assertEquals("김철수", result.members[0].name)
+        assertEquals("소프트웨어융합대학", result.members[0].college)
+        assertEquals(3L, result.members[0].cardCount)
+        assertEquals(1L, result.members[0].recordCount)
+        // 나머지 실명 오름차순: 강감찬(3L) -> 홍길동(1L)
+        assertEquals(3L, result.members[1].userId)
+        assertEquals("강감찬", result.members[1].name)
+        assertEquals("전자정보대학", result.members[1].college)
+        assertEquals(0L, result.members[1].cardCount)
+        assertEquals(0L, result.members[1].recordCount)
+
+        assertEquals(1L, result.members[2].userId)
+        assertEquals("홍길동", result.members[2].name)
+        assertEquals("공과대학", result.members[2].college)
+        assertEquals(2L, result.members[2].cardCount)
+        assertEquals(5L, result.members[2].recordCount)
+    }
+
+    @Test
+    fun `listGroupMembers는 그룹장이 없는 경우 leaderUserId가 null이고 전체 멤버를 실명 오름차순으로 반환한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 1L, visibility = GroupVisibility.PUBLIC)
+        // leaderMemberId를 null로 설정
+        group.changeLeader(null)
+        val requester = createMember(id = 1L)
+        stubGroupAndRequester(group, requester, isMember = true)
+        given(groupMemberRepository.findMemberListByGroupId(100L)).willReturn(
+            listOf(
+                GroupMemberListDto(userId = 1L, name = "홍길동", college = "공과대학", cardCount = 1L, recordCount = 2L),
+                GroupMemberListDto(userId = 2L, name = "강감찬", college = "전자정보대학", cardCount = 0L, recordCount = 0L),
+            ),
+        )
+
+        // when
+        val result = groupMemberService.listGroupMembers(groupId = 100L)
+
+        // then
+        assertEquals(null, result.leaderUserId)
+        assertEquals(2, result.members.size)
+        assertEquals(2L, result.members[0].userId)
+        assertEquals("강감찬", result.members[0].name)
         assertEquals(1L, result.members[1].userId)
-        assertEquals(false, result.members[1].isLeader)
-        assertEquals(3L, result.members[2].userId)
-        assertEquals(false, result.members[2].isLeader)
+        assertEquals("홍길동", result.members[1].name)
+    }
+
+    @Test
+    fun `listGroupMembers는 멤버가 없는 경우 빈 목록을 반환한다`() {
+        // given
+        val group = createGroup(id = 100L, master = 5L, visibility = GroupVisibility.PUBLIC)
+        val requester = createMember(id = 1L)
+        stubGroupAndRequester(group, requester, isMember = true)
+        given(groupMemberRepository.findMemberListByGroupId(100L)).willReturn(emptyList())
+
+        // when
+        val result = groupMemberService.listGroupMembers(groupId = 100L)
+
+        // then
+        assertEquals(5L, result.leaderUserId)
+        assertEquals(0, result.members.size)
     }
 
     @Test

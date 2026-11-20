@@ -9,8 +9,6 @@ import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupSearchService
 import com.sight.service.GroupSearchTarget
 import jakarta.validation.constraints.Min
-import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Size
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -28,10 +26,7 @@ class GroupSearchController(
     fun listGroupSearchResults(
         @PathVariable groupId: Long,
         @RequestParam target: GroupSearchTarget,
-        @RequestParam
-        @NotBlank(message = "검색어가 필요합니다")
-        @Size(max = GroupSearchService.KEYWORD_MAX_LENGTH, message = "검색어는 20자 이하여야 합니다")
-        keyword: String,
+        @RequestParam keyword: String,
         @RequestParam(defaultValue = "1") @Min(value = 1, message = "페이지 번호는 1 이상이어야 합니다") page: Int,
     ): ListGroupSearchResultsResponse {
         val result =

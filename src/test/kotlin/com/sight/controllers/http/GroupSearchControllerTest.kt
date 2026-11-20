@@ -182,15 +182,12 @@ class GroupSearchControllerTest {
     }
 
     @Test
-    fun `검색어가 없거나 공백이거나 21자이면 400을 반환한다`() {
+    fun `검색어가 없으면 400을 반환한다`() {
         givenGroup(GroupVisibility.PUBLIC)
         authenticate(MEMBER_ID, UserRole.USER)
 
+        // 검색어의 공백·길이(글자 수) 검증은 한 곳(GroupSearchKeywords)에서 하며 서비스 테스트가 확인한다.
         mockMvc.perform(get("/groups/$GROUP_ID/search").param("target", "TITLE")).andExpect(status().isBadRequest)
-        mockMvc.perform(get("/groups/$GROUP_ID/search").param("target", "TITLE").param("keyword", "   "))
-            .andExpect(status().isBadRequest)
-        mockMvc.perform(get("/groups/$GROUP_ID/search").param("target", "TITLE").param("keyword", "가".repeat(21)))
-            .andExpect(status().isBadRequest)
     }
 
     @Test

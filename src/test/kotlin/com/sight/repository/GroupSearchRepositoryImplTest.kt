@@ -4,7 +4,6 @@ import com.sight.config.QueryDslConfig
 import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupKanbanList
 import com.sight.domain.group.GroupRecord
-import com.sight.domain.group.GroupSearchKeywords
 import com.sight.domain.member.Member
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -19,9 +18,10 @@ import org.springframework.context.annotation.Import
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.text.Normalizer
 import java.time.Instant
 
-// 실제 MySQL에서 검색 쿼리의 삭제 제외·정렬·페이징·글자 그대로 검색을 검증한다.
+// 실제 MySQL에서 검색용 조회의 삭제 제외·정렬·페이징을 검증한다.
 // Docker를 쓸 수 없는 환경에서는 다른 테스트가 실패하지 않도록 이 테스트만 건너뛴다.
 @DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop"])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -35,8 +35,6 @@ class GroupSearchRepositoryImplTest {
     private lateinit var repository: GroupSearchRepositoryImpl
 
     private fun at(second: Int): Instant = Instant.parse("2025-01-01T00:00:00Z").plusSeconds(second.toLong())
-
-    private fun keywords(text: String) = GroupSearchKeywords.parse(text)
 
     private fun member(
         id: Long,
@@ -97,35 +95,36 @@ class GroupSearchRepositoryImplTest {
         list(OTHER_GROUP_LIST_ID, groupId = OTHER_GROUP_ID, title = "다른 그룹")
     }
 
-    private fun titles(keyword: String): List<Long> =
-        repository.findCardsByTitleOrderByLatest(GROUP_ID, keywords(keyword), 0, 50).map { it.cardId }
+    private fun cardIds(
+        offset: Long = 0,
+        limit: Int = 50,
+    ): List<Long> = repository.findCardsOrderByLatest(GROUP_ID, offset, limit).map { it.cardId }
 
     @Test
-    fun `카드명 검색은 삭제된 카드와 다른 그룹의 카드를 제외하고 비활성 카드는 포함한다`() {
+    fun `카드 조회는 삭제된 카드와 다른 그룹의 카드를 제외하고 비활성 카드는 포함한다`() {
         setUpBase()
-        card(1, "스프링 스터디")
-        card(2, "스프링 삭제됨").also { it.delete(at(5)) }
-        card(3, "스프링 비활성").also { it.changeDisabled(true, at(5)) }
-        card(4, "스프링 다른 그룹", groupId = OTHER_GROUP_ID, listId = OTHER_GROUP_LIST_ID)
-        card(5, "관계없는 카드")
+        card(1, "카드1")
+        card(2, "삭제된 카드").also { it.delete(at(5)) }
+        card(3, "비활성 카드").also { it.changeDisabled(true, at(5)) }
+        card(4, "다른 그룹 카드", groupId = OTHER_GROUP_ID, listId = OTHER_GROUP_LIST_ID)
         commit()
 
-        assertEquals(setOf(1L, 3L), titles("스프링").toSet())
-        assertEquals(2L, repository.countCardsByTitle(GROUP_ID, keywords("스프링")))
+        assertEquals(setOf(1L, 3L), cardIds().toSet())
     }
 
     @Test
-    fun `검색 결과에는 리스트 아이디·제목과 카드 아이디·카드명이 들어 있다`() {
+    fun `카드 조회에는 리스트 아이디·제목과 카드 아이디·카드명과 카드 생성자명이 들어 있다`() {
         setUpBase()
-        card(1, "스프링 스터디")
+        card(1, "스프링 스터디", authorId = OTHER_AUTHOR_ID)
         commit()
 
-        val view = repository.findCardsByTitleOrderByLatest(GROUP_ID, keywords("스프링"), 0, 50).single()
+        val view = repository.findCardsOrderByLatest(GROUP_ID, 0, 50).single()
 
         assertEquals(LIST_ID, view.listId)
         assertEquals("할 일", view.listTitle)
         assertEquals(1L, view.cardId)
         assertEquals("스프링 스터디", view.cardTitle)
+        assertEquals("Kim Minsu", view.authorName)
     }
 
     @Test
@@ -137,7 +136,7 @@ class GroupSearchRepositoryImplTest {
         card(4, "정렬 라", createdAt = at(20))
         commit()
 
-        assertEquals(listOf(3L, 2L, 4L, 1L), titles("정렬"))
+        assertEquals(listOf(3L, 2L, 4L, 1L), cardIds())
     }
 
     @Test
@@ -146,73 +145,34 @@ class GroupSearchRepositoryImplTest {
         card(1, "정렬 가", createdAt = at(10))
         card(2, "정렬 나", createdAt = at(20))
         commit()
-        assertEquals(listOf(2L, 1L), titles("정렬"))
+        assertEquals(listOf(2L, 1L), cardIds())
 
-        val older = entityManager.find(GroupCard::class.java, 1L)
-        older.increaseRecordCount(at(100))
+        entityManager.find(GroupCard::class.java, 1L).increaseRecordCount(at(100))
         commit()
 
-        assertEquals(listOf(1L, 2L), titles("정렬"))
+        assertEquals(listOf(1L, 2L), cardIds())
     }
 
     @Test
-    fun `페이지는 offset과 limit으로 나눈다`() {
+    fun `카드 페이지는 offset과 limit으로 나눈다`() {
         setUpBase()
         (1L..5L).forEach { card(it, "페이지 $it", createdAt = at(it.toInt())) }
         commit()
 
-        val page = repository.findCardsByTitleOrderByLatest(GROUP_ID, keywords("페이지"), 2, 2)
-
-        assertEquals(listOf(3L, 2L), page.map { it.cardId })
-        assertEquals(5L, repository.countCardsByTitle(GROUP_ID, keywords("페이지")))
+        assertEquals(listOf(3L, 2L), cardIds(offset = 2, limit = 2))
+        assertEquals(listOf(1L), cardIds(offset = 4, limit = 2))
     }
 
     @Test
-    fun `모든 검색어가 카드명에 들어 있어야 하고 대소문자를 구분하지 않는다`() {
+    fun `이모지와 풀어쓴 한글 악센트 분리 문자는 저장·조회해도 그대로 돌아온다`() {
         setUpBase()
-        card(1, "Spring 백엔드 스터디")
-        card(2, "Spring 프런트")
-        card(3, "백엔드만")
+        val titles = listOf("스프링 😀", Normalizer.normalize("한글 café", Normalizer.Form.NFD), "ＣＡＦＥ")
+        titles.forEachIndexed { index, title -> card(index + 1L, title, createdAt = at(index)) }
         commit()
 
-        assertEquals(listOf(1L), titles("백엔드 spring"))
-        assertEquals(listOf(1L, 2L), titles("SPRING").sorted())
-    }
+        val stored = repository.findCardsOrderByLatest(GROUP_ID, 0, 50).sortedBy { it.cardId }.map { it.cardTitle }
 
-    @Test
-    fun `생성자명 검색은 카드 생성자명으로 찾고 삭제된 카드는 제외한다`() {
-        setUpBase()
-        card(1, "카드 하나", authorId = AUTHOR_ID)
-        card(2, "카드 둘", authorId = OTHER_AUTHOR_ID)
-        card(3, "삭제된 카드", authorId = AUTHOR_ID).also { it.delete(at(5)) }
-        commit()
-
-        val found = repository.findCardsByAuthorNameOrderByLatest(GROUP_ID, keywords("gildong"), 0, 50)
-
-        assertEquals(listOf(1L), found.map { it.cardId })
-        assertEquals("Hong Gildong", found.single().authorName)
-        assertEquals(1L, repository.countCardsByAuthorName(GROUP_ID, keywords("GILDONG")))
-    }
-
-    @Test
-    fun `와일드카드 문자와 역슬래시는 글자 그대로 찾는다`() {
-        setUpBase()
-        card(1, "진행률 100% 달성")
-        card(2, "진행률 1000 달성")
-        card(3, "a_c 변수")
-        card(4, "abc 변수")
-        card(5, "경로 C:\\temp")
-        card(6, "경로 C:temp")
-        card(7, "느낌표! 포함")
-        commit()
-
-        assertEquals(listOf(1L), titles("100%"))
-        assertEquals(listOf(3L), titles("a_c"))
-        assertEquals(listOf(5L), titles("C:\\temp"))
-        assertEquals(listOf(7L), titles("!"))
-        // `%` 한 글자도 와일드카드가 아니므로 `%`가 실제로 들어 있는 카드만 찾는다.
-        assertEquals(listOf(1L), titles("%"))
-        assertEquals(listOf(3L), titles("_"))
+        assertEquals(titles.map { it.trim() }, stored)
     }
 
     @Test

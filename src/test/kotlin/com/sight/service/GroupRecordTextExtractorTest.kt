@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.text.Normalizer
 
 class GroupRecordTextExtractorTest {
     private val extractor = GroupRecordTextExtractor(ObjectMapper())
@@ -105,6 +106,16 @@ class GroupRecordTextExtractorTest {
             """.trimMargin()
 
         assertEquals("val a = 1 요약 내용 E=mc^2", tiptap(json))
+    }
+
+    @Test
+    fun `풀어쓴 한글과 악센트 분리 문자는 NFC로 정규화해 추출한다`() {
+        val expected = Normalizer.normalize("한글 café", Normalizer.Form.NFC)
+        val nfd = Normalizer.normalize("한글 café", Normalizer.Form.NFD)
+
+        assertEquals(expected, html("<p>$nfd</p>"))
+        val json = """{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"$nfd"}]}]}"""
+        assertEquals(expected, tiptap(json))
     }
 
     @Test

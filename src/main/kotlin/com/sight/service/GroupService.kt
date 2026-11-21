@@ -135,6 +135,13 @@ class GroupService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun listRecentGroups(
+        offset: Int,
+        limit: Int,
+        requesterId: Long,
+    ): List<GroupListItem> = groupRepository.findRecentVisibleGroups(offset, limit, requesterId).map { it.toGroupListItem() }
+
     @Transactional
     fun addBookmark(
         groupId: Long,

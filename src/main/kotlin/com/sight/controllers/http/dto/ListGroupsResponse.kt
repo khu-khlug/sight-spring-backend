@@ -9,6 +9,10 @@ data class ListGroupsResponse(
     val groups: List<GroupResponse>,
 )
 
+data class ListRecentGroupsResponse(
+    val groups: List<GroupResponse>,
+)
+
 data class GroupLeaderResponse(
     val userId: Long,
     val name: String,

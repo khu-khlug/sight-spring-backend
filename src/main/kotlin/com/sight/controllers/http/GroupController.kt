@@ -7,11 +7,13 @@ import com.sight.controllers.http.dto.CreateGroupResponse
 import com.sight.controllers.http.dto.GroupLeaderResponse
 import com.sight.controllers.http.dto.GroupResponse
 import com.sight.controllers.http.dto.ListGroupsResponse
+import com.sight.controllers.http.dto.ListRecentGroupsResponse
 import com.sight.controllers.http.dto.PublishPortfolioResponse
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
 import com.sight.service.GroupDiscordChannelService
+import com.sight.service.GroupListItem
 import com.sight.service.GroupService
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -62,25 +64,32 @@ class GroupController(
 
         return ListGroupsResponse(
             count = result.count,
-            groups =
-                result.groups.map { group ->
-                    GroupResponse(
-                        id = group.id,
-                        category = group.category,
-                        title = group.title,
-                        state = group.state,
-                        countMember = group.countMember,
-                        allowJoin = group.allowJoin,
-                        createdAt = group.createdAt,
-                        leader =
-                            GroupLeaderResponse(
-                                userId = group.leader.userId,
-                                name = group.leader.name,
-                            ),
-                    )
-                },
+            groups = result.groups.map { it.toResponse() },
         )
     }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GetMapping("/recent-groups")
+    fun listRecentGroups(
+        @RequestParam(defaultValue = "0") @Min(0) offset: Int,
+        @RequestParam(defaultValue = "6") @Min(1) @Max(100) limit: Int,
+        requester: Requester,
+    ): ListRecentGroupsResponse =
+        ListRecentGroupsResponse(
+            groups = groupService.listRecentGroups(offset, limit, requester.userId).map { it.toResponse() },
+        )
+
+    private fun GroupListItem.toResponse(): GroupResponse =
+        GroupResponse(
+            id = id,
+            category = category,
+            title = title,
+            state = state,
+            countMember = countMember,
+            allowJoin = allowJoin,
+            createdAt = createdAt,
+            leader = GroupLeaderResponse(userId = leader.userId, name = leader.name),
+        )
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @PostMapping("/groups/{groupId}/discord-channel")

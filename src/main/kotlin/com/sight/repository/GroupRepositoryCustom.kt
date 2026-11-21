@@ -20,6 +20,12 @@ interface GroupRepositoryCustom {
         requesterId: Long,
     ): List<GroupListDto>
 
+    fun findRecentVisibleGroups(
+        offset: Int,
+        limit: Int,
+        requesterId: Long,
+    ): List<GroupListDto>
+
     fun countGroups(
         joined: Boolean? = null,
         bookmarked: Boolean? = null,

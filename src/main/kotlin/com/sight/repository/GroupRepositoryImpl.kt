@@ -5,6 +5,7 @@ import com.querydsl.core.types.Projections
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQuery
 import com.querydsl.jpa.impl.JPAQueryFactory
+import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupState
@@ -12,6 +13,7 @@ import com.sight.domain.group.QGroup
 import com.sight.domain.group.QGroupBookmark
 import com.sight.domain.group.QGroupMember
 import com.sight.domain.member.QMember
+import com.sight.domain.member.StudentStatus
 import com.sight.repository.dto.GroupListDto
 import com.sight.repository.dto.GroupLogListDto
 import org.springframework.jdbc.core.JdbcTemplate
@@ -50,6 +52,30 @@ class GroupRepositoryImpl(
 
         return query
             .orderBy(resolveOrderBy(orderBy))
+            .offset(offset.toLong())
+            .limit(limit.toLong())
+            .fetch()
+    }
+
+    override fun findRecentVisibleGroups(
+        offset: Int,
+        limit: Int,
+        requesterId: Long,
+    ): List<GroupListDto> {
+        val requester = QMember("requester")
+        return queryFactory
+            .select(groupListProjection())
+            .from(group)
+            .join(member).on(group.master.eq(member.id))
+            .join(requester).on(requester.id.eq(requesterId))
+            .leftJoin(groupMember).on(groupMember.group.eq(group.id), groupMember.member.eq(requesterId))
+            .where(
+                group.grade.eq(GroupAccessGrade.PRIVATE).and(group.author.eq(requesterId).or(groupMember.member.isNotNull))
+                    .or(group.grade.eq(GroupAccessGrade.ALL))
+                    .or(group.grade.eq(GroupAccessGrade.MEMBER).and(requester.studentStatus.ne(StudentStatus.UNITED)))
+                    .or(group.grade.eq(GroupAccessGrade.MANAGER).and(requester.manager.isTrue)),
+            )
+            .orderBy(group.changedAt.desc(), group.id.desc())
             .offset(offset.toLong())
             .limit(limit.toLong())
             .fetch()

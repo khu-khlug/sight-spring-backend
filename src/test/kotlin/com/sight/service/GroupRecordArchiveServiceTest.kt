@@ -25,7 +25,7 @@ class GroupRecordArchiveServiceTest {
         GroupRecordArchiveService(groupRecordArchiveRepository, support, notifications, mock())
 
     @Test
-    fun `page만큼 10개씩 건너뛴 위치부터 요청자의 보관 기록을 조회한다`() {
+    fun `보관 목록의 두 번째 페이지는 첫 10개를 건너뛰어 조회하고 전체 보관 개수를 반환한다`() {
         given(groupRecordArchiveRepository.findSavedRecordsByMemberIdOrderBySavedAtDesc(MEMBER_ID, 10L, 10))
             .willReturn(emptyList())
         given(groupRecordArchiveRepository.countByMemberId(MEMBER_ID)).willReturn(11L)
@@ -39,7 +39,7 @@ class GroupRecordArchiveServiceTest {
     }
 
     @Test
-    fun `이미 보관한 기록을 다시 보관해도 행이나 알림이 추가되지 않는다`() {
+    fun `이미 보관한 기록을 다시 보관하면 보관 항목과 알림을 추가하지 않는다`() {
         val context = context()
         given(support.getLockedRecordContext(1L, MEMBER_ID, 4L, allowStopped = false)).willReturn(context)
         given(groupRecordArchiveRepository.findByMemberIdAndRecordId(MEMBER_ID, 4L))
@@ -52,7 +52,7 @@ class GroupRecordArchiveServiceTest {
     }
 
     @Test
-    fun `삭제된 원본은 새로 보관할 수 없지만 기존 보관은 해제할 수 있다`() {
+    fun `삭제된 기록은 보관할 수 없고 기존 보관만 해제할 수 있다`() {
         val context = context()
         context.record.delete(NOW)
         given(support.getLockedRecordContext(1L, MEMBER_ID, 4L, allowStopped = false)).willReturn(context)

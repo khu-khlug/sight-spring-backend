@@ -37,7 +37,7 @@ class GroupRecordAttachmentService(
         memberId: Long,
         recordId: Long,
         files: List<RecordFileInput>,
-    ): RecordFilesChangeResult = replace(groupId, memberId, FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString(), files, false)
+    ): List<RecordFileUploadResult> = replace(groupId, memberId, FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString(), files, false)
 
     @Transactional
     fun replaceDraftFiles(
@@ -46,7 +46,7 @@ class GroupRecordAttachmentService(
         draftId: Long,
         files: List<RecordFileInput>,
         reset: Boolean = false,
-    ): RecordFilesChangeResult =
+    ): List<RecordFileUploadResult> =
         replace(groupId, memberId, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString(), files, reset)
 
     @Transactional
@@ -95,7 +95,7 @@ class GroupRecordAttachmentService(
         referrerId: String,
         files: List<RecordFileInput>,
         reset: Boolean,
-    ): RecordFilesChangeResult {
+    ): List<RecordFileUploadResult> {
         validateFiles(files)
         val existingAttachments = recordFileRepository.findByRefTypeAndReferrerOrderById(refType, referrerId)
         val attachmentsByBlockId = if (reset) emptyMap() else existingAttachments.associateBy { it.recordFile.fileBlockId }
@@ -126,7 +126,7 @@ class GroupRecordAttachmentService(
         recordFileRepository.flush()
         // 새 참조를 먼저 저장해 같은 파일의 연결 교체 중에는 마지막 참조가 사라지지 않도록 한다.
         deleteAttachmentReferences(removedAttachments)
-        return RecordFilesChangeResult(result, removedAttachments.isNotEmpty() || files.any { it.id !in attachmentsByBlockId })
+        return result
     }
 
     private fun validateFiles(files: List<RecordFileInput>) {

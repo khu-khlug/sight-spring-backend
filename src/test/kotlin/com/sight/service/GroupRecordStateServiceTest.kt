@@ -49,7 +49,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `삭제를 반복해도 카운트와 로그가 한 번만 바뀌고 작성자 경험치는 커밋 뒤 차감된다`() {
+    fun `기록 삭제는 한 번만 반영하며 작성자의 경험치는 커밋 후 차감한다`() {
         card.increaseRecordCount(NOW)
         group.increaseRecordCount()
         willAnswer {
@@ -76,7 +76,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `복구를 반복해도 카운트와 로그가 한 번만 바뀌고 복구한 회원에게 경험치를 준다`() {
+    fun `기록을 여러 번 복구해도 기록 수와 로그는 한 번만 갱신하고 경험치는 복구 요청자에게 지급한다`() {
         record.delete(NOW)
         TransactionSynchronizationManager.initSynchronization()
         try {
@@ -96,7 +96,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `같은 카드로 이동하거나 다른 그룹으로 이동을 시도해도 원본을 보존한다`() {
+    fun `같은 카드로 이동하면 변경하지 않고 다른 그룹의 카드로 이동하면 요청을 거부한다`() {
         val foreign = GroupCard(9L, 10L, 11L, 2L, "다른 그룹 카드", 1L, NOW)
         given(cards.findById(foreign.id)).willReturn(Optional.of(foreign))
         card.increaseRecordCount(NOW)
@@ -112,7 +112,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `이동하면 두 카드의 기록 수만 재배분하고 그룹의 기록 수와 본문을 보존한다`() {
+    fun `기록을 다른 카드로 옮기면 두 카드의 기록 수를 갱신하고 그룹의 기록 수와 본문은 유지한다`() {
         val target = GroupCard(5L, 1L, 6L, 2L, "목적지 카드", 2L, NOW)
         given(cards.findById(target.id)).willReturn(Optional.of(target))
         card.increaseRecordCount(NOW)
@@ -129,7 +129,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `중단된 그룹은 포트폴리오를 변경할 수 없고 같은 값을 다시 보내면 로그가 추가되지 않는다`() {
+    fun `포트폴리오 포함 여부는 진행 중인 그룹에서 변경할 수 있고 같은 값으로 다시 요청하면 로그를 추가하지 않는다`() {
         assertThrows<BadRequestException> { service.updateGroupRecordPortfolio(1L, 2L, 4L, false) }
         assertTrue(record.isInPortfolio)
         verifyNoInteractions(logs)

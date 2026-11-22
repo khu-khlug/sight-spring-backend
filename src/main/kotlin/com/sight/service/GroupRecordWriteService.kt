@@ -63,7 +63,7 @@ class GroupRecordWriteService(
                 throw BadRequestException(requireNotNull(e.message))
             }
         val record = records.save(newRecord)
-        val change = attachments.replaceRecordFiles(groupId, memberId, record.id, files)
+        val uploads = attachments.replaceRecordFiles(groupId, memberId, record.id, files)
         val draft = drafts.findByMemberId(memberId)
         if (draft != null && draft.isSameTarget(groupId, cardId, null)) {
             attachments.deleteDraftFiles(draft.id)
@@ -95,7 +95,7 @@ class GroupRecordWriteService(
             content,
             now,
             attachments.getRecordFiles(groupId, record.id),
-            change.uploads,
+            uploads,
         )
     }
 
@@ -121,18 +121,16 @@ class GroupRecordWriteService(
         } catch (e: IllegalArgumentException) {
             throw BadRequestException(requireNotNull(e.message))
         }
-        val change = attachments.replaceRecordFiles(groupId, memberId, recordId, files)
-        val isChanged = record.edit(content, change.isChanged, now)
+        val uploads = attachments.replaceRecordFiles(groupId, memberId, recordId, files)
+        record.edit(content, now)
         val draft = drafts.findByMemberId(memberId)
         if (draft != null && draft.isSameTarget(groupId, card.id, recordId)) {
             attachments.deleteDraftFiles(draft.id)
             drafts.delete(draft)
         }
-        if (isChanged) {
-            group.resumeByActivity()
-            group.recordActivity(now)
-            logs.createLog(groupId, memberId, GroupLogData.RecordUpdated(recordId, card.id, card.title))
-        }
-        return change.uploads
+        group.resumeByActivity()
+        group.recordActivity(now)
+        logs.createLog(groupId, memberId, GroupLogData.RecordUpdated(recordId, card.id, card.title))
+        return uploads
     }
 }

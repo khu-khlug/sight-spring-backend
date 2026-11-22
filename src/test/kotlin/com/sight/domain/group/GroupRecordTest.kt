@@ -1,44 +1,33 @@
 package com.sight.domain.group
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 
 class GroupRecordTest {
     @Test
-    fun `첨부만 바뀌어도 수정 메서드 한 번으로 수정 시각을 갱신한다`() {
+    fun `같은 본문으로 수정해도 수정 시각을 갱신한다`() {
         val record = record()
 
-        assertTrue(record.edit("before", true, LATER))
+        record.edit("before", LATER)
 
         assertEquals("before", record.content)
         assertEquals(LATER, record.updatedAt)
     }
 
     @Test
-    fun `본문이 바뀌면 첨부 변경 없이도 수정 시각을 갱신한다`() {
+    fun `수정 요청의 본문을 저장하고 수정 시각을 갱신한다`() {
         val record = record()
 
-        assertTrue(record.edit("after", false, LATER))
+        record.edit("after", LATER)
 
         assertEquals("after", record.content)
         assertEquals(LATER, record.updatedAt)
     }
 
     @Test
-    fun `본문과 첨부가 모두 같으면 수정 시각을 유지한다`() {
-        val record = record()
-
-        assertFalse(record.edit("before", false, LATER))
-
-        assertEquals(NOW, record.updatedAt)
-    }
-
-    @Test
-    fun `수정 전 검증은 기록의 본문과 수정 시각을 바꾸지 않는다`() {
+    fun `수정 가능 여부를 검사할 때는 본문과 수정 시각을 변경하지 않는다`() {
         val record = record()
 
         record.validateEdit("after")
@@ -48,31 +37,31 @@ class GroupRecordTest {
     }
 
     @Test
-    fun `수정은 유효하지 않은 본문을 첨부 변경 여부와 관계없이 거부한다`() {
+    fun `기록 본문을 빈 문자열로 수정할 수 없다`() {
         val record = record()
 
-        assertThrows<IllegalArgumentException> { record.edit("", true, LATER) }
+        assertThrows<IllegalArgumentException> { record.edit("", LATER) }
 
         assertEquals("before", record.content)
         assertEquals(NOW, record.updatedAt)
     }
 
     @Test
-    fun `삭제된 기록은 첨부만 바뀌어도 수정할 수 없다`() {
+    fun `삭제된 기록은 수정할 수 없다`() {
         val record = record().apply { delete(NOW) }
 
-        assertThrows<IllegalArgumentException> { record.edit("before", true, LATER) }
+        assertThrows<IllegalArgumentException> { record.edit("before", LATER) }
 
         assertEquals(NOW, record.updatedAt)
     }
 
     @Test
-    fun `본문 제한은 문자 수가 아니라 UTF8 바이트 수로 적용한다`() {
+    fun `본문 크기가 UTF-8 기준 1 MiB를 넘으면 수정할 수 없다`() {
         val record = record()
         val content = "\uD83D\uDE00".repeat(GroupRecord.CONTENT_MAX_BYTES / 4)
 
-        assertTrue(record.edit(content, false, LATER))
-        assertThrows<IllegalArgumentException> { record.edit(content + "x", true, LATER.plusSeconds(1)) }
+        record.edit(content, LATER)
+        assertThrows<IllegalArgumentException> { record.edit(content + "x", LATER.plusSeconds(1)) }
 
         assertEquals(content, record.content)
         assertEquals(LATER, record.updatedAt)

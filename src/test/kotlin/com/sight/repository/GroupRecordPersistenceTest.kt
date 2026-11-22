@@ -80,7 +80,7 @@ class GroupRecordPersistenceTest {
     private lateinit var deletionExecutor: TaskExecutor
 
     @Test
-    fun `보관 목록은 본인 항목만 반환하고 같은 보관 시각에도 페이지 경계가 안정적이다`() {
+    fun `보관 시각이 같은 기록을 페이지별로 조회하면 요청자가 보관한 기록만 기록 아이디 내림차순으로 반환한다`() {
         entityManager.persist(testGroup(id = 1L))
         entityManager.persist(testGroup(id = 2L, status = GroupStatus.SUCCESS))
         val author = Member(5L, "writer", realname = "작성자", studentStatus = StudentStatus.UNDERGRADUATE, status = UserStatus.ACTIVE)
@@ -115,7 +115,7 @@ class GroupRecordPersistenceTest {
     }
 
     @Test
-    fun `공유 첨부의 마지막 참조 삭제가 롤백되면 두 연결이 복원되고 파일 삭제를 예약하지 않는다`() {
+    fun `기록과 임시저장의 첨부 연결 해제를 롤백하면 두 연결을 유지하고 파일을 삭제하지 않는다`() {
         persistSharedFile("rolled-back", 30L)
         TestTransaction.flagForCommit()
         TestTransaction.end()
@@ -132,7 +132,7 @@ class GroupRecordPersistenceTest {
     }
 
     @Test
-    fun `공유 첨부의 마지막 참조를 해제하면 커밋 이후에만 파일 삭제를 예약한다`() {
+    fun `기록과 임시저장이 공유하는 파일은 두 연결을 모두 해제하고 커밋한 뒤에 삭제 작업을 등록한다`() {
         persistSharedFile("committed", 40L)
 
         detachSharedFile("committed", 40L)

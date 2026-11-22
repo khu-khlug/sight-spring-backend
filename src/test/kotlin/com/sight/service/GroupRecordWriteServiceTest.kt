@@ -61,7 +61,7 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `한 바이트 초과한 다중 바이트 본문과 빈 본문은 저장 전에 거부한다`() {
+    fun `기록 작성 시 본문이 비어 있거나 1 MiB를 넘으면 저장 요청을 거부한다`() {
         given(ids.nextId()).willReturn(4L)
         for (content in listOf("", MAX_CONTENT + "x")) {
             assertThrows<BadRequestException> { service.createGroupRecord(1L, 3L, 2L, content, emptyList()) }
@@ -70,12 +70,12 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `최대 바이트 본문을 저장하고 같은 대상의 임시저장을 새 첨부 연결 뒤에 지운다`() {
+    fun `1 MiB 본문을 저장할 수 있으며 기록의 첨부 연결을 만든 뒤 같은 작성 대상의 임시저장을 삭제한다`() {
         val draft = GroupRecordDraft(5L, 2L, 1L, 3L, null, "draft", NOW)
         val files = listOf(RecordFileInput("block", "shared", null, null, null))
         given(ids.nextId()).willReturn(4L)
         given(records.save(any<GroupRecord>())).willAnswer { it.getArgument(0) }
-        given(attachments.replaceRecordFiles(1L, 2L, 4L, files)).willReturn(RecordFilesChangeResult(emptyList(), true))
+        given(attachments.replaceRecordFiles(1L, 2L, 4L, files)).willReturn(emptyList())
         given(drafts.findByMemberId(2L)).willReturn(draft)
         given(groupMembers.findByGroupId(1L)).willReturn(emptyList())
         given(attachments.getRecordFiles(1L, 4L)).willReturn(emptyList())
@@ -103,18 +103,20 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `본문과 첨부가 같으면 기록 갱신 시각과 그룹 상태를 유지한다`() {
-        given(attachments.replaceRecordFiles(1L, 2L, 4L, emptyList())).willReturn(RecordFilesChangeResult(emptyList(), false))
+    fun `본문과 첨부가 같아도 수정 시각과 활동 로그를 갱신하고 중단된 그룹을 진행 중으로 바꾼다`() {
+        given(attachments.replaceRecordFiles(1L, 2L, 4L, emptyList())).willReturn(emptyList())
 
         service.updateGroupRecord(1L, 4L, 2L, "before", emptyList())
 
-        assertEquals(NOW, record.updatedAt)
-        assertEquals(GroupStatus.STOP, group.status)
-        verifyNoInteractions(logs, points)
+        assertNotEquals(NOW, record.updatedAt)
+        assertEquals(GroupStatus.PROGRESS, group.status)
+        assertEquals(record.updatedAt, group.lastActivityAt)
+        verify(logs).createLog(1L, 2L, GroupLogData.RecordUpdated(4L, card.id, card.title))
+        verifyNoInteractions(points)
     }
 
     @Test
-    fun `수정할 본문이 유효하지 않으면 첨부 처리 전에 거부한다`() {
+    fun `기록 수정 시 본문이 비어 있거나 1 MiB를 넘으면 첨부를 처리하지 않고 요청을 거부한다`() {
         for (content in listOf("", MAX_CONTENT + "x")) {
             assertThrows<BadRequestException> { service.updateGroupRecord(1L, 4L, 2L, content, emptyList()) }
         }
@@ -126,10 +128,10 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `첨부만 바꿔도 수정으로 기록하고 같은 기록의 이전 카드 임시저장은 보존한다`() {
+    fun `기록을 수정해도 임시저장의 대상 카드가 현재 카드와 다르면 임시저장을 삭제하지 않는다`() {
         val previousCardDraft = GroupRecordDraft(5L, 2L, 1L, 9L, 4L, "draft", NOW)
         given(drafts.findByMemberId(2L)).willReturn(previousCardDraft)
-        given(attachments.replaceRecordFiles(1L, 2L, 4L, emptyList())).willReturn(RecordFilesChangeResult(emptyList(), true))
+        given(attachments.replaceRecordFiles(1L, 2L, 4L, emptyList())).willReturn(emptyList())
 
         service.updateGroupRecord(1L, 4L, 2L, "before", emptyList())
 
@@ -142,7 +144,7 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `다른 작성자의 기록은 본문이나 첨부를 바꾸지 않는다`() {
+    fun `다른 회원이 작성한 기록은 수정할 수 없다`() {
         val other = GroupRecord(4L, card.id, 8L, "original", NOW)
         given(records.findLockedIncludingDeletedById(4L)).willReturn(other)
 

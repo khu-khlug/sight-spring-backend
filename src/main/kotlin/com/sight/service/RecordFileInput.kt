@@ -23,8 +23,3 @@ data class RecordFileResult(
     val size: Long,
     val contentType: String,
 )
-
-data class RecordFilesChangeResult(
-    val uploads: List<RecordFileUploadResult>,
-    val isChanged: Boolean,
-)

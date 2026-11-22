@@ -307,7 +307,7 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `editReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 수정할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
@@ -377,7 +377,7 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `cancelReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 취소할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)

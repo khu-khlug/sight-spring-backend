@@ -36,7 +36,7 @@ class GroupRecordDraftServiceTest {
     private val service = GroupRecordDraftService(drafts, cards, attachments, groups, records, members, mock())
 
     @Test
-    fun `다른 그룹의 임시저장은 요약에는 없고 본문 조회와 삭제에서 노출되지 않는다`() {
+    fun `다른 그룹에 저장한 임시저장은 조회하거나 삭제할 수 없다`() {
         val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "other", NOW)
         given(drafts.findByMemberId(2L)).willReturn(draft)
         allowGroupEdit()
@@ -50,7 +50,7 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `서버보다 오래된 저장 요청은 기존 본문과 첨부를 보존한다`() {
+    fun `임시저장 요청의 저장 시각이 기존 저장 시각보다 이르면 요청을 거부한다`() {
         val draft = existingDraft()
         allowGroupEdit()
         given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
@@ -65,14 +65,14 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `같은 시각에는 저장할 수 있고 그룹을 바꾸면 이전 첨부 연결을 초기화한다`() {
+    fun `임시저장 요청의 저장 시각이 기존 저장 시각과 같으면 그룹 변경을 허용하고 이전 첨부 연결을 해제한다`() {
         val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "before", NOW)
         allowGroupEdit()
         given(groups.findLockedById(9L)).willReturn(testGroup(id = 9L))
         given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
         given(cards.findById(3L)).willReturn(Optional.of(card()))
         given(attachments.replaceDraftFiles(1L, 2L, draft.id, emptyList(), true))
-            .willReturn(RecordFilesChangeResult(emptyList(), true))
+            .willReturn(emptyList())
 
         service.updateGroupRecordDraft(1L, 2L, 3L, null, "", NOW, emptyList())
 
@@ -83,7 +83,7 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `같은 시각이어도 내용이 한 바이트 초과하면 기존 임시저장을 바꾸지 않는다`() {
+    fun `임시저장 본문이 1 MiB를 넘으면 기존 본문과 첨부 연결을 유지한다`() {
         val draft = existingDraft()
         allowGroupEdit()
         given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
@@ -99,7 +99,7 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `다른 작성자의 기록 수정은 임시저장할 수 없다`() {
+    fun `다른 회원이 작성한 기록을 수정하는 임시저장은 저장할 수 없다`() {
         val draft = existingDraft()
         allowGroupEdit()
         given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
@@ -115,7 +115,7 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `본인 임시저장을 삭제하면 첨부 연결을 먼저 해제한다`() {
+    fun `임시저장을 삭제할 때는 첨부 파일 연결을 먼저 해제한다`() {
         val draft = existingDraft()
         allowGroupEdit()
         given(drafts.findByMemberId(2L)).willReturn(draft)

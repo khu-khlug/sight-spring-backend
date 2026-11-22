@@ -42,7 +42,7 @@ class GroupRecordAttachmentServiceTest {
         )
 
     @Test
-    fun `최대 크기의 새 첨부를 같은 크기로 서명하고 발급한 파일을 응답과 참조에 연결한다`() {
+    fun `20 MiB 파일을 첨부하면 파일 크기로 서명한 업로드 주소를 발급하고 파일 참조를 생성한다`() {
         val size = MAX_FILE_BYTES
         given(ids.nextId()).willReturn(50L, 51L)
         given(storage.generateUploadUrl(any(), any())).willReturn("https://upload.example.com")
@@ -66,12 +66,11 @@ class GroupRecordAttachmentServiceTest {
         assertEquals("ref", recordFile.firstValue.fileReferenceId)
         assertEquals("block", recordFile.firstValue.fileBlockId)
         val expected = RecordFileUploadResult("block", fileUpload.id, "/groups/1/files/${fileUpload.id}", "https://upload.example.com")
-        assertEquals(expected, result.uploads.single())
-        assertTrue(result.isChanged)
+        assertEquals(expected, result.single())
     }
 
     @Test
-    fun `크기 범위를 벗어나거나 블록 아이디가 중복되면 업로드를 발급하지 않는다`() {
+    fun `첨부 파일의 크기가 허용 범위를 벗어나거나 블록 아이디가 중복되면 업로드 주소를 발급하지 않는다`() {
         val invalid = listOf(listOf(newFile(-1)), listOf(newFile(MAX_FILE_BYTES + 1)), List(2) { newFile(1) })
         invalid.forEach { files ->
             assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, files) }
@@ -80,7 +79,7 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `다른 그룹에서 발급된 파일과 같은 블록의 파일 교체를 거부한다`() {
+    fun `다른 그룹의 첨부 파일을 연결하거나 기존 블록의 파일을 교체할 수 없다`() {
         val original = view("old", RECORD, "3", "block")
         val foreign = fileUpload("foreign", apiPath = GroupFilePaths.recordAttachmentApiPath(9L))
         given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(listOf(original))
@@ -97,7 +96,7 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `같은 파일의 블록을 교체할 때 새 참조를 저장한 뒤 이전 참조를 해제한다`() {
+    fun `같은 파일을 새 블록으로 옮기면 새 파일 참조를 저장한 뒤 기존 참조를 해제한다`() {
         val old = view("shared", RECORD, "3", "old-block")
         given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(listOf(old))
         given(fileUploadRepository.findForUpdateById("shared")).willReturn(old.fileUpload)
@@ -107,7 +106,7 @@ class GroupRecordAttachmentServiceTest {
 
         val result = service.replaceRecordFiles(1L, 2L, 3L, listOf(RecordFileInput("new-block", "shared", null, null, null)))
 
-        assertEquals(RecordFilesChangeResult(emptyList(), true), result)
+        assertTrue(result.isEmpty())
         inOrder(recordFileRepository, fileReferenceService) {
             verify(fileReferenceService).createFileReference("shared", RECORD, "3")
             verify(recordFileRepository).save(any())
@@ -120,7 +119,7 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `업로드 완료 확인은 잠금 순서와 응답 순서를 구분하고 파일마다 실패 사유를 반환한다`() {
+    fun `업로드 완료 확인 시 파일 아이디 순으로 잠그고 파일별 처리 결과는 요청 순서대로 반환한다`() {
         given(members.findForUpdateById(2L)).willReturn(mock())
         given(groups.findLockedById(1L)).willReturn(testGroup())
         val success = fileUpload("z-ok")

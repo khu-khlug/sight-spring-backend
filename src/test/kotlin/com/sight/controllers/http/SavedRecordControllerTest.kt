@@ -48,7 +48,7 @@ class SavedRecordControllerTest {
     }
 
     @Test
-    fun `인증된 사용자는 본인이 보관한 기록 목록을 문자열 아이디와 UTC 시각으로 받는다`() {
+    fun `보관 목록 조회 응답에는 기록·그룹·카드 아이디가 문자열로, 작성·보관 시각이 UTC로 표시된다`() {
         authenticate(MEMBER_ID, UserRole.USER)
         given(groupRecordArchiveService.listSavedRecords(MEMBER_ID, 0)).willReturn(
             SavedRecordListResult(
@@ -99,7 +99,7 @@ class SavedRecordControllerTest {
     }
 
     @Test
-    fun `음수·소수·숫자가 아닌 page는 400을 반환한다`() {
+    fun `보관 목록의 페이지 번호가 음수나 소수이거나 숫자가 아니면 400을 반환한다`() {
         authenticate(MEMBER_ID, UserRole.USER)
 
         listOf("-1", "1.5", "abc").forEach { page ->
@@ -110,7 +110,7 @@ class SavedRecordControllerTest {
     }
 
     @Test
-    fun `인증되지 않은 요청은 보관한 기록 목록을 조회할 수 없다`() {
+    fun `인증되지 않은 사용자가 보관 목록을 조회하면 401을 반환한다`() {
         SecurityContextHolder.getContext().authentication =
             AnonymousAuthenticationToken(
                 "anonymous-key",

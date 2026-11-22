@@ -122,7 +122,7 @@ class GroupRecordDraftService(
                 throw BadRequestException(requireNotNull(e.message))
             }
         if (draft == null) drafts.save(saved)
-        return attachments.replaceDraftFiles(groupId, memberId, saved.id, files, reset).uploads
+        return attachments.replaceDraftFiles(groupId, memberId, saved.id, files, reset)
     }
 
     @Transactional

@@ -70,7 +70,7 @@ class GroupRecordControllerTest {
     }
 
     @Test
-    fun `전체 성공과 부분 성공과 전체 실패를 각각 다른 HTTP 상태로 반환한다`() {
+    fun `업로드 완료 확인은 전체 성공 시 200, 일부 성공 시 206, 전체 실패 시 400을 반환한다`() {
         val success = RecordFileVerificationResult("ok", true, null)
         val failure = RecordFileVerificationResult("pending", false, "NOT_UPLOADED")
         given(service.updateGroupRecordFilesUploaded(1L, 2L, listOf("ok"))).willReturn(listOf(success))
@@ -90,7 +90,7 @@ class GroupRecordControllerTest {
     }
 
     @Test
-    fun `빈 배열이나 숫자 파일 아이디는 서비스에 전달하지 않는다`() {
+    fun `파일 아이디 배열이 비어 있거나 숫자 아이디가 포함되면 400을 반환한다`() {
         listOf("""{"fileIds":[]}""", """{"fileIds":[42]}""").forEach { payload ->
             mockMvc.perform(request(payload)).andExpect(status().isBadRequest)
         }
@@ -98,7 +98,7 @@ class GroupRecordControllerTest {
     }
 
     @Test
-    fun `그룹에 속하지 않은 운영진도 업로드 완료를 알릴 수 없다`() {
+    fun `운영진이라도 그룹원이 아니면 업로드 완료를 알릴 수 없다`() {
         authenticate(9L, UserRole.MANAGER)
 
         mockMvc.perform(request("""{"fileIds":["ok"]}""")).andExpect(status().isForbidden)

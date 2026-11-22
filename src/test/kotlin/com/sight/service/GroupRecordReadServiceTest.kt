@@ -40,7 +40,7 @@ class GroupRecordReadServiceTest {
     private val service = GroupRecordReadService(records, cards, mock(), members, archives, recordFileRepository, groupMembers)
 
     @Test
-    fun `삭제한 기록은 같은 그룹에서만 삭제 상태로 응답한다`() {
+    fun `삭제된 기록을 조회하면 소속 그룹에서는 BadRequestException을 던지고 다른 그룹에서는 NotFoundException을 던진다`() {
         given(records.existsDeletedByIdAndGroupId(4L, 1L)).willReturn(true)
 
         assertThrows<BadRequestException> { service.getGroupRecordById(1L, 4L, 2L) }
@@ -50,7 +50,7 @@ class GroupRecordReadServiceTest {
     }
 
     @Test
-    fun `삭제된 기록을 함께 조회하려면 열람 권한 외에 그룹원 자격이 필요하다`() {
+    fun `그룹원이 아닌 사용자는 삭제된 기록을 포함해 조회할 수 없다`() {
         given(cards.findById(3L)).willReturn(Optional.of(card()))
 
         assertThrows<ForbiddenException> { service.listGroupRecords(1L, 3L, 2L, 0L, 10, true) }
@@ -60,7 +60,7 @@ class GroupRecordReadServiceTest {
     }
 
     @Test
-    fun `끝 위치부터 요청하면 페이지를 읽지 않고 전체 개수와 빈 목록을 반환한다`() {
+    fun `조회 시작 위치가 전체 기록 수와 같으면 기록을 조회하지 않고 전체 개수와 빈 목록을 반환한다`() {
         given(cards.findById(3L)).willReturn(Optional.of(card()))
         given(records.countByCardId(3L, false)).willReturn(10L)
 
@@ -69,7 +69,7 @@ class GroupRecordReadServiceTest {
     }
 
     @Test
-    fun `목록은 정렬 설정을 전달하고 각 기록에 해당하는 첨부와 요청자의 보관 여부를 연결한다`() {
+    fun `기록 목록을 카드 정렬 설정에 따라 조회하고 기록마다 첨부 파일과 요청자의 보관 여부를 반환한다`() {
         val card = card()
         val first = GroupRecord(5L, card.id, 8L, "first", NOW)
         val second = GroupRecord(4L, card.id, 8L, "second", NOW)

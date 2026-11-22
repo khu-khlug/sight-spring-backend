@@ -60,7 +60,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `발급 트랜잭션이 커밋되면 저장된 확인 시각의 일회성 예약을 유지한다`() {
+    fun `업로드 주소 발급 트랜잭션이 커밋되면 저장된 확인 예정 시각의 예약을 취소하지 않는다`() {
         val fileUpload = fileUpload()
 
         service.scheduleUploadCheck(fileUpload.id, fileUpload.uploadCheckAt)
@@ -73,7 +73,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `발급 트랜잭션이 롤백되면 일회성 예약을 취소한다`() {
+    fun `업로드 주소 발급 트랜잭션이 롤백되면 업로드 확인 예약을 취소한다`() {
         service.scheduleUploadCheck("file", Instant.now().plusSeconds(660))
         TransactionSynchronizationManager.getSynchronizations().forEach {
             it.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
@@ -84,7 +84,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `예약 등록 실패를 발급 요청으로 전달한다`() {
+    fun `업로드 확인 예약에 실패하면 예약 메서드가 예외를 던진다`() {
         given(scheduler.schedule(any<Runnable>(), any<Instant>())).willThrow(RejectedExecutionException())
 
         assertThrows<RejectedExecutionException> { service.scheduleUploadCheck("file", Instant.now()) }
@@ -94,7 +94,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `발급 트랜잭션 없이 확인을 예약하지 않는다`() {
+    fun `활성 트랜잭션이 없으면 업로드 확인을 예약할 수 없다`() {
         TransactionSynchronizationManager.setActualTransactionActive(false)
 
         assertThrows<IllegalStateException> { service.scheduleUploadCheck("file", Instant.now()) }
@@ -103,7 +103,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `예약 시각에 객체가 있으면 완료 알림 없이도 업로드 완료로 표시한다`() {
+    fun `확인 예정 시각이 지난 파일이 R2에 있으면 업로드 완료로 표시한다`() {
         val fileUpload = fileUpload()
         given(storage.isFileExists(fileUpload.fileKey)).willReturn(true)
 
@@ -115,7 +115,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `객체가 없으면 기록과 임시저장 부가 행을 먼저 지우고 공통 참조를 해제한다`() {
+    fun `R2에 파일이 없으면 기록과 임시저장의 첨부 연결을 삭제한 뒤 공통 파일 참조를 해제한다`() {
         val fileUpload = fileUpload()
         val recordAttachment = view(fileUpload, FileReferenceType.GROUP_RECORD_ATTACHMENT, 3L)
         val draftAttachment = view(fileUpload, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, 4L)
@@ -134,7 +134,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `객체와 기록 연결이 모두 없으면 기존 파일 삭제 흐름에 맡긴다`() {
+    fun `R2에 파일이 없고 첨부 연결도 없으면 파일 삭제를 요청한다`() {
         val fileUpload = fileUpload()
         given(storage.isFileExists(fileUpload.fileKey)).willThrow(StorageOperationException(StorageFailureReason.NO_SUCH_KEY, "객체가 없습니다."))
         given(recordFileRepository.findByFileUploadIdOrderById(fileUpload.id)).willReturn(emptyList())
@@ -146,7 +146,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `R2 확인에 실패하면 미업로드로 간주하지 않고 연결을 유지한다`() {
+    fun `R2 조회 중 일시적인 오류가 발생하면 파일 참조를 유지하고 트랜잭션을 롤백한다`() {
         val fileUpload = fileUpload()
         given(storage.isFileExists(fileUpload.fileKey)).willThrow(StorageOperationException(StorageFailureReason.TRANSIENT, "일시적인 오류입니다."))
 
@@ -158,7 +158,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `완료되었거나 삭제되었거나 확인 시각 전인 파일은 처리하지 않는다`() {
+    fun `업로드가 완료되었거나 삭제 표시가 있거나 확인 예정 시각이 지나지 않은 파일은 R2에서 조회하지 않는다`() {
         val files =
             listOf(
                 fileUpload().apply { markUploaded() },
@@ -172,7 +172,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `이미 제거된 업로드의 예약은 아무것도 변경하지 않는다`() {
+    fun `예약 실행 시 업로드 기록이 없으면 파일과 참조를 처리하지 않는다`() {
         service.scheduleUploadCheck("missing", Instant.EPOCH)
 
         task.run()

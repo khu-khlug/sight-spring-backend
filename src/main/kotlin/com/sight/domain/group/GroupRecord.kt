@@ -55,7 +55,7 @@ class GroupRecord(
     @Column(name = "created_at", nullable = false)
     val createdAt: Instant = createdAt
 
-    // 본문 또는 첨부 연결 목록이 마지막으로 바뀐 일시. 기록 목록의 최근 수정순 정렬 기준이다.
+    // 마지막 기록 수정 일시. 기록 목록의 최근 수정순 정렬 기준이다.
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = createdAt
         private set
@@ -79,15 +79,11 @@ class GroupRecord(
 
     fun edit(
         content: String,
-        isFileLinksChanged: Boolean,
         at: Instant,
-    ): Boolean {
+    ) {
         validateEdit(content)
-        val isChanged = this.content != content || isFileLinksChanged
-        if (!isChanged) return false
         this.content = content
         updatedAt = at
-        return true
     }
 
     // 첨부 링크를 발급하기 전에 수정 가능 여부를 검사할 수 있어야 한다.

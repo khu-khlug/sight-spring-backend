@@ -1,7 +1,6 @@
 package com.sight.controllers.http.dto
 
 import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonNode
 import com.sight.core.exception.BadRequestException
 
@@ -27,6 +26,6 @@ data class UpdateGroupRecordFilesUploadedResponse(val results: List<GroupRecordF
 
 data class GroupRecordFileVerificationResponse(
     val fileId: String,
-    @get:JsonProperty("isSuccess") val isSuccess: Boolean,
+    val isSuccess: Boolean,
     val reason: String?,
 )

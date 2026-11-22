@@ -1,6 +1,5 @@
 package com.sight.controllers.http.dto
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import com.sight.service.GroupRecordDetailsResult
 import com.sight.service.GroupRecordResult
@@ -27,9 +26,9 @@ data class ListGroupRecordResponse(
     val content: String,
     val createdAt: Instant,
     val updatedAt: Instant,
-    @get:JsonProperty("isDeleted") val isDeleted: Boolean,
-    @get:JsonProperty("isInPortfolio") val isInPortfolio: Boolean,
-    @get:JsonProperty("isInUserArchive") val isInUserArchive: Boolean,
+    val isDeleted: Boolean,
+    val isInPortfolio: Boolean,
+    val isInUserArchive: Boolean,
     val files: List<GroupRecordFileResponse>,
 ) {
     companion object {

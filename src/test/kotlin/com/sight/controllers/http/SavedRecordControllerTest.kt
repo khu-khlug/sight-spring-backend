@@ -75,7 +75,7 @@ class SavedRecordControllerTest {
             ),
         )
 
-        mockMvc.perform(get("/saved-records"))
+        mockMvc.perform(get("/groups/saved-records"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.page").value(0))
             .andExpect(jsonPath("$.totalCount").value(1))
@@ -103,7 +103,7 @@ class SavedRecordControllerTest {
         authenticate(MEMBER_ID, UserRole.USER)
 
         listOf("-1", "1.5", "abc").forEach { page ->
-            mockMvc.perform(get("/saved-records").param("page", page))
+            mockMvc.perform(get("/groups/saved-records").param("page", page))
                 .andExpect(status().isBadRequest)
         }
         verify(groupRecordArchiveService, never()).listSavedRecords(any(), any())
@@ -118,7 +118,7 @@ class SavedRecordControllerTest {
                 listOf(SimpleGrantedAuthority("ROLE_ANONYMOUS")),
             )
 
-        mockMvc.perform(get("/saved-records"))
+        mockMvc.perform(get("/groups/saved-records"))
             .andExpect(status().isUnauthorized)
     }
 

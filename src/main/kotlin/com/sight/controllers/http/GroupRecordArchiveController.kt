@@ -45,7 +45,7 @@ class SavedRecordController(
     private val groupRecordArchiveService: GroupRecordArchiveService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GetMapping("/saved-records")
+    @GetMapping("/groups/saved-records")
     @ResponseStatus(HttpStatus.OK)
     fun listSavedRecords(
         @RequestParam(defaultValue = "0") @Min(0) page: Int,

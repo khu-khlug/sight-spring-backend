@@ -4,9 +4,12 @@ import com.sight.controllers.http.dto.CreateGroupRecordRequest
 import com.sight.controllers.http.dto.CreateGroupRecordResponse
 import com.sight.controllers.http.dto.CreatedRecordFileResponse
 import com.sight.controllers.http.dto.GetGroupRecordResponse
+import com.sight.controllers.http.dto.GroupRecordFileVerificationResponse
 import com.sight.controllers.http.dto.ListGroupRecordResponse
 import com.sight.controllers.http.dto.ListGroupRecordsResponse
 import com.sight.controllers.http.dto.RecordFileUploadResponse
+import com.sight.controllers.http.dto.UpdateGroupRecordFilesUploadedRequest
+import com.sight.controllers.http.dto.UpdateGroupRecordFilesUploadedResponse
 import com.sight.controllers.http.dto.UpdateGroupRecordRequest
 import com.sight.controllers.http.dto.UpdateGroupRecordResponse
 import com.sight.core.auth.Auth
@@ -15,11 +18,13 @@ import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
+import com.sight.service.GroupRecordAttachmentService
 import com.sight.service.GroupRecordReadService
 import com.sight.service.GroupRecordWriteService
 import com.sight.service.RecordFileInput
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -33,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController
 class GroupRecordController(
     private val groupRecordReadService: GroupRecordReadService,
     private val groupRecordWriteService: GroupRecordWriteService,
+    private val groupRecordAttachmentService: GroupRecordAttachmentService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
@@ -63,16 +69,6 @@ class GroupRecordController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
-    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
-    @GetMapping("/groups/{groupId}/records/{recordId}")
-    @ResponseStatus(HttpStatus.OK)
-    fun getGroupRecord(
-        @PathVariable @Positive groupId: Long,
-        @PathVariable @Positive recordId: Long,
-        requester: Requester,
-    ): GetGroupRecordResponse = GetGroupRecordResponse.from(groupRecordReadService.getGroupRecordById(groupId, recordId, requester.userId))
-
-    @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @PostMapping("/groups/{groupId}/cards/{cardId}/records")
     @ResponseStatus(HttpStatus.CREATED)
@@ -98,6 +94,16 @@ class GroupRecordController(
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
+    @GetMapping("/groups/{groupId}/records/{recordId}")
+    @ResponseStatus(HttpStatus.OK)
+    fun getGroupRecord(
+        @PathVariable @Positive groupId: Long,
+        @PathVariable @Positive recordId: Long,
+        requester: Requester,
+    ): GetGroupRecordResponse = GetGroupRecordResponse.from(groupRecordReadService.getGroupRecordById(groupId, recordId, requester.userId))
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
     @GroupAuth([GroupPermission.RECORD_AUTHOR], groupId = "groupId", recordId = "recordId", allowManager = false)
     @PatchMapping("/groups/{groupId}/records/{recordId}")
     @ResponseStatus(HttpStatus.OK)
@@ -116,5 +122,27 @@ class GroupRecordController(
                 request.files.map { RecordFileInput(it.id, it.fileId, it.name, it.size, it.contentType) },
             )
         return UpdateGroupRecordResponse(uploads.map { RecordFileUploadResponse(it.id, it.fileId, it.url, it.uploadUrl) })
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
+    @PostMapping("/groups/{groupId}/records/files/uploaded")
+    fun confirmGroupRecordFileUploads(
+        @PathVariable @Positive groupId: Long,
+        @RequestBody request: UpdateGroupRecordFilesUploadedRequest,
+        requester: Requester,
+    ): ResponseEntity<UpdateGroupRecordFilesUploadedResponse> {
+        val results = groupRecordAttachmentService.updateGroupRecordFilesUploaded(groupId, requester.userId, request.fileIds)
+        val status =
+            when {
+                results.all { it.isSuccess } -> HttpStatus.OK
+                results.any { it.isSuccess } -> HttpStatus.PARTIAL_CONTENT
+                else -> HttpStatus.BAD_REQUEST
+            }
+        return ResponseEntity.status(status).body(
+            UpdateGroupRecordFilesUploadedResponse(
+                results.map { GroupRecordFileVerificationResponse(it.fileId, it.isSuccess, it.reason) },
+            ),
+        )
     }
 }

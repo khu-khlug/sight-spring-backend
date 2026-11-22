@@ -97,7 +97,7 @@
 | :-- | :-- |
 | `GET /groups/:groupId/deleted-cards` | [삭제된 카드 목록 조회](../../plans/group/archive/deleted-cards-get.md) |
 | `POST /groups/:groupId/deleted-cards/:cardId/restore` | [삭제된 카드 복구](../../plans/group/archive/deleted-card-restore.md) |
-| `GET /groups/:groupId/saved-records` | [보관한 기록 목록 조회](../../plans/group/archive/saved-records-get.md) |
+| `GET /groups/saved-records` | [보관한 기록 목록 조회](../../plans/group/archive/saved-records-get.md) |
 | `GET /groups/:groupId/records/draft/meta` | [기록 임시저장 정보 조회](../../plans/group/edit-window/group-record-draft-metadata-get.md) |
 
 ## 그룹 관리·회원 설정

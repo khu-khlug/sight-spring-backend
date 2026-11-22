@@ -9,7 +9,7 @@
 ## API 경로
 
 ```
-GET /saved-records
+GET /groups/saved-records
 ```
 
 ## 권한

@@ -10,6 +10,8 @@ import com.sight.repository.GroupAuthorizationRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.service.GroupRecordAttachmentService
+import com.sight.service.GroupRecordReadService
+import com.sight.service.GroupRecordWriteService
 import com.sight.service.RecordFileVerificationResult
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -33,12 +35,13 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.Optional
 
 @WebMvcTest(
-    com.sight.controllers.http.GroupRecordFilesUploadedController::class,
+    com.sight.controllers.http.GroupRecordController::class,
     excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @Import(AuthAspect::class, GroupAuthAspect::class, GroupAuthorizationService::class)
 @EnableAspectJAutoProxy
-class GroupRecordFilesUploadedControllerTest {
+@MockBean(classes = [GroupRecordReadService::class, GroupRecordWriteService::class])
+class GroupRecordControllerTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
 

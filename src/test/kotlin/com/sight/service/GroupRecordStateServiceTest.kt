@@ -33,7 +33,7 @@ class GroupRecordStateServiceTest {
     private val logs = mock<GroupLogService>()
     private val groups = mock<GroupRepository>()
     private val members = mock<MemberRepository>()
-    private val points = mock<PointClient>()
+    private val points = mock<PointService>()
     private val support = GroupRecordMutationSupport(members, groups, records, cards, logs, points)
     private val service = GroupRecordStateService(support, records, cards, logs)
     private val group = testGroup(status = GroupStatus.STOP)

@@ -39,7 +39,7 @@ class GroupRecordWriteService(
     private val ids: IntegerIdService,
     private val logs: GroupLogService,
     private val notifications: NotificationService,
-    private val points: PointClient,
+    private val pointService: PointService,
 ) {
     @Transactional
     fun createGroupRecord(
@@ -85,7 +85,7 @@ class GroupRecordWriteService(
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
                 override fun afterCommit() {
-                    points.givePoint(memberId, 2, "그룹 기록 작성")
+                    pointService.givePoint(memberId, 2, "그룹 기록 작성")
                 }
             },
         )

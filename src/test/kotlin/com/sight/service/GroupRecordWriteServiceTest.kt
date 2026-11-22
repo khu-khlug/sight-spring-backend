@@ -43,7 +43,7 @@ class GroupRecordWriteServiceTest {
     private val ids = mock<IntegerIdService>()
     private val logs = mock<GroupLogService>()
     private val notifications = mock<NotificationService>()
-    private val points = mock<PointClient>()
+    private val points = mock<PointService>()
     private val service =
         GroupRecordWriteService(groups, cards, records, members, groupMembers, drafts, attachments, ids, logs, notifications, points)
     private val group = testGroup(status = GroupStatus.STOP)

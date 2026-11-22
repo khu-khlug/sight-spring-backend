@@ -26,7 +26,7 @@ class GroupRecordMutationSupport(
     private val records: GroupRecordRepository,
     private val cards: GroupCardRepository,
     private val logs: GroupLogService,
-    private val points: PointClient,
+    private val pointService: PointService,
 ) {
     @Transactional
     fun getLockedRecordContext(
@@ -76,7 +76,7 @@ class GroupRecordMutationSupport(
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
                 override fun afterCommit() {
-                    points.givePoint(memberId, delta, message)
+                    pointService.givePoint(memberId, delta, message)
                 }
             },
         )

@@ -1,11 +1,13 @@
 package com.sight.repository
 
 import com.sight.domain.group.GroupRecord
+import com.sight.domain.group.GroupRecordSort
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.Repository
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 
 interface GroupRecordRepository : Repository<GroupRecord, Long>, GroupRecordRepositoryCustom {
     fun <S : GroupRecord> save(record: S): S
@@ -29,4 +31,24 @@ interface GroupRecordRepository : Repository<GroupRecord, Long>, GroupRecordRepo
     fun findLockedIncludingDeletedById(
         @Param("id") id: Long,
     ): GroupRecord?
+}
+
+interface GroupRecordRepositoryCustom {
+    fun findByCardIdOrderByRecordSort(
+        cardId: Long,
+        includeDeleted: Boolean,
+        sort: GroupRecordSort,
+        offset: Long,
+        limit: Int,
+    ): List<GroupRecord>
+
+    fun countByCardId(
+        cardId: Long,
+        includeDeleted: Boolean,
+    ): Long
+
+    fun delete(
+        record: GroupRecord,
+        at: Instant,
+    )
 }

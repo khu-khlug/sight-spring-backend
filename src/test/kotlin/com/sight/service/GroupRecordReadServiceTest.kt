@@ -15,7 +15,6 @@ import com.sight.repository.GroupCardRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRecordArchiveRepository
 import com.sight.repository.GroupRecordFileRepository
-import com.sight.repository.GroupRecordListRepository
 import com.sight.repository.GroupRecordRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupRecordFileView
@@ -35,11 +34,10 @@ class GroupRecordReadServiceTest {
     private val records = mock<GroupRecordRepository>()
     private val cards = mock<GroupCardRepository>()
     private val groupMembers = mock<GroupMemberRepository>()
-    private val recordList = mock<GroupRecordListRepository>()
     private val members = mock<MemberRepository>()
     private val archives = mock<GroupRecordArchiveRepository>()
     private val links = mock<GroupRecordFileRepository>()
-    private val service = GroupRecordReadService(records, cards, mock(), members, archives, links, groupMembers, recordList)
+    private val service = GroupRecordReadService(records, cards, mock(), members, archives, links, groupMembers)
 
     @Test
     fun `삭제한 기록은 같은 그룹에서만 삭제 상태로 응답한다`() {
@@ -58,16 +56,16 @@ class GroupRecordReadServiceTest {
         assertThrows<ForbiddenException> { service.listGroupRecords(1L, 3L, 2L, 0L, 10, true) }
 
         verify(groupMembers).existsByGroupIdAndMemberId(1L, 2L)
-        verifyNoInteractions(recordList)
+        verifyNoInteractions(records)
     }
 
     @Test
     fun `끝 위치부터 요청하면 페이지를 읽지 않고 전체 개수와 빈 목록을 반환한다`() {
         given(cards.findById(3L)).willReturn(Optional.of(card()))
-        given(recordList.countByCardId(3L, false)).willReturn(10L)
+        given(records.countByCardId(3L, false)).willReturn(10L)
 
         assertEquals(GroupRecordListResult(10L, 10L, emptyList()), service.listGroupRecords(1L, 3L, 2L, 10L, 10, false))
-        verify(recordList, never()).findByCardIdOrderByRecordSort(any(), any(), any(), any(), any())
+        verify(records, never()).findByCardIdOrderByRecordSort(any(), any(), any(), any(), any())
     }
 
     @Test
@@ -80,8 +78,8 @@ class GroupRecordReadServiceTest {
         given(author.id).willReturn(8L)
         given(author.realname).willReturn("작성자")
         given(cards.findById(card.id)).willReturn(Optional.of(card))
-        given(recordList.countByCardId(card.id, false)).willReturn(3L)
-        given(recordList.findByCardIdOrderByRecordSort(card.id, false, card.recordSort, 1L, 2)).willReturn(listOf(first, second))
+        given(records.countByCardId(card.id, false)).willReturn(3L)
+        given(records.findByCardIdOrderByRecordSort(card.id, false, card.recordSort, 1L, 2)).willReturn(listOf(first, second))
         given(members.findAllById(listOf(8L))).willReturn(listOf(author))
         given(archives.findByMemberIdAndRecordIdIn(2L, recordIds)).willReturn(listOf(GroupRecordArchive(9L, 2L, 4L, 1L, NOW)))
         val type = FileReferenceType.GROUP_RECORD_ATTACHMENT

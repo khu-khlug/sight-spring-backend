@@ -10,7 +10,6 @@ import com.sight.repository.GroupKanbanListRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRecordArchiveRepository
 import com.sight.repository.GroupRecordFileRepository
-import com.sight.repository.GroupRecordListRepository
 import com.sight.repository.GroupRecordRepository
 import com.sight.repository.MemberRepository
 import org.springframework.stereotype.Service
@@ -49,7 +48,6 @@ class GroupRecordReadService(
     private val archives: GroupRecordArchiveRepository,
     private val links: GroupRecordFileRepository,
     private val groupMembers: GroupMemberRepository,
-    private val recordListRepository: GroupRecordListRepository,
 ) {
     @Transactional(readOnly = true)
     fun getGroupRecordById(
@@ -124,9 +122,9 @@ class GroupRecordReadService(
         if (includeDeleted && !groupMembers.existsByGroupIdAndMemberId(groupId, memberId)) {
             throw ForbiddenException("그룹원만 삭제된 기록을 조회할 수 있습니다.")
         }
-        val totalCount = recordListRepository.countByCardId(cardId, includeDeleted)
+        val totalCount = records.countByCardId(cardId, includeDeleted)
         if (offset >= totalCount) return GroupRecordListResult(offset, totalCount, emptyList())
-        val page = recordListRepository.findByCardIdOrderByRecordSort(cardId, includeDeleted, card.recordSort, offset, limit)
+        val page = records.findByCardIdOrderByRecordSort(cardId, includeDeleted, card.recordSort, offset, limit)
         return GroupRecordListResult(offset, totalCount, listRecordResults(page, groupId, memberId))
     }
 }

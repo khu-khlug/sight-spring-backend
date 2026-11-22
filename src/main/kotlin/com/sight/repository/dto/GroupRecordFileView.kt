@@ -5,7 +5,7 @@ import com.sight.domain.file.FileUpload
 import com.sight.domain.group.GroupRecordFile
 
 data class GroupRecordFileView(
-    val link: GroupRecordFile,
-    val reference: FileReference,
-    val upload: FileUpload,
+    val recordFile: GroupRecordFile,
+    val fileReference: FileReference,
+    val fileUpload: FileUpload,
 )

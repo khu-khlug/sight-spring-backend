@@ -30,16 +30,17 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 
 class GroupRecordUploadServiceTest {
-    private val uploads = mock<FileUploadRepository>()
-    private val links = mock<GroupRecordFileRepository>()
+    private val fileUploadRepository = mock<FileUploadRepository>()
+    private val recordFileRepository = mock<GroupRecordFileRepository>()
     private val storage = mock<StorageService>()
-    private val references = mock<FileReferenceService>()
+    private val fileReferenceService = mock<FileReferenceService>()
     private val deletions = mock<FileUploadDeletionService>()
     private val scheduler = mock<TaskScheduler>()
     private val transactions = mock<PlatformTransactionManager>()
     private val future = mock<ScheduledFuture<*>>()
     private lateinit var task: Runnable
-    private val service = GroupRecordUploadService(uploads, links, storage, references, deletions, scheduler, transactions)
+    private val service =
+        GroupRecordUploadService(fileUploadRepository, recordFileRepository, storage, fileReferenceService, deletions, scheduler, transactions)
 
     @BeforeEach
     fun `발급 트랜잭션과 일회성 스케줄러를 준비한다`() {
@@ -60,15 +61,15 @@ class GroupRecordUploadServiceTest {
 
     @Test
     fun `발급 트랜잭션이 커밋되면 저장된 확인 시각의 일회성 예약을 유지한다`() {
-        val file = upload()
+        val fileUpload = fileUpload()
 
-        service.scheduleUploadCheck(file.id, file.uploadCheckAt)
+        service.scheduleUploadCheck(fileUpload.id, fileUpload.uploadCheckAt)
         TransactionSynchronizationManager.getSynchronizations().forEach {
             it.afterCompletion(TransactionSynchronization.STATUS_COMMITTED)
         }
 
-        verify(scheduler).schedule(any<Runnable>(), eq(file.uploadCheckAt))
-        verifyNoInteractions(future, uploads, links, storage, references, deletions)
+        verify(scheduler).schedule(any<Runnable>(), eq(fileUpload.uploadCheckAt))
+        verifyNoInteractions(future, fileUploadRepository, recordFileRepository, storage, fileReferenceService, deletions)
     }
 
     @Test
@@ -79,7 +80,7 @@ class GroupRecordUploadServiceTest {
         }
 
         verify(future).cancel(false)
-        verifyNoInteractions(uploads, links, storage, references, deletions)
+        verifyNoInteractions(fileUploadRepository, recordFileRepository, storage, fileReferenceService, deletions)
     }
 
     @Test
@@ -89,7 +90,7 @@ class GroupRecordUploadServiceTest {
         assertThrows<RejectedExecutionException> { service.scheduleUploadCheck("file", Instant.now()) }
 
         assertTrue(TransactionSynchronizationManager.getSynchronizations().isEmpty())
-        verifyNoInteractions(uploads, links, storage, references, deletions)
+        verifyNoInteractions(fileUploadRepository, recordFileRepository, storage, fileReferenceService, deletions)
     }
 
     @Test
@@ -103,30 +104,30 @@ class GroupRecordUploadServiceTest {
 
     @Test
     fun `예약 시각에 객체가 있으면 완료 알림 없이도 업로드 완료로 표시한다`() {
-        val file = upload()
-        given(storage.isFileExists(file.fileKey)).willReturn(true)
+        val fileUpload = fileUpload()
+        given(storage.isFileExists(fileUpload.fileKey)).willReturn(true)
 
-        runCheck(file)
+        runCheck(fileUpload)
 
-        assertTrue(file.isUploaded)
-        verifyNoInteractions(links, references, deletions)
+        assertTrue(fileUpload.isUploaded)
+        verifyNoInteractions(recordFileRepository, fileReferenceService, deletions)
         verify(transactions).commit(any())
     }
 
     @Test
     fun `객체가 없으면 기록과 임시저장 부가 행을 먼저 지우고 공통 참조를 해제한다`() {
-        val file = upload()
-        val record = view(file, FileReferenceType.GROUP_RECORD_ATTACHMENT, 3L)
-        val draft = view(file, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, 4L)
-        given(links.findByFileUploadIdOrderById(file.id)).willReturn(listOf(record, draft))
+        val fileUpload = fileUpload()
+        val recordAttachment = view(fileUpload, FileReferenceType.GROUP_RECORD_ATTACHMENT, 3L)
+        val draftAttachment = view(fileUpload, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, 4L)
+        given(recordFileRepository.findByFileUploadIdOrderById(fileUpload.id)).willReturn(listOf(recordAttachment, draftAttachment))
 
-        runCheck(file)
+        runCheck(fileUpload)
 
-        inOrder(links, references) {
-            verify(links).deleteAll(listOf(record.link, draft.link))
-            verify(links).flush()
-            verify(references).deleteFileReference(record.reference.id, record.reference.referenceType, "3")
-            verify(references).deleteFileReference(draft.reference.id, draft.reference.referenceType, "4")
+        inOrder(recordFileRepository, fileReferenceService) {
+            verify(recordFileRepository).deleteAll(listOf(recordAttachment.recordFile, draftAttachment.recordFile))
+            verify(recordFileRepository).flush()
+            verify(fileReferenceService).deleteFileReference(recordAttachment.fileReference.id, recordAttachment.fileReference.referenceType, "3")
+            verify(fileReferenceService).deleteFileReference(draftAttachment.fileReference.id, draftAttachment.fileReference.referenceType, "4")
         }
         verifyNoInteractions(deletions)
         verify(transactions).commit(any())
@@ -134,25 +135,25 @@ class GroupRecordUploadServiceTest {
 
     @Test
     fun `객체와 기록 연결이 모두 없으면 기존 파일 삭제 흐름에 맡긴다`() {
-        val file = upload()
-        given(storage.isFileExists(file.fileKey)).willThrow(StorageOperationException(StorageFailureReason.NO_SUCH_KEY, "객체가 없습니다."))
-        given(links.findByFileUploadIdOrderById(file.id)).willReturn(emptyList())
+        val fileUpload = fileUpload()
+        given(storage.isFileExists(fileUpload.fileKey)).willThrow(StorageOperationException(StorageFailureReason.NO_SUCH_KEY, "객체가 없습니다."))
+        given(recordFileRepository.findByFileUploadIdOrderById(fileUpload.id)).willReturn(emptyList())
 
-        runCheck(file)
+        runCheck(fileUpload)
 
-        verify(deletions).deleteFileUpload(file.id)
-        verifyNoInteractions(references)
+        verify(deletions).deleteFileUpload(fileUpload.id)
+        verifyNoInteractions(fileReferenceService)
     }
 
     @Test
     fun `R2 확인에 실패하면 미업로드로 간주하지 않고 연결을 유지한다`() {
-        val file = upload()
-        given(storage.isFileExists(file.fileKey)).willThrow(StorageOperationException(StorageFailureReason.TRANSIENT, "일시적인 오류입니다."))
+        val fileUpload = fileUpload()
+        given(storage.isFileExists(fileUpload.fileKey)).willThrow(StorageOperationException(StorageFailureReason.TRANSIENT, "일시적인 오류입니다."))
 
-        runCheck(file)
+        runCheck(fileUpload)
 
-        assertFalse(file.isUploaded)
-        verifyNoInteractions(links, references, deletions)
+        assertFalse(fileUpload.isUploaded)
+        verifyNoInteractions(recordFileRepository, fileReferenceService, deletions)
         verify(transactions).rollback(any())
     }
 
@@ -160,14 +161,14 @@ class GroupRecordUploadServiceTest {
     fun `완료되었거나 삭제되었거나 확인 시각 전인 파일은 처리하지 않는다`() {
         val files =
             listOf(
-                upload().apply { markUploaded() },
-                upload().apply { markDeleted(Instant.now()) },
-                upload(createdAt = Instant.now()),
+                fileUpload().apply { markUploaded() },
+                fileUpload().apply { markDeleted(Instant.now()) },
+                fileUpload(createdAt = Instant.now()),
             )
 
         files.forEach { runCheck(it) }
 
-        verifyNoInteractions(storage, links, references, deletions)
+        verifyNoInteractions(storage, recordFileRepository, fileReferenceService, deletions)
     }
 
     @Test
@@ -176,24 +177,24 @@ class GroupRecordUploadServiceTest {
 
         task.run()
 
-        verifyNoInteractions(storage, links, references, deletions)
+        verifyNoInteractions(storage, recordFileRepository, fileReferenceService, deletions)
     }
 
-    private fun runCheck(file: FileUpload) {
-        given(uploads.findForUpdateById(file.id)).willReturn(file)
-        service.scheduleUploadCheck(file.id, file.uploadCheckAt)
+    private fun runCheck(fileUpload: FileUpload) {
+        given(fileUploadRepository.findForUpdateById(fileUpload.id)).willReturn(fileUpload)
+        service.scheduleUploadCheck(fileUpload.id, fileUpload.uploadCheckAt)
         task.run()
     }
 
-    private fun upload(createdAt: Instant = Instant.EPOCH) =
-        FileUpload("file", "key", 2L, "/groups/1/records/files", "file.txt", 1L, "text/plain", createdAt)
+    private fun fileUpload(createdAt: Instant = Instant.EPOCH) =
+        FileUpload("file", "key", 2L, GroupFilePaths.recordAttachmentApiPath(1L), "file.txt", 1L, "text/plain", createdAt)
 
     private fun view(
-        file: FileUpload,
+        fileUpload: FileUpload,
         type: FileReferenceType,
-        ownerId: Long,
+        referrerId: Long,
     ): GroupRecordFileView {
-        val reference = FileReference("ref-$ownerId", file.id, type, ownerId.toString())
-        return GroupRecordFileView(GroupRecordFile(ownerId, reference.id, "block-$ownerId"), reference, file)
+        val fileReference = FileReference("ref-$referrerId", fileUpload.id, type, referrerId.toString())
+        return GroupRecordFileView(GroupRecordFile(referrerId, fileReference.id, "block-$referrerId"), fileReference, fileUpload)
     }
 }

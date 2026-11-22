@@ -13,43 +13,43 @@ import org.springframework.stereotype.Repository
 class GroupRecordFileRepositoryImpl(
     private val queryFactory: JPAQueryFactory,
 ) : GroupRecordFileRepositoryCustom {
-    private val link = QGroupRecordFile.groupRecordFile
-    private val reference = QFileReference.fileReference
-    private val upload = QFileUpload.fileUpload
+    private val recordFile = QGroupRecordFile.groupRecordFile
+    private val fileReference = QFileReference.fileReference
+    private val fileUpload = QFileUpload.fileUpload
 
     override fun findByFileUploadIdOrderById(fileUploadId: String): List<GroupRecordFileView> =
         findFiles(
-            reference.referenceType.`in`(FileReferenceType.GROUP_RECORD_ATTACHMENT, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT),
-            reference.fileUploadId.eq(fileUploadId),
+            fileReference.referenceType.`in`(FileReferenceType.GROUP_RECORD_ATTACHMENT, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT),
+            fileReference.fileUploadId.eq(fileUploadId),
         )
 
-    override fun findByTypeAndOwnerOrderById(
-        type: FileReferenceType,
-        ownerId: String,
-    ): List<GroupRecordFileView> = findByTypeAndOwnerInOrderById(type, listOf(ownerId))
+    override fun findByRefTypeAndReferrerOrderById(
+        refType: FileReferenceType,
+        referrerId: String,
+    ): List<GroupRecordFileView> = findByRefTypeAndReferrerInOrderById(refType, listOf(referrerId))
 
-    override fun findByTypeAndOwnerInOrderById(
-        type: FileReferenceType,
-        ownerIds: Collection<String>,
+    override fun findByRefTypeAndReferrerInOrderById(
+        refType: FileReferenceType,
+        referrerIds: Collection<String>,
     ): List<GroupRecordFileView> {
-        if (ownerIds.isEmpty()) return emptyList()
-        return findFiles(reference.referenceType.eq(type), reference.ownerId.`in`(ownerIds))
+        if (referrerIds.isEmpty()) return emptyList()
+        return findFiles(fileReference.referenceType.eq(refType), fileReference.referrerId.`in`(referrerIds))
     }
 
     private fun findFiles(vararg conditions: BooleanExpression): List<GroupRecordFileView> =
         queryFactory
-            .select(link, reference, upload)
-            .from(link)
-            .join(reference).on(reference.id.eq(link.fileReferenceId))
-            .join(upload).on(upload.id.eq(reference.fileUploadId))
+            .select(recordFile, fileReference, fileUpload)
+            .from(recordFile)
+            .join(fileReference).on(fileReference.id.eq(recordFile.fileReferenceId))
+            .join(fileUpload).on(fileUpload.id.eq(fileReference.fileUploadId))
             .where(*conditions)
-            .orderBy(link.id.asc())
+            .orderBy(recordFile.id.asc())
             .fetch()
             .map { row ->
                 GroupRecordFileView(
-                    link = requireNotNull(row.get(link)),
-                    reference = requireNotNull(row.get(reference)),
-                    upload = requireNotNull(row.get(upload)),
+                    recordFile = requireNotNull(row.get(recordFile)),
+                    fileReference = requireNotNull(row.get(fileReference)),
+                    fileUpload = requireNotNull(row.get(fileUpload)),
                 )
             }
 }

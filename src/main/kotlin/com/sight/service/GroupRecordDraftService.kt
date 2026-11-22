@@ -93,8 +93,9 @@ class GroupRecordDraftService(
         val group = lockedGroups[groupId] ?: throw NotFoundException("그룹을 찾을 수 없습니다.")
         if (group.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
         if (draft?.isNewerThan(updatedAt) == true) throw ConflictException("서버에 더 최신 임시저장이 있습니다.")
-        val card = cards.findById(cardId).orElseThrow { BadRequestException("이 그룹의 카드가 아닙니다.") }
-        if (card.groupId != groupId || card.isDeleted) throw BadRequestException("임시저장 대상이 올바르지 않습니다.")
+        val card = cards.findById(cardId).orElseThrow { BadRequestException("카드를 찾을 수 없습니다.") }
+        if (card.groupId != groupId) throw BadRequestException("이 그룹의 카드가 아닙니다.")
+        if (card.isDeleted) throw BadRequestException("삭제된 카드에는 임시저장할 수 없습니다.")
         if (recordId != null) {
             val record =
                 records.findByIdAndDeletedAtIsNull(recordId) ?: run {

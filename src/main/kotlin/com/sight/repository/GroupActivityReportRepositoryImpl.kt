@@ -21,7 +21,7 @@ class GroupActivityReportRepositoryImpl(
             .select(report, reference.id, upload.id, upload.fileKey)
             .from(report)
             .leftJoin(reference)
-            .on(reference.referenceType.eq(FileReferenceType.GROUP_ACTIVITY_REPORT).and(reference.ownerId.eq(report.id)))
+            .on(reference.referenceType.eq(FileReferenceType.GROUP_ACTIVITY_REPORT).and(reference.referrerId.eq(report.id)))
             .leftJoin(upload)
             .on(upload.id.eq(reference.fileUploadId).and(upload.deletedAt.isNull))
             .where(report.groupId.eq(groupId))

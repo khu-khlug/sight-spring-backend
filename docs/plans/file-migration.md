@@ -25,7 +25,7 @@ Spring의 `/file/{filename}`·`/image/{filename}`은 `khlug_files.name`으로 �
 
 신규 `/groups/{groupId}/files/{fileId}`는 신규 그룹 파일을 그룹 열람 권한으로 제공한다. 더 강한 권한의 파일은 각 기능 API에서 처리하며 활동보고는 기존 임시 읽기 주소 반환을 유지한다.
 
-신규 파일의 소유 관계는 [공통 파일 참조](group/global.md#공통-파일-참조)를 따른다. `GroupFile`은 그룹 소속·제공 권한 메타데이터이며 사용 중 판정에는 포함하지 않는다.
+신규 파일의 참조 관계는 [공통 파일 참조](group/global.md#공통-파일-참조)를 따른다. `GroupFile`은 그룹 소속·제공 권한 메타데이터이며 사용 중 판정에는 포함하지 않는다.
 
 ## 전환 순서
 

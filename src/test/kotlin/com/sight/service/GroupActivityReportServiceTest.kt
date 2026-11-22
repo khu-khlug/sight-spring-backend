@@ -117,7 +117,7 @@ class GroupActivityReportServiceTest {
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
         given(fileUploadService.getFileUploadById("file-1")).willReturn(baseFileUpload)
         given(fileReferences.createFileReference(any(), any(), any())).willReturn(baseReference)
-        given(fileReferences.getSingleFileReferenceByOwner(any(), any())).willReturn(baseReference)
+        given(fileReferences.getSingleFileReferenceByReferrer(any(), any())).willReturn(baseReference)
         given(fileReferences.replaceSingleFileReference(any(), any(), any())).willReturn(baseReference)
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
@@ -360,7 +360,7 @@ class GroupActivityReportServiceTest {
         service.cancelReport(groupId = 1L, reportId = "report-1")
 
         verify(groupActivityReportRepository).delete(baseReport)
-        verify(fileReferences).deleteSingleFileReferenceByOwner(FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
+        verify(fileReferences).deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
         verify(groupFileRepository, never()).deleteByFileUploadId(any())
         verify(storageService, never()).deleteFile(any())
     }

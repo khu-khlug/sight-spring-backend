@@ -195,7 +195,7 @@ class GroupActivityReportService(
         validateGroupActivitySubmitPeriod(report.seminarId)
 
         groupActivityReportRepository.delete(report)
-        fileReferences.deleteSingleFileReferenceByOwner(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
+        fileReferences.deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->
@@ -252,7 +252,7 @@ class GroupActivityReportService(
 
     private fun getReportFileUpload(report: GroupActivityReport): com.sight.domain.file.FileUpload {
         val reference =
-            fileReferences.getSingleFileReferenceByOwner(
+            fileReferences.getSingleFileReferenceByReferrer(
                 FileReferenceType.GROUP_ACTIVITY_REPORT,
                 report.id,
             ) ?: throw NotFoundException("활동보고 파일 참조를 찾을 수 없습니다.")

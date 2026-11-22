@@ -15,10 +15,10 @@ import java.time.Instant
 
 @Service
 class GroupRecordUploadService(
-    private val uploads: FileUploadRepository,
-    private val links: GroupRecordFileRepository,
+    private val fileUploadRepository: FileUploadRepository,
+    private val recordFileRepository: GroupRecordFileRepository,
     private val storage: StorageService,
-    private val references: FileReferenceService,
+    private val fileReferenceService: FileReferenceService,
     private val deletions: FileUploadDeletionService,
     @Qualifier("groupRecordUploadTaskScheduler") private val scheduler: TaskScheduler,
     transactionManager: PlatformTransactionManager,
@@ -53,27 +53,33 @@ class GroupRecordUploadService(
     private fun checkUpload(fileId: String) {
         try {
             transaction.executeWithoutResult {
-                val file = uploads.findForUpdateById(fileId) ?: return@executeWithoutResult
-                if (file.isDeleted || file.isUploaded || file.uploadCheckAt.isAfter(Instant.now())) return@executeWithoutResult
+                val fileUpload = fileUploadRepository.findForUpdateById(fileId) ?: return@executeWithoutResult
+                if (fileUpload.isDeleted || fileUpload.isUploaded || fileUpload.uploadCheckAt.isAfter(Instant.now())) {
+                    return@executeWithoutResult
+                }
                 val exists =
                     try {
-                        storage.isFileExists(file.fileKey)
+                        storage.isFileExists(fileUpload.fileKey)
                     } catch (e: StorageOperationException) {
                         if (e.reason != StorageFailureReason.NO_SUCH_KEY) throw e
                         false
                     }
                 if (exists) {
-                    file.markUploaded()
+                    fileUpload.markUploaded()
                     return@executeWithoutResult
                 }
 
-                val existing = links.findByFileUploadIdOrderById(fileId)
-                links.deleteAll(existing.map { it.link })
-                links.flush()
-                existing.forEach { view ->
-                    references.deleteFileReference(view.reference.id, view.reference.referenceType, view.reference.ownerId)
+                val attachments = recordFileRepository.findByFileUploadIdOrderById(fileId)
+                recordFileRepository.deleteAll(attachments.map { it.recordFile })
+                recordFileRepository.flush()
+                attachments.forEach { attachment ->
+                    fileReferenceService.deleteFileReference(
+                        attachment.fileReference.id,
+                        attachment.fileReference.referenceType,
+                        attachment.fileReference.referrerId,
+                    )
                 }
-                if (existing.isEmpty()) deletions.deleteFileUpload(fileId)
+                if (attachments.isEmpty()) deletions.deleteFileUpload(fileId)
             }
         } catch (e: Exception) {
             logger.error("기록 첨부 업로드 확인 실패: fileId={}", fileId, e)

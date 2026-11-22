@@ -21,12 +21,12 @@ data class RecordFileVerificationResult(val fileId: String, val isSuccess: Boole
 
 @Service
 class GroupRecordAttachmentService(
-    private val links: GroupRecordFileRepository,
-    private val uploads: FileUploadRepository,
+    private val recordFileRepository: GroupRecordFileRepository,
+    private val fileUploadRepository: FileUploadRepository,
     private val groupFiles: GroupFileRepository,
     private val integerIds: IntegerIdService,
     private val storage: StorageService,
-    private val references: FileReferenceService,
+    private val fileReferenceService: FileReferenceService,
     private val groups: GroupRepository,
     private val members: MemberRepository,
     private val uploadChecks: GroupRecordUploadService,
@@ -51,9 +51,10 @@ class GroupRecordAttachmentService(
 
     @Transactional
     fun deleteDraftFiles(draftId: Long) {
-        val existing = links.findByTypeAndOwnerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString())
-        lockUploads(existing.map { it.reference.fileUploadId })
-        deleteLinks(existing)
+        val existingAttachments =
+            recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString())
+        lockFileUploads(existingAttachments.map { it.fileReference.fileUploadId })
+        deleteAttachmentReferences(existingAttachments)
     }
 
     @Transactional(readOnly = true)
@@ -61,28 +62,28 @@ class GroupRecordAttachmentService(
         groupId: Long,
         draftId: Long,
     ): List<RecordFileResult> =
-        readFiles(groupId, links.findByTypeAndOwnerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString()))
+        readFiles(groupId, recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString()))
 
     @Transactional(readOnly = true)
     fun getRecordFiles(
         groupId: Long,
         recordId: Long,
     ): List<RecordFileResult> =
-        readFiles(groupId, links.findByTypeAndOwnerOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString()))
+        readFiles(groupId, recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString()))
 
     private fun readFiles(
         groupId: Long,
-        existing: List<GroupRecordFileView>,
+        existingAttachments: List<GroupRecordFileView>,
     ): List<RecordFileResult> =
-        existing.mapNotNull { view ->
-            view.upload.takeUnless { it.isDeleted }?.let { file ->
+        existingAttachments.mapNotNull { attachment ->
+            attachment.fileUpload.takeUnless { it.isDeleted }?.let { fileUpload ->
                 RecordFileResult(
-                    view.link.fileBlockId,
-                    file.id,
-                    if (file.isUploaded) fileUrl(groupId, file.id) else null,
-                    requireNotNull(file.fileName),
-                    requireNotNull(file.size),
-                    requireNotNull(file.contentType),
+                    attachment.recordFile.fileBlockId,
+                    fileUpload.id,
+                    if (fileUpload.isUploaded) GroupFilePaths.fileUrl(groupId, fileUpload.id) else null,
+                    requireNotNull(fileUpload.fileName),
+                    requireNotNull(fileUpload.size),
+                    requireNotNull(fileUpload.contentType),
                 )
             }
         }
@@ -90,22 +91,24 @@ class GroupRecordAttachmentService(
     private fun replace(
         groupId: Long,
         memberId: Long,
-        type: FileReferenceType,
-        ownerId: String,
+        refType: FileReferenceType,
+        referrerId: String,
         files: List<RecordFileInput>,
         reset: Boolean,
     ): RecordFilesChangeResult {
         validateFiles(files)
-        val existing = links.findByTypeAndOwnerOrderById(type, ownerId)
-        val oldByBlockId = if (reset) emptyMap() else existing.associateBy { it.link.fileBlockId }
-        val locked = lockUploads(existing.map { it.reference.fileUploadId } + files.mapNotNull { it.fileId })
+        val existingAttachments = recordFileRepository.findByRefTypeAndReferrerOrderById(refType, referrerId)
+        val attachmentsByBlockId = if (reset) emptyMap() else existingAttachments.associateBy { it.recordFile.fileBlockId }
+        val lockedFileUploads = lockFileUploads(existingAttachments.map { it.fileReference.fileUploadId } + files.mapNotNull { it.fileId })
         files.forEach { input ->
-            val old = oldByBlockId[input.id]
-            if (old != null && old.reference.fileUploadId != input.fileId) throw BadRequestException("연결된 파일 블록의 파일은 바꿀 수 없습니다.")
+            val existingAttachment = attachmentsByBlockId[input.id]
+            if (existingAttachment != null && existingAttachment.fileReference.fileUploadId != input.fileId) {
+                throw BadRequestException("연결된 파일 블록의 파일은 바꿀 수 없습니다.")
+            }
             input.fileId?.let { id ->
-                val file = locked[id] ?: throw BadRequestException("파일을 찾을 수 없습니다.")
-                if (file.isDeleted || file.apiPath != "/groups/$groupId/records/files" ||
-                    file.fileName == null || file.size == null || file.contentType == null ||
+                val fileUpload = lockedFileUploads[id] ?: throw BadRequestException("파일을 찾을 수 없습니다.")
+                if (fileUpload.isDeleted || fileUpload.apiPath != GroupFilePaths.recordAttachmentApiPath(groupId) ||
+                    fileUpload.fileName == null || fileUpload.size == null || fileUpload.contentType == null ||
                     !groupFiles.existsByGroupIdAndFileUploadId(groupId, id)
                 ) {
                     throw BadRequestException("이 그룹의 유효한 기록 첨부 파일이 아닙니다.")
@@ -113,17 +116,17 @@ class GroupRecordAttachmentService(
             }
         }
         val blockIds = files.map { it.id }.toSet()
-        val removed = existing.filter { reset || it.link.fileBlockId !in blockIds }
+        val removedAttachments = existingAttachments.filter { reset || it.recordFile.fileBlockId !in blockIds }
         val result = mutableListOf<RecordFileUploadResult>()
-        files.filter { it.id !in oldByBlockId }.forEach { input ->
+        files.filter { it.id !in attachmentsByBlockId }.forEach { input ->
             val fileId = input.fileId ?: createUpload(groupId, memberId, input, result)
-            val reference = references.createFileReference(fileId, type, ownerId)
-            links.save(GroupRecordFile(integerIds.nextId(), reference.id, input.id))
+            val fileReference = fileReferenceService.createFileReference(fileId, refType, referrerId)
+            recordFileRepository.save(GroupRecordFile(integerIds.nextId(), fileReference.id, input.id))
         }
-        links.flush()
+        recordFileRepository.flush()
         // 새 참조를 먼저 저장해 같은 파일의 연결 교체 중에는 마지막 참조가 사라지지 않도록 한다.
-        deleteLinks(removed)
-        return RecordFilesChangeResult(result, removed.isNotEmpty() || files.any { it.id !in oldByBlockId })
+        deleteAttachmentReferences(removedAttachments)
+        return RecordFilesChangeResult(result, removedAttachments.isNotEmpty() || files.any { it.id !in attachmentsByBlockId })
     }
 
     private fun validateFiles(files: List<RecordFileInput>) {
@@ -157,39 +160,38 @@ class GroupRecordAttachmentService(
         val fileKey = UlidCreator.getUlid().toString()
         val size = requireNotNull(input.size)
         val uploadUrl = storage.generateUploadUrl(fileKey, size)
-        val upload =
+        val fileUpload =
             FileUpload(
                 fileId,
                 fileKey,
                 memberId,
-                "/groups/$groupId/records/files",
+                GroupFilePaths.recordAttachmentApiPath(groupId),
                 input.name,
                 size,
                 input.contentType,
                 Instant.now(),
             )
-        uploads.saveAndFlush(upload)
-        uploadChecks.scheduleUploadCheck(upload.id, upload.uploadCheckAt)
+        fileUploadRepository.saveAndFlush(fileUpload)
+        uploadChecks.scheduleUploadCheck(fileUpload.id, fileUpload.uploadCheckAt)
         groupFiles.save(GroupFile(integerIds.nextId(), groupId, fileId))
-        result += RecordFileUploadResult(input.id, fileId, fileUrl(groupId, fileId), uploadUrl)
+        result += RecordFileUploadResult(input.id, fileId, GroupFilePaths.fileUrl(groupId, fileId), uploadUrl)
         return fileId
     }
 
-    private fun lockUploads(ids: List<String>): Map<String, FileUpload> =
-        ids.distinct().sorted().mapNotNull { uploads.findForUpdateById(it) }.associateBy { it.id }
+    private fun lockFileUploads(ids: List<String>): Map<String, FileUpload> =
+        ids.distinct().sorted().mapNotNull { fileUploadRepository.findForUpdateById(it) }.associateBy { it.id }
 
-    private fun deleteLinks(existing: List<GroupRecordFileView>) {
-        links.deleteAll(existing.map { it.link })
-        links.flush()
-        existing.forEach { view ->
-            references.deleteFileReference(view.reference.id, view.reference.referenceType, view.reference.ownerId)
+    private fun deleteAttachmentReferences(existingAttachments: List<GroupRecordFileView>) {
+        recordFileRepository.deleteAll(existingAttachments.map { it.recordFile })
+        recordFileRepository.flush()
+        existingAttachments.forEach { attachment ->
+            fileReferenceService.deleteFileReference(
+                attachment.fileReference.id,
+                attachment.fileReference.referenceType,
+                attachment.fileReference.referrerId,
+            )
         }
     }
-
-    private fun fileUrl(
-        groupId: Long,
-        fileId: String,
-    ): String = "/groups/$groupId/files/$fileId"
 
     @Transactional
     fun updateGroupRecordFilesUploaded(
@@ -201,20 +203,20 @@ class GroupRecordAttachmentService(
         val group = groups.findLockedById(groupId) ?: throw NotFoundException("그룹을 찾을 수 없습니다.")
         if (group.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
         if (fileIds.isEmpty()) throw BadRequestException("업로드한 파일 목록이 필요합니다.")
-        val lockedUploads = fileIds.distinct().sorted().associateWith { uploads.findForUpdateById(it) }
+        val lockedUploads = fileIds.distinct().sorted().associateWith { fileUploadRepository.findForUpdateById(it) }
         return fileIds.distinct().map { fileId ->
-            val upload = lockedUploads[fileId]
+            val fileUpload = lockedUploads[fileId]
             val reason =
                 when {
-                    upload == null -> "NOT_FOUND"
-                    upload.apiPath != "/groups/$groupId/records/files" ||
+                    fileUpload == null -> "NOT_FOUND"
+                    fileUpload.apiPath != GroupFilePaths.recordAttachmentApiPath(groupId) ||
                         !groupFiles.existsByGroupIdAndFileUploadId(groupId, fileId) -> "NOT_FOUND"
-                    !upload.isIssuedBy(memberId) -> "FORBIDDEN"
-                    upload.isDeleted -> "DELETED"
-                    !storage.isFileExists(upload.fileKey) -> "NOT_UPLOADED"
+                    !fileUpload.isIssuedBy(memberId) -> "FORBIDDEN"
+                    fileUpload.isDeleted -> "DELETED"
+                    !storage.isFileExists(fileUpload.fileKey) -> "NOT_UPLOADED"
                     else -> null
                 }
-            if (reason == null) upload!!.markUploaded()
+            if (reason == null) fileUpload!!.markUploaded()
             RecordFileVerificationResult(fileId, reason == null, reason)
         }
     }

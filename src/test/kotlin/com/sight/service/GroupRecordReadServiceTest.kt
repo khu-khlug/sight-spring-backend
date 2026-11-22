@@ -36,8 +36,8 @@ class GroupRecordReadServiceTest {
     private val groupMembers = mock<GroupMemberRepository>()
     private val members = mock<MemberRepository>()
     private val archives = mock<GroupRecordArchiveRepository>()
-    private val links = mock<GroupRecordFileRepository>()
-    private val service = GroupRecordReadService(records, cards, mock(), members, archives, links, groupMembers)
+    private val recordFileRepository = mock<GroupRecordFileRepository>()
+    private val service = GroupRecordReadService(records, cards, mock(), members, archives, recordFileRepository, groupMembers)
 
     @Test
     fun `삭제한 기록은 같은 그룹에서만 삭제 상태로 응답한다`() {
@@ -82,14 +82,14 @@ class GroupRecordReadServiceTest {
         given(records.findByCardIdOrderByRecordSort(card.id, false, card.recordSort, 1L, 2)).willReturn(listOf(first, second))
         given(members.findAllById(listOf(8L))).willReturn(listOf(author))
         given(archives.findByMemberIdAndRecordIdIn(2L, recordIds)).willReturn(listOf(GroupRecordArchive(9L, 2L, 4L, 1L, NOW)))
-        val type = FileReferenceType.GROUP_RECORD_ATTACHMENT
-        val firstFile = FileUpload("first-file", "key-1", 8L, "/groups/1/records/files", "first.txt", 1L, "text/plain", NOW)
-        val secondFile = FileUpload("second-file", "key-2", 8L, "/groups/1/records/files", "second.txt", 2L, "text/plain", NOW)
+        val refType = FileReferenceType.GROUP_RECORD_ATTACHMENT
+        val firstFile = FileUpload("first-file", "key-1", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "first.txt", 1L, "text/plain", NOW)
+        val secondFile = FileUpload("second-file", "key-2", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "second.txt", 2L, "text/plain", NOW)
         secondFile.markUploaded()
-        given(links.findByTypeAndOwnerInOrderById(type, listOf("5", "4"))).willReturn(
+        given(recordFileRepository.findByRefTypeAndReferrerInOrderById(refType, listOf("5", "4"))).willReturn(
             listOf(
-                GroupRecordFileView(GroupRecordFile(11L, "ref-2", "block-2"), FileReference("ref-2", secondFile.id, type, "4"), secondFile),
-                GroupRecordFileView(GroupRecordFile(12L, "ref-1", "block-1"), FileReference("ref-1", firstFile.id, type, "5"), firstFile),
+                GroupRecordFileView(GroupRecordFile(11L, "ref-2", "block-2"), FileReference("ref-2", secondFile.id, refType, "4"), secondFile),
+                GroupRecordFileView(GroupRecordFile(12L, "ref-1", "block-1"), FileReference("ref-1", firstFile.id, refType, "5"), firstFile),
             ),
         )
 

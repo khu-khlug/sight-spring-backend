@@ -46,7 +46,7 @@ class GroupRecordReadService(
     private val lists: GroupKanbanListRepository,
     private val members: MemberRepository,
     private val archives: GroupRecordArchiveRepository,
-    private val links: GroupRecordFileRepository,
+    private val recordFileRepository: GroupRecordFileRepository,
     private val groupMembers: GroupMemberRepository,
 ) {
     @Transactional(readOnly = true)
@@ -80,8 +80,9 @@ class GroupRecordReadService(
     ): List<GroupRecordResult> {
         if (records.isEmpty()) return emptyList()
         val recordIds = records.map { it.id }
-        val fileLinks = links.findByTypeAndOwnerInOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordIds.map { it.toString() })
-        val linksByRecord = fileLinks.groupBy { it.reference.ownerId }
+        val attachments =
+            recordFileRepository.findByRefTypeAndReferrerInOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordIds.map { it.toString() })
+        val attachmentsByRecordId = attachments.groupBy { it.fileReference.referrerId }
         val authors = members.findAllById(records.map { it.authorMemberId }.distinct()).associateBy { it.id }
         val savedIds = archives.findByMemberIdAndRecordIdIn(memberId, recordIds).map { it.recordId }.toSet()
         return records.map { record ->
@@ -90,15 +91,15 @@ class GroupRecordReadService(
                 authors[record.authorMemberId]?.realname ?: throw NotFoundException("작성자를 찾을 수 없습니다."),
                 record.content, record.createdAt, record.updatedAt, record.isDeleted, record.isInPortfolio,
                 record.id in savedIds,
-                linksByRecord[record.id.toString()].orEmpty().mapNotNull { view ->
-                    view.upload.takeUnless { it.isDeleted }?.let { file ->
+                attachmentsByRecordId[record.id.toString()].orEmpty().mapNotNull { attachment ->
+                    attachment.fileUpload.takeUnless { it.isDeleted }?.let { fileUpload ->
                         RecordFileResult(
-                            view.link.fileBlockId,
-                            file.id,
-                            if (file.isUploaded) "/groups/$groupId/files/${file.id}" else null,
-                            requireNotNull(file.fileName),
-                            requireNotNull(file.size),
-                            requireNotNull(file.contentType),
+                            attachment.recordFile.fileBlockId,
+                            fileUpload.id,
+                            if (fileUpload.isUploaded) GroupFilePaths.fileUrl(groupId, fileUpload.id) else null,
+                            requireNotNull(fileUpload.fileName),
+                            requireNotNull(fileUpload.size),
+                            requireNotNull(fileUpload.contentType),
                         )
                     }
                 },

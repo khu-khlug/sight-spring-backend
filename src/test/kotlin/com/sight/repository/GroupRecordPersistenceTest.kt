@@ -15,6 +15,7 @@ import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.service.FileReferenceService
 import com.sight.service.FileUploadDeletionService
+import com.sight.service.GroupFilePaths
 import com.sight.service.GroupRecordAttachmentService
 import com.sight.service.GroupRecordUploadService
 import com.sight.service.IntegerIdService
@@ -61,10 +62,10 @@ class GroupRecordPersistenceTest {
     private lateinit var attachments: GroupRecordAttachmentService
 
     @Autowired
-    private lateinit var uploads: FileUploadRepository
+    private lateinit var fileUploadRepository: FileUploadRepository
 
     @Autowired
-    private lateinit var links: GroupRecordFileRepository
+    private lateinit var recordFileRepository: GroupRecordFileRepository
 
     @MockBean
     private lateinit var storage: StorageService
@@ -125,8 +126,8 @@ class GroupRecordPersistenceTest {
         TestTransaction.end()
         TestTransaction.start()
 
-        assertFalse(uploads.findById("rolled-back").orElseThrow().isDeleted)
-        assertEquals(2, links.findByFileUploadIdOrderById("rolled-back").size)
+        assertFalse(fileUploadRepository.findById("rolled-back").orElseThrow().isDeleted)
+        assertEquals(2, recordFileRepository.findByFileUploadIdOrderById("rolled-back").size)
         verifyNoInteractions(deletionExecutor, storage)
     }
 
@@ -144,15 +145,15 @@ class GroupRecordPersistenceTest {
 
     private fun detachSharedFile(
         fileId: String,
-        ownerId: Long,
+        referrerId: Long,
     ) {
-        attachments.replaceRecordFiles(1L, 2L, ownerId, emptyList())
-        assertFalse(uploads.findById(fileId).orElseThrow().isDeleted)
-        assertEquals(1, links.findByFileUploadIdOrderById(fileId).size)
+        attachments.replaceRecordFiles(1L, 2L, referrerId, emptyList())
+        assertFalse(fileUploadRepository.findById(fileId).orElseThrow().isDeleted)
+        assertEquals(1, recordFileRepository.findByFileUploadIdOrderById(fileId).size)
 
-        attachments.deleteDraftFiles(ownerId)
-        assertTrue(uploads.findById(fileId).orElseThrow().isDeleted)
-        assertTrue(links.findByFileUploadIdOrderById(fileId).isEmpty())
+        attachments.deleteDraftFiles(referrerId)
+        assertTrue(fileUploadRepository.findById(fileId).orElseThrow().isDeleted)
+        assertTrue(recordFileRepository.findByFileUploadIdOrderById(fileId).isEmpty())
         verifyNoInteractions(deletionExecutor)
     }
 
@@ -160,7 +161,7 @@ class GroupRecordPersistenceTest {
         fileId: String,
         linkId: Long,
     ) {
-        entityManager.persist(FileUpload(fileId, "key-$fileId", 2L, "/groups/1/records/files", "file.txt", 1L, "text/plain", NOW))
+        entityManager.persist(FileUpload(fileId, "key-$fileId", 2L, GroupFilePaths.recordAttachmentApiPath(1L), "file.txt", 1L, "text/plain", NOW))
         val recordReference = FileReference("record-$fileId", fileId, FileReferenceType.GROUP_RECORD_ATTACHMENT, linkId.toString())
         val draftReference = FileReference("draft-$fileId", fileId, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, linkId.toString())
         entityManager.persist(recordReference)

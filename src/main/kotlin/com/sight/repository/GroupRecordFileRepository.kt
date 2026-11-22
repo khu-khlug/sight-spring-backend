@@ -10,13 +10,13 @@ interface GroupRecordFileRepository : JpaRepository<GroupRecordFile, Long>, Grou
 interface GroupRecordFileRepositoryCustom {
     fun findByFileUploadIdOrderById(fileUploadId: String): List<GroupRecordFileView>
 
-    fun findByTypeAndOwnerOrderById(
-        type: FileReferenceType,
-        ownerId: String,
+    fun findByRefTypeAndReferrerOrderById(
+        refType: FileReferenceType,
+        referrerId: String,
     ): List<GroupRecordFileView>
 
-    fun findByTypeAndOwnerInOrderById(
-        type: FileReferenceType,
-        ownerIds: Collection<String>,
+    fun findByRefTypeAndReferrerInOrderById(
+        refType: FileReferenceType,
+        referrerIds: Collection<String>,
     ): List<GroupRecordFileView>
 }

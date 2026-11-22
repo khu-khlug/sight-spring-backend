@@ -116,20 +116,19 @@ class GroupRecordWriteService(
         if (group.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
         if (card.isDeleted || card.isDisabled || record.isDeleted) throw BadRequestException("삭제되거나 비활성 상태인 카드·기록입니다.")
         val now = Instant.now()
-        val contentChanged =
-            try {
-                record.edit(content, now)
-            } catch (e: IllegalArgumentException) {
-                throw BadRequestException(requireNotNull(e.message))
-            }
+        try {
+            record.validateEdit(content)
+        } catch (e: IllegalArgumentException) {
+            throw BadRequestException(requireNotNull(e.message))
+        }
         val change = attachments.replaceRecordFiles(groupId, memberId, recordId, files)
-        if (change.isChanged) record.recordAttachmentChange(now)
+        val isChanged = record.edit(content, change.isChanged, now)
         val draft = drafts.findByMemberId(memberId)
         if (draft != null && draft.isSameTarget(groupId, card.id, recordId)) {
             attachments.deleteDraftFiles(draft.id)
             drafts.delete(draft)
         }
-        if (contentChanged || change.isChanged) {
+        if (isChanged) {
             group.resumeByActivity()
             group.recordActivity(now)
             logs.createLog(groupId, memberId, GroupLogData.RecordUpdated(recordId, card.id, card.title))

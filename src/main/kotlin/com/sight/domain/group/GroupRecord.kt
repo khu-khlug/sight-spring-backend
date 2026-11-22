@@ -79,24 +79,22 @@ class GroupRecord(
 
     fun edit(
         content: String,
+        isFileLinksChanged: Boolean,
         at: Instant,
     ): Boolean {
-        requireEditable()
-        validateContent(content)
-        if (this.content == content) return false
+        validateEdit(content)
+        val isChanged = this.content != content || isFileLinksChanged
+        if (!isChanged) return false
         this.content = content
         updatedAt = at
         return true
     }
 
-    fun recordAttachmentChange(at: Instant) {
-        requireEditable()
-        updatedAt = at
-    }
-
-    private fun requireEditable() {
+    // 첨부 링크를 발급하기 전에 수정 가능 여부를 검사할 수 있어야 한다.
+    fun validateEdit(content: String) {
         require(type == GroupRecordType.TIPTAP) { "레거시 기록은 수정할 수 없습니다." }
         require(!isDeleted) { "삭제된 기록입니다." }
+        validateContent(content)
     }
 
     // 같은 그룹의 다른 카드로 옮긴다. 아이디·작성자·본문·작성 일시는 유지한다. 같은 카드면 false를 반환한다.
@@ -133,8 +131,9 @@ class GroupRecord(
         const val CONTENT_MAX_BYTES: Int = 1024 * 1024
 
         private fun validateContent(content: String) {
-            require(content.isNotEmpty() && content.toByteArray(Charsets.UTF_8).size <= CONTENT_MAX_BYTES) {
-                "기록 본문은 비어 있지 않은 1 MiB 이하 문자열이어야 합니다."
+            require(content.isNotEmpty()) { "기록 본문이 필요합니다." }
+            require(content.toByteArray(Charsets.UTF_8).size <= CONTENT_MAX_BYTES) {
+                "기록 본문은 ${CONTENT_MAX_BYTES}바이트 이하여야 합니다."
             }
         }
     }

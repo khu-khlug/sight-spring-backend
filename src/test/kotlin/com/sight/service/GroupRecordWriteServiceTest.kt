@@ -114,6 +114,18 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
+    fun `수정할 본문이 유효하지 않으면 첨부 처리 전에 거부한다`() {
+        for (content in listOf("", MAX_CONTENT + "x")) {
+            assertThrows<BadRequestException> { service.updateGroupRecord(1L, 4L, 2L, content, emptyList()) }
+        }
+
+        assertEquals("before", record.content)
+        assertEquals(NOW, record.updatedAt)
+        assertEquals(GroupStatus.STOP, group.status)
+        verifyNoInteractions(attachments, drafts, logs, points)
+    }
+
+    @Test
     fun `첨부만 바꿔도 수정으로 기록하고 같은 기록의 이전 카드 임시저장은 보존한다`() {
         val previousCardDraft = GroupRecordDraft(5L, 2L, 1L, 9L, 4L, "draft", NOW)
         given(drafts.findByMemberId(2L)).willReturn(previousCardDraft)

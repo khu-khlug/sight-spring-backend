@@ -96,17 +96,33 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `같은 카드로 이동하면 변경하지 않고 다른 그룹의 카드로 이동하면 요청을 거부한다`() {
+    fun `현재 카드로 이동을 요청하면 기록과 그룹 상태 및 로그를 변경하지 않는다`() {
+        card.increaseRecordCount(NOW)
+        group.increaseRecordCount()
+
+        service.updateGroupRecordPosition(1L, 2L, 4L, card.id)
+
+        assertEquals(card.id, record.cardId)
+        assertEquals(1L, card.recordCount)
+        assertEquals(1L, group.recordCount)
+        assertEquals("본문", record.content)
+        assertEquals(GroupStatus.STOP, group.status)
+        verifyNoInteractions(logs, points)
+    }
+
+    @Test
+    fun `다른 그룹의 카드로는 기록을 이동할 수 없다`() {
         val foreign = GroupCard(9L, 10L, 11L, 2L, "다른 그룹 카드", 1L, NOW)
         given(cards.findById(foreign.id)).willReturn(Optional.of(foreign))
         card.increaseRecordCount(NOW)
+        group.increaseRecordCount()
 
-        service.updateGroupRecordPosition(1L, 2L, 4L, card.id)
         assertThrows<BadRequestException> { service.updateGroupRecordPosition(1L, 2L, 4L, foreign.id) }
 
         assertEquals(card.id, record.cardId)
         assertEquals(1L, card.recordCount)
         assertEquals(0L, foreign.recordCount)
+        assertEquals(1L, group.recordCount)
         assertEquals(GroupStatus.STOP, group.status)
         verifyNoInteractions(logs, points)
     }
@@ -129,16 +145,32 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `포트폴리오 포함 여부는 진행 중인 그룹에서 변경할 수 있고 같은 값으로 다시 요청하면 로그를 추가하지 않는다`() {
+    fun `중단된 그룹에서는 기록의 포트폴리오 포함 여부를 변경할 수 없다`() {
         assertThrows<BadRequestException> { service.updateGroupRecordPortfolio(1L, 2L, 4L, false) }
+
         assertTrue(record.isInPortfolio)
         verifyNoInteractions(logs)
+    }
 
+    @Test
+    fun `진행 중인 그룹에서 기록을 포트폴리오에서 제외하면 포함 여부를 변경하고 로그를 남긴다`() {
         group.resumeByActivity()
-        repeat(2) { service.updateGroupRecordPortfolio(1L, 2L, 4L, false) }
+
+        service.updateGroupRecordPortfolio(1L, 2L, 4L, false)
 
         assertFalse(record.isInPortfolio)
         verify(logs).createLog(1L, 2L, GroupLogData.RecordPortfolioRemoved(4L, card.id, card.title))
+    }
+
+    @Test
+    fun `포트폴리오 포함 여부를 현재 값으로 요청하면 로그를 남기지 않는다`() {
+        group.resumeByActivity()
+        record.changePortfolio(false)
+
+        service.updateGroupRecordPortfolio(1L, 2L, 4L, false)
+
+        assertFalse(record.isInPortfolio)
+        verifyNoInteractions(logs)
     }
 
     companion object {

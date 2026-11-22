@@ -36,13 +36,31 @@ class GroupRecordDraftServiceTest {
     private val service = GroupRecordDraftService(drafts, cards, attachments, groups, records, members, mock())
 
     @Test
-    fun `다른 그룹에 저장한 임시저장은 조회하거나 삭제할 수 없다`() {
+    fun `임시저장이 다른 그룹에 속하면 메타데이터 조회는 null을 반환한다`() {
+        val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "other", NOW)
+        given(drafts.findByMemberId(2L)).willReturn(draft)
+
+        assertNull(service.getGroupRecordDraftMetadataByMemberId(1L, 2L))
+
+        verifyNoInteractions(cards, attachments)
+    }
+
+    @Test
+    fun `임시저장이 다른 그룹에 속하면 본문 조회는 NotFoundException을 던진다`() {
+        val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "other", NOW)
+        given(drafts.findByMemberId(2L)).willReturn(draft)
+
+        assertThrows<NotFoundException> { service.getGroupRecordDraftByMemberId(1L, 2L) }
+
+        verifyNoInteractions(cards, attachments)
+    }
+
+    @Test
+    fun `다른 그룹에 속한 임시저장의 삭제를 요청해도 임시저장과 첨부 연결은 유지된다`() {
         val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "other", NOW)
         given(drafts.findByMemberId(2L)).willReturn(draft)
         allowGroupEdit()
 
-        assertNull(service.getGroupRecordDraftMetadataByMemberId(1L, 2L))
-        assertThrows<NotFoundException> { service.getGroupRecordDraftByMemberId(1L, 2L) }
         service.deleteGroupRecordDraft(1L, 2L)
 
         verifyNoInteractions(cards, attachments)
@@ -65,7 +83,36 @@ class GroupRecordDraftServiceTest {
     }
 
     @Test
-    fun `임시저장 요청의 저장 시각이 기존 저장 시각과 같으면 그룹 변경을 허용하고 이전 첨부 연결을 해제한다`() {
+    fun `임시저장 요청의 저장 시각이 기존 저장 시각과 같아도 본문을 덮어쓴다`() {
+        val draft = existingDraft()
+        allowGroupEdit()
+        given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
+        given(cards.findById(3L)).willReturn(Optional.of(card()))
+        given(attachments.replaceDraftFiles(1L, 2L, draft.id, emptyList(), false)).willReturn(emptyList())
+
+        service.updateGroupRecordDraft(1L, 2L, 3L, null, "after", NOW, emptyList())
+
+        assertEquals("after", draft.content)
+        assertEquals(NOW, draft.updatedAt)
+        verify(attachments).replaceDraftFiles(1L, 2L, draft.id, emptyList(), false)
+    }
+
+    @Test
+    fun `임시저장 본문은 빈 문자열로 덮어쓸 수 있다`() {
+        val draft = existingDraft()
+        allowGroupEdit()
+        given(drafts.findForUpdateByMemberId(2L)).willReturn(draft)
+        given(cards.findById(3L)).willReturn(Optional.of(card()))
+        given(attachments.replaceDraftFiles(1L, 2L, draft.id, emptyList(), false)).willReturn(emptyList())
+
+        service.updateGroupRecordDraft(1L, 2L, 3L, null, "", NOW.plusSeconds(1), emptyList())
+
+        assertEquals("", draft.content)
+        assertEquals(NOW.plusSeconds(1), draft.updatedAt)
+    }
+
+    @Test
+    fun `다른 그룹에 저장된 임시저장을 덮어쓸 때 첨부 연결 초기화를 요청한다`() {
         val draft = GroupRecordDraft(5L, 2L, 9L, 30L, null, "before", NOW)
         allowGroupEdit()
         given(groups.findLockedById(9L)).willReturn(testGroup(id = 9L))
@@ -74,11 +121,12 @@ class GroupRecordDraftServiceTest {
         given(attachments.replaceDraftFiles(1L, 2L, draft.id, emptyList(), true))
             .willReturn(emptyList())
 
-        service.updateGroupRecordDraft(1L, 2L, 3L, null, "", NOW, emptyList())
+        service.updateGroupRecordDraft(1L, 2L, 3L, null, "after", NOW.plusSeconds(1), emptyList())
 
         assertEquals(1L, draft.groupId)
         assertEquals(3L, draft.cardId)
-        assertEquals("", draft.content)
+        assertEquals("after", draft.content)
+        assertEquals(NOW.plusSeconds(1), draft.updatedAt)
         verify(attachments).replaceDraftFiles(1L, 2L, draft.id, emptyList(), true)
     }
 

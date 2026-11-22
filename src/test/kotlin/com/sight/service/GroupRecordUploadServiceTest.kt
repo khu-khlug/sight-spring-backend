@@ -84,7 +84,7 @@ class GroupRecordUploadServiceTest {
     }
 
     @Test
-    fun `업로드 확인 예약에 실패하면 예약 메서드가 예외를 던진다`() {
+    fun `스케줄러가 업로드 확인 예약을 거부하면 예외를 호출자에게 전달한다`() {
         given(scheduler.schedule(any<Runnable>(), any<Instant>())).willThrow(RejectedExecutionException())
 
         assertThrows<RejectedExecutionException> { service.scheduleUploadCheck("file", Instant.now()) }

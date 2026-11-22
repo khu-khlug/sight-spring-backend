@@ -50,7 +50,7 @@ class GroupRecordReadServiceTest {
     }
 
     @Test
-    fun `그룹원이 아닌 사용자는 삭제된 기록을 포함해 조회할 수 없다`() {
+    fun `그룹원이 아니면 삭제된 기록을 포함하는 목록 조회를 요청할 수 없다`() {
         given(cards.findById(3L)).willReturn(Optional.of(card()))
 
         assertThrows<ForbiddenException> { service.listGroupRecords(1L, 3L, 2L, 0L, 10, true) }

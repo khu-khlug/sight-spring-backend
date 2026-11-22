@@ -70,25 +70,34 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `첨부 파일의 크기가 허용 범위를 벗어나거나 블록 아이디가 중복되면 업로드 주소를 발급하지 않는다`() {
-        val invalid = listOf(listOf(newFile(-1)), listOf(newFile(MAX_FILE_BYTES + 1)), List(2) { newFile(1) })
-        invalid.forEach { files ->
-            assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, files) }
-        }
+    fun `첨부 파일의 크기가 음수이면 업로드 주소를 발급하지 않는다`() {
+        assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, listOf(newFile(-1))) }
+
         verifyNoInteractions(recordFileRepository, fileUploadRepository, groupFiles, storage, fileReferenceService, uploadChecks)
     }
 
     @Test
-    fun `다른 그룹의 첨부 파일을 연결하거나 기존 블록의 파일을 교체할 수 없다`() {
-        val original = view("old", RECORD, "3", "block")
+    fun `첨부 파일의 크기가 20 MiB를 넘으면 업로드 주소를 발급하지 않는다`() {
+        assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, listOf(newFile(MAX_FILE_BYTES + 1))) }
+
+        verifyNoInteractions(recordFileRepository, fileUploadRepository, groupFiles, storage, fileReferenceService, uploadChecks)
+    }
+
+    @Test
+    fun `첨부 파일의 블록 아이디가 중복되면 업로드 주소를 발급하지 않는다`() {
+        val files = List(2) { newFile(1) }
+
+        assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, files) }
+
+        verifyNoInteractions(recordFileRepository, fileUploadRepository, groupFiles, storage, fileReferenceService, uploadChecks)
+    }
+
+    @Test
+    fun `다른 그룹의 파일은 기록에 첨부할 수 없다`() {
         val foreign = fileUpload("foreign", apiPath = GroupFilePaths.recordAttachmentApiPath(9L))
-        given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(listOf(original))
-        given(fileUploadRepository.findForUpdateById("old")).willReturn(original.fileUpload)
+        given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(emptyList())
         given(fileUploadRepository.findForUpdateById("foreign")).willReturn(foreign)
 
-        assertThrows<BadRequestException> {
-            service.replaceRecordFiles(1L, 2L, 3L, listOf(RecordFileInput("block", "foreign", null, null, null)))
-        }
         assertThrows<BadRequestException> {
             service.replaceRecordFiles(1L, 2L, 3L, listOf(RecordFileInput("new-block", "foreign", null, null, null)))
         }
@@ -96,7 +105,22 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `같은 파일을 새 블록으로 옮기면 새 파일 참조를 저장한 뒤 기존 참조를 해제한다`() {
+    fun `이미 연결된 첨부 블록의 파일은 다른 파일로 바꿀 수 없다`() {
+        val original = view("old", RECORD, "3", "block")
+        val replacement = fileUpload("replacement")
+        given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(listOf(original))
+        given(fileUploadRepository.findForUpdateById("old")).willReturn(original.fileUpload)
+        given(fileUploadRepository.findForUpdateById("replacement")).willReturn(replacement)
+        given(groupFiles.existsByGroupIdAndFileUploadId(1L, "replacement")).willReturn(true)
+
+        assertThrows<BadRequestException> {
+            service.replaceRecordFiles(1L, 2L, 3L, listOf(RecordFileInput("block", "replacement", null, null, null)))
+        }
+        verifyNoInteractions(fileReferenceService, storage)
+    }
+
+    @Test
+    fun `같은 파일을 참조하는 새 블록 추가와 기존 블록 삭제를 함께 요청할 때 새 참조를 먼저 저장한다`() {
         val old = view("shared", RECORD, "3", "old-block")
         given(recordFileRepository.findByRefTypeAndReferrerOrderById(RECORD, "3")).willReturn(listOf(old))
         given(fileUploadRepository.findForUpdateById("shared")).willReturn(old.fileUpload)
@@ -119,48 +143,153 @@ class GroupRecordAttachmentServiceTest {
     }
 
     @Test
-    fun `업로드 완료 확인 시 파일 아이디 순으로 잠그고 파일별 처리 결과는 요청 순서대로 반환한다`() {
-        given(members.findForUpdateById(2L)).willReturn(mock())
-        given(groups.findLockedById(1L)).willReturn(testGroup())
+    fun `업로드 완료를 확인할 때 요청 순서와 관계없이 파일 아이디 순으로 잠근다`() {
+        val firstFile = fileUpload("a-file")
+        val secondFile = fileUpload("b-file")
+        val thirdFile = fileUpload("c-file")
+        prepareUploadVerification(firstFile, secondFile, thirdFile)
+
+        service.updateGroupRecordFilesUploaded(1L, 2L, listOf(thirdFile.id, firstFile.id, secondFile.id))
+
+        inOrder(fileUploadRepository) {
+            verify(fileUploadRepository).findForUpdateById(firstFile.id)
+            verify(fileUploadRepository).findForUpdateById(secondFile.id)
+            verify(fileUploadRepository).findForUpdateById(thirdFile.id)
+        }
+    }
+
+    @Test
+    fun `업로드 완료 확인 결과는 성공 여부와 관계없이 요청 순서대로 반환한다`() {
         val success = fileUpload("z-ok")
         val pending = fileUpload("a-pending")
-        val deleted = fileUpload("b-deleted").apply { markDeleted(NOW) }
-        val forbidden = fileUpload("c-forbidden", memberId = 9L)
-        val foreign = fileUpload("d-foreign", apiPath = GroupFilePaths.recordAttachmentApiPath(9L))
-        listOf(success, pending, deleted, forbidden, foreign).forEach {
-            given(fileUploadRepository.findForUpdateById(it.id)).willReturn(it)
-            given(groupFiles.existsByGroupIdAndFileUploadId(1L, it.id)).willReturn(true)
-        }
-        given(storage.isFileExists(success.fileKey)).willReturn(true)
-        val requested = listOf(success.id, pending.id, success.id, deleted.id, forbidden.id, foreign.id, "e-missing")
+        prepareUploadVerification(success, pending)
+        given(storage.isFileExists(pending.fileKey)).willReturn(false)
 
-        val result = service.updateGroupRecordFilesUploaded(1L, 2L, requested)
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(success.id, pending.id))
 
         assertEquals(
             listOf(
                 RecordFileVerificationResult(success.id, true, null),
                 RecordFileVerificationResult(pending.id, false, "NOT_UPLOADED"),
-                RecordFileVerificationResult(deleted.id, false, "DELETED"),
-                RecordFileVerificationResult(forbidden.id, false, "FORBIDDEN"),
-                RecordFileVerificationResult(foreign.id, false, "NOT_FOUND"),
-                RecordFileVerificationResult("e-missing", false, "NOT_FOUND"),
             ),
             result,
         )
-        inOrder(fileUploadRepository) {
-            requested.distinct().sorted().forEach { verify(fileUploadRepository).findForUpdateById(it) }
-        }
-        verify(storage).isFileExists(success.fileKey)
-        verify(storage).isFileExists(pending.fileKey)
-        assertTrue(success.isUploaded)
-        assertFalse(pending.isUploaded)
-        assertFalse(forbidden.isUploaded)
-        assertFalse(foreign.isUploaded)
+    }
 
-        given(storage.isFileExists(pending.fileKey)).willReturn(true)
-        assertTrue(service.updateGroupRecordFilesUploaded(1L, 2L, listOf(pending.id)).single().isSuccess)
-        assertTrue(pending.isUploaded)
-        assertTrue(service.updateGroupRecordFilesUploaded(1L, 2L, listOf(pending.id)).single().isSuccess)
+    @Test
+    fun `업로드 완료 확인 요청에 같은 파일 아이디가 여러 번 있어도 한 번만 처리하고 결과도 하나만 반환한다`() {
+        val fileUpload = fileUpload("repeated")
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id, fileUpload.id))
+
+        assertEquals(listOf(RecordFileVerificationResult(fileUpload.id, true, null)), result)
+        verify(fileUploadRepository).findForUpdateById(fileUpload.id)
+        verify(storage).isFileExists(fileUpload.fileKey)
+    }
+
+    @Test
+    fun `R2에 파일이 있으면 업로드 완료로 표시하고 성공 결과를 반환한다`() {
+        val fileUpload = fileUpload("uploaded")
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, true, null), result.single())
+        assertTrue(fileUpload.isUploaded)
+    }
+
+    @Test
+    fun `업로드 기록이 없는 파일은 NOT_FOUND를 반환한다`() {
+        prepareUploadVerification()
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf("missing"))
+
+        assertEquals(RecordFileVerificationResult("missing", false, "NOT_FOUND"), result.single())
+        verifyNoInteractions(storage)
+    }
+
+    @Test
+    fun `다른 그룹의 첨부 파일은 업로드 완료 확인 시 NOT_FOUND를 반환한다`() {
+        val fileUpload = fileUpload("foreign", apiPath = GroupFilePaths.recordAttachmentApiPath(9L))
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, false, "NOT_FOUND"), result.single())
+        assertFalse(fileUpload.isUploaded)
+        verifyNoInteractions(storage)
+    }
+
+    @Test
+    fun `다른 회원이 업로드 링크를 발급받은 파일은 FORBIDDEN을 반환한다`() {
+        val fileUpload = fileUpload("forbidden", memberId = 9L)
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, false, "FORBIDDEN"), result.single())
+        assertFalse(fileUpload.isUploaded)
+        verifyNoInteractions(storage)
+    }
+
+    @Test
+    fun `삭제 표시된 파일은 업로드 완료 확인 시 DELETED를 반환한다`() {
+        val fileUpload = fileUpload("deleted").apply { markDeleted(NOW) }
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, false, "DELETED"), result.single())
+        assertFalse(fileUpload.isUploaded)
+        verifyNoInteractions(storage)
+    }
+
+    @Test
+    fun `R2에 파일이 없으면 완료로 표시하지 않고 NOT_UPLOADED를 반환한다`() {
+        val fileUpload = fileUpload("pending")
+        prepareUploadVerification(fileUpload)
+        given(storage.isFileExists(fileUpload.fileKey)).willReturn(false)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, false, "NOT_UPLOADED"), result.single())
+        assertFalse(fileUpload.isUploaded)
+    }
+
+    @Test
+    fun `R2에 파일이 없어 완료 확인에 실패해도 파일을 업로드한 뒤 다시 요청하면 성공한다`() {
+        val fileUpload = fileUpload("retry")
+        prepareUploadVerification(fileUpload)
+        given(storage.isFileExists(fileUpload.fileKey)).willReturn(false, true)
+
+        val firstResult = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+        val retryResult = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, false, "NOT_UPLOADED"), firstResult.single())
+        assertEquals(RecordFileVerificationResult(fileUpload.id, true, null), retryResult.single())
+        assertTrue(fileUpload.isUploaded)
+    }
+
+    @Test
+    fun `이미 업로드 완료로 표시된 파일도 완료 확인을 다시 요청하면 성공한다`() {
+        val fileUpload = fileUpload("already-uploaded").apply { markUploaded() }
+        prepareUploadVerification(fileUpload)
+
+        val result = service.updateGroupRecordFilesUploaded(1L, 2L, listOf(fileUpload.id))
+
+        assertEquals(RecordFileVerificationResult(fileUpload.id, true, null), result.single())
+        assertTrue(fileUpload.isUploaded)
+    }
+
+    private fun prepareUploadVerification(vararg fileUploads: FileUpload) {
+        given(members.findForUpdateById(2L)).willReturn(mock())
+        given(groups.findLockedById(1L)).willReturn(testGroup())
+        fileUploads.forEach { fileUpload ->
+            given(fileUploadRepository.findForUpdateById(fileUpload.id)).willReturn(fileUpload)
+            given(groupFiles.existsByGroupIdAndFileUploadId(1L, fileUpload.id)).willReturn(true)
+            given(storage.isFileExists(fileUpload.fileKey)).willReturn(true)
+        }
     }
 
     private fun newFile(size: Long) = RecordFileInput("block", null, "file.txt", size, "text/plain")

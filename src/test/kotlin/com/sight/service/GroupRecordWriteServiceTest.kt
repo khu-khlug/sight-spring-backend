@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.given
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
@@ -70,30 +71,68 @@ class GroupRecordWriteServiceTest {
     }
 
     @Test
-    fun `1 MiB 본문을 저장할 수 있으며 기록의 첨부 연결을 만든 뒤 같은 작성 대상의 임시저장을 삭제한다`() {
-        val draft = GroupRecordDraft(5L, 2L, 1L, 3L, null, "draft", NOW)
-        val files = listOf(RecordFileInput("block", "shared", null, null, null))
-        given(ids.nextId()).willReturn(4L)
-        given(records.save(any<GroupRecord>())).willAnswer { it.getArgument(0) }
-        given(attachments.replaceRecordFiles(1L, 2L, 4L, files)).willReturn(emptyList())
-        given(drafts.findByMemberId(2L)).willReturn(draft)
-        given(groupMembers.findByGroupId(1L)).willReturn(emptyList())
-        given(attachments.getRecordFiles(1L, 4L)).willReturn(emptyList())
+    fun `기록 본문은 UTF-8 기준 1 MiB까지 저장할 수 있다`() {
+        prepareRecordCreation()
 
         TransactionSynchronizationManager.initSynchronization()
         try {
-            val result = service.createGroupRecord(1L, 3L, 2L, MAX_CONTENT, files)
+            val result = service.createGroupRecord(1L, 3L, 2L, MAX_CONTENT, emptyList())
 
             assertEquals(MAX_CONTENT, result.content)
-            assertEquals(4L, result.id)
-            assertEquals(1L, card.recordCount)
-            assertEquals(1L, group.recordCount)
-            assertEquals(GroupStatus.PROGRESS, group.status)
+            val savedRecord = argumentCaptor<GroupRecord>()
+            verify(records).save(savedRecord.capture())
+            assertEquals(MAX_CONTENT, savedRecord.firstValue.content)
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization()
+        }
+    }
+
+    @Test
+    fun `기록을 작성할 때 첨부 연결을 만든 뒤 같은 작성 대상의 임시저장을 삭제한다`() {
+        val draft = GroupRecordDraft(5L, 2L, 1L, 3L, null, "draft", NOW)
+        val files = listOf(RecordFileInput("block", "shared", null, null, null))
+        prepareRecordCreation(files)
+        given(drafts.findByMemberId(2L)).willReturn(draft)
+
+        TransactionSynchronizationManager.initSynchronization()
+        try {
+            service.createGroupRecord(1L, 3L, 2L, "본문", files)
+
             inOrder(attachments, drafts) {
                 verify(attachments).replaceRecordFiles(1L, 2L, 4L, files)
                 verify(attachments).deleteDraftFiles(draft.id)
                 verify(drafts).delete(draft)
             }
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization()
+        }
+    }
+
+    @Test
+    fun `기록을 작성하면 카드와 그룹의 기록 수가 증가하고 중단된 그룹이 진행 중으로 바뀐다`() {
+        prepareRecordCreation()
+
+        TransactionSynchronizationManager.initSynchronization()
+        try {
+            val result = service.createGroupRecord(1L, 3L, 2L, "본문", emptyList())
+
+            assertEquals(4L, result.id)
+            assertEquals(1L, card.recordCount)
+            assertEquals(1L, group.recordCount)
+            assertEquals(GroupStatus.PROGRESS, group.status)
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization()
+        }
+    }
+
+    @Test
+    fun `기록 작성 트랜잭션이 롤백되면 경험치를 지급하지 않는다`() {
+        prepareRecordCreation()
+
+        TransactionSynchronizationManager.initSynchronization()
+        try {
+            service.createGroupRecord(1L, 3L, 2L, "본문", emptyList())
+
             val synchronization = TransactionSynchronizationManager.getSynchronizations().single()
             synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK)
             verifyNoInteractions(points)
@@ -152,6 +191,14 @@ class GroupRecordWriteServiceTest {
 
         assertEquals("original", other.content)
         verifyNoInteractions(attachments, drafts, logs, points)
+    }
+
+    private fun prepareRecordCreation(files: List<RecordFileInput> = emptyList()) {
+        given(ids.nextId()).willReturn(4L)
+        given(records.save(any<GroupRecord>())).willAnswer { it.getArgument(0) }
+        given(attachments.replaceRecordFiles(1L, 2L, 4L, files)).willReturn(emptyList())
+        given(groupMembers.findByGroupId(1L)).willReturn(emptyList())
+        given(attachments.getRecordFiles(1L, 4L)).willReturn(emptyList())
     }
 
     companion object {

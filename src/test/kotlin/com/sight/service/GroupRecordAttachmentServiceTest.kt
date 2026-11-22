@@ -4,10 +4,8 @@ import com.sight.core.exception.BadRequestException
 import com.sight.domain.file.FileReference
 import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
-import com.sight.domain.file.FileUploadMissingEvent
 import com.sight.domain.group.GroupRecordFile
 import com.sight.domain.group.testGroup
-import com.sight.repository.FileReferenceRepository
 import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupRecordFileRepository
@@ -37,9 +35,9 @@ class GroupRecordAttachmentServiceTest {
     private val references = mock<FileReferenceService>()
     private val groups = mock<GroupRepository>()
     private val members = mock<MemberRepository>()
-    private val fileReferences = mock<FileReferenceRepository>()
+    private val uploadChecks = mock<GroupRecordUploadService>()
     private val service =
-        GroupRecordAttachmentService(links, uploads, groupFiles, ids, storage, references, groups, members, fileReferences)
+        GroupRecordAttachmentService(links, uploads, groupFiles, ids, storage, references, groups, members, uploadChecks)
 
     @Test
     fun `최대 크기의 새 첨부를 같은 크기로 서명하고 발급한 파일을 응답과 참조에 연결한다`() {
@@ -59,6 +57,7 @@ class GroupRecordAttachmentServiceTest {
         assertEquals(size, file.size)
         assertEquals("/groups/1/records/files", file.apiPath)
         verify(storage).generateUploadUrl(file.fileKey, size)
+        verify(uploadChecks).scheduleUploadCheck(file.id, file.uploadCheckAt)
         verify(references).createFileReference(file.id, RECORD, "3")
         val link = argumentCaptor<GroupRecordFile>()
         verify(links).save(link.capture())
@@ -75,7 +74,7 @@ class GroupRecordAttachmentServiceTest {
         invalid.forEach { files ->
             assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, files) }
         }
-        verifyNoInteractions(links, uploads, groupFiles, storage, references)
+        verifyNoInteractions(links, uploads, groupFiles, storage, references, uploadChecks)
     }
 
     @Test
@@ -161,23 +160,6 @@ class GroupRecordAttachmentServiceTest {
         assertTrue(service.updateGroupRecordFilesUploaded(1L, 2L, listOf(pending.id)).single().isSuccess)
         assertTrue(pending.isUploaded)
         assertTrue(service.updateGroupRecordFilesUploaded(1L, 2L, listOf(pending.id)).single().isSuccess)
-    }
-
-    @Test
-    fun `누락 업로드 이벤트는 부가 행을 먼저 지우고 같은 파일의 기록과 임시저장 참조를 제거한다`() {
-        val record = view("missing", RECORD, "3", "record-block")
-        val draft = view("missing", FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, "4", "draft-block")
-        given(links.findByFileUploadIdOrderById("missing")).willReturn(listOf(record, draft))
-
-        service.deleteMissingUploadReferences(FileUploadMissingEvent("missing"))
-
-        inOrder(links, fileReferences) {
-            verify(links).deleteAll(listOf(record.link, draft.link))
-            verify(links).flush()
-            verify(fileReferences).deleteByIdAndTypeAndOwner(record.reference.id, RECORD, "3")
-            verify(fileReferences).deleteByIdAndTypeAndOwner(draft.reference.id, draft.reference.referenceType, "4")
-        }
-        verifyNoInteractions(uploads, references, storage)
     }
 
     private fun newFile(size: Long) = RecordFileInput("block", null, "file.txt", size, "text/plain")

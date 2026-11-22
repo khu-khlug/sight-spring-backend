@@ -16,6 +16,7 @@ import com.sight.domain.member.UserStatus
 import com.sight.service.FileReferenceService
 import com.sight.service.FileUploadDeletionService
 import com.sight.service.GroupRecordAttachmentService
+import com.sight.service.GroupRecordUploadService
 import com.sight.service.IntegerIdService
 import com.sight.service.StorageService
 import jakarta.persistence.EntityManager
@@ -70,6 +71,9 @@ class GroupRecordPersistenceTest {
 
     @MockBean
     private lateinit var ids: IntegerIdService
+
+    @MockBean
+    private lateinit var uploadChecks: GroupRecordUploadService
 
     @MockBean(name = "fileDeletionExecutor")
     private lateinit var deletionExecutor: TaskExecutor

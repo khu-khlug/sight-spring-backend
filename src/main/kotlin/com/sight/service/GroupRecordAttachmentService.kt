@@ -5,19 +5,15 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
-import com.sight.domain.file.FileUploadMissingEvent
 import com.sight.domain.group.GroupFile
 import com.sight.domain.group.GroupRecordFile
-import com.sight.repository.FileReferenceRepository
 import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupRecordFileRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupRecordFileView
-import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
@@ -33,7 +29,7 @@ class GroupRecordAttachmentService(
     private val references: FileReferenceService,
     private val groups: GroupRepository,
     private val members: MemberRepository,
-    private val fileReferenceRepository: FileReferenceRepository,
+    private val uploadChecks: GroupRecordUploadService,
 ) {
     @Transactional
     fun replaceRecordFiles(
@@ -161,7 +157,7 @@ class GroupRecordAttachmentService(
         val fileKey = UlidCreator.getUlid().toString()
         val size = requireNotNull(input.size)
         val uploadUrl = storage.generateUploadUrl(fileKey, size)
-        uploads.saveAndFlush(
+        val upload =
             FileUpload(
                 fileId,
                 fileKey,
@@ -171,8 +167,9 @@ class GroupRecordAttachmentService(
                 size,
                 input.contentType,
                 Instant.now(),
-            ),
-        )
+            )
+        uploads.saveAndFlush(upload)
+        uploadChecks.scheduleUploadCheck(upload.id, upload.uploadCheckAt)
         groupFiles.save(GroupFile(integerIds.nextId(), groupId, fileId))
         result += RecordFileUploadResult(input.id, fileId, fileUrl(groupId, fileId), uploadUrl)
         return fileId
@@ -219,17 +216,6 @@ class GroupRecordAttachmentService(
                 }
             if (reason == null) upload!!.markUploaded()
             RecordFileVerificationResult(fileId, reason == null, reason)
-        }
-    }
-
-    @EventListener
-    @Transactional(propagation = Propagation.MANDATORY)
-    fun deleteMissingUploadReferences(event: FileUploadMissingEvent) {
-        val existing = links.findByFileUploadIdOrderById(event.fileUploadId)
-        links.deleteAll(existing.map { it.link })
-        links.flush()
-        existing.forEach { view ->
-            fileReferenceRepository.deleteByIdAndTypeAndOwner(view.reference.id, view.reference.referenceType, view.reference.ownerId)
         }
     }
 }

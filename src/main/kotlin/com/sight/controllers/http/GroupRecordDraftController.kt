@@ -15,6 +15,7 @@ import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordDraftService
 import com.sight.service.RecordFileInput
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -73,7 +74,7 @@ class GroupRecordDraftController(
     @ResponseStatus(HttpStatus.OK)
     fun updateGroupRecordDraft(
         @PathVariable @Positive groupId: Long,
-        @RequestBody request: UpdateGroupRecordDraftRequest,
+        @Valid @RequestBody request: UpdateGroupRecordDraftRequest,
         requester: Requester,
     ): UpdateGroupRecordDraftResponse {
         val uploads =

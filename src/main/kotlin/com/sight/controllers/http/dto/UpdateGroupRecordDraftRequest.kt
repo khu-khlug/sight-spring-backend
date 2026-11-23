@@ -3,10 +3,13 @@ package com.sight.controllers.http.dto
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.databind.JsonNode
 import com.sight.core.exception.BadRequestException
+import com.sight.core.id.IntegerId
 import java.time.Instant
 
 data class UpdateGroupRecordDraftRequest(
+    @field:IntegerId
     val cardId: String,
+    @field:IntegerId
     val recordId: String?,
     val content: String,
     val updatedAt: Instant,
@@ -20,19 +23,13 @@ data class UpdateGroupRecordDraftRequest(
                 node[field]?.takeIf { it.isTextual }?.asText()
                     ?: throw BadRequestException("$field 문자열이 필요합니다.")
 
-            fun identifier(value: String): String {
-                if (!Regex("[1-9][0-9]{0,18}").matches(value) || value.toLongOrNull() == null) {
-                    throw BadRequestException("식별자는 양의 Long 10진 문자열이어야 합니다.")
-                }
-                return value
-            }
             val record = node["recordId"] ?: throw BadRequestException("recordId가 필요합니다.")
             val recordId =
                 if (record.isNull) {
                     null
                 } else {
                     if (!record.isTextual) throw BadRequestException("recordId는 문자열 또는 null이어야 합니다.")
-                    identifier(record.asText())
+                    record.asText()
                 }
             val timestamp = text("updatedAt")
             val instant =
@@ -43,7 +40,7 @@ data class UpdateGroupRecordDraftRequest(
                     throw BadRequestException("updatedAt은 UTC ISO 8601 Z 형식이어야 합니다.")
                 }
             val files = readRecordFiles(node["files"])
-            return UpdateGroupRecordDraftRequest(identifier(text("cardId")), recordId, text("content"), instant, files)
+            return UpdateGroupRecordDraftRequest(text("cardId"), recordId, text("content"), instant, files)
         }
     }
 }

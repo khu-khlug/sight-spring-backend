@@ -8,6 +8,7 @@ import com.sight.core.auth.UserRole
 import com.sight.core.groupauth.GroupAuth
 import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupRecordStateService
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Positive
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -53,7 +54,7 @@ class GroupRecordStateController(
     fun updateGroupRecordPosition(
         @PathVariable @Positive groupId: Long,
         @PathVariable @Positive recordId: Long,
-        @RequestBody request: UpdateGroupRecordPositionRequest,
+        @Valid @RequestBody request: UpdateGroupRecordPositionRequest,
         requester: Requester,
     ) {
         groupRecordStateService.updateGroupRecordPosition(groupId, requester.userId, recordId, request.targetCardId.toLong())

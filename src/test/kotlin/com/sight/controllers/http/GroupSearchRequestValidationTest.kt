@@ -9,15 +9,17 @@ import com.sight.core.groupauth.GroupAuthorizationService
 import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.testGroup
 import com.sight.repository.GroupAuthorizationRepository
+import com.sight.repository.GroupCardRepository
+import com.sight.repository.GroupKanbanListRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.GroupSearchRepository
+import com.sight.repository.MemberRepository
 import com.sight.service.GroupRecordTextExtractor
 import com.sight.service.GroupSearchService
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.any
 import org.mockito.kotlin.given
 import org.mockito.kotlin.verifyNoInteractions
 import org.springframework.beans.factory.annotation.Autowired
@@ -58,6 +60,15 @@ class GroupSearchRequestValidationTest {
     private lateinit var groupSearchRepository: GroupSearchRepository
 
     @MockBean
+    private lateinit var groupCardRepository: GroupCardRepository
+
+    @MockBean
+    private lateinit var groupKanbanListRepository: GroupKanbanListRepository
+
+    @MockBean
+    private lateinit var memberRepository: MemberRepository
+
+    @MockBean
     private lateinit var groupRepository: GroupRepository
 
     @MockBean
@@ -71,7 +82,6 @@ class GroupSearchRequestValidationTest {
         given(groupRepository.findById(GROUP_ID))
             .willReturn(Optional.of(testGroup(id = GROUP_ID, visibility = GroupVisibility.PUBLIC)))
         given(groupRepository.existsById(GROUP_ID)).willReturn(true)
-        given(groupSearchRepository.findCardsOrderByLatest(any(), any(), any())).willReturn(emptyList())
         SecurityContextHolder.getContext().authentication =
             UsernamePasswordAuthenticationToken(
                 Requester(userId = MEMBER_ID, role = UserRole.USER),
@@ -94,7 +104,7 @@ class GroupSearchRequestValidationTest {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.message").value("검색어가 필요합니다."))
 
-        verifyNoInteractions(groupSearchRepository)
+        verifyNoInteractions(groupCardRepository)
     }
 
     @Test
@@ -103,7 +113,7 @@ class GroupSearchRequestValidationTest {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.message").value("검색어는 20자 이하여야 합니다."))
 
-        verifyNoInteractions(groupSearchRepository)
+        verifyNoInteractions(groupCardRepository)
     }
 
     @Test

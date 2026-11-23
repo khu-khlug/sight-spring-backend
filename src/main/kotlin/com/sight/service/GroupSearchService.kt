@@ -2,11 +2,15 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupSearchKeywords
 import com.sight.domain.group.GroupSearchPreview
+import com.sight.repository.GroupCardRepository
+import com.sight.repository.GroupKanbanListRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.GroupSearchRepository
-import com.sight.repository.dto.GroupSearchCardView
+import com.sight.repository.MemberRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
@@ -29,6 +33,9 @@ data class GroupSearchResult(
 @Service
 class GroupSearchService(
     private val groupRepository: GroupRepository,
+    private val groupCardRepository: GroupCardRepository,
+    private val groupKanbanListRepository: GroupKanbanListRepository,
+    private val memberRepository: MemberRepository,
     private val groupSearchRepository: GroupSearchRepository,
     private val groupRecordTextExtractor: GroupRecordTextExtractor,
 ) {
@@ -55,37 +62,49 @@ class GroupSearchService(
         // 대상과 관계없이 같은 비교 규칙(GroupSearchKeywords)으로 일치 여부를 판정하고, 결과는 한 곳에서 만든다.
         val outcome =
             when (target) {
-                GroupSearchTarget.TITLE -> searchCards(groupId, keywords, offset, { it.cardTitle }, { null })
-                GroupSearchTarget.AUTHOR -> searchCards(groupId, keywords, offset, { it.authorName }, { it.authorName })
+                GroupSearchTarget.TITLE -> searchCards(groupId, keywords, offset, byAuthorName = false)
+                GroupSearchTarget.AUTHOR -> searchCards(groupId, keywords, offset, byAuthorName = true)
                 GroupSearchTarget.RECORD -> searchRecords(groupId, keywords, offset)
             }
         return GroupSearchResult(page = page, totalPages = totalPages(outcome.matchedCount), results = outcome.items)
     }
 
-    // 카드명·생성자명 검색. `textOf`가 일치 여부를 판정할 텍스트를, `matchedTextOf`가 결과에 담을 일치 텍스트를 정한다.
+    // 카드명 또는 카드 생성자명 검색. 카드·리스트·회원을 각 Repository에서 객체로 읽어 이 서비스에서 조합한다.
+    // 카드 엔티티는 영속성 컨텍스트에 트랜잭션이 끝날 때까지 남지만 짧은 필드만 가지므로 크기가 작다.
     private fun searchCards(
         groupId: Long,
         keywords: GroupSearchKeywords,
         offset: Long,
-        textOf: (GroupSearchCardView) -> String,
-        matchedTextOf: (GroupSearchCardView) -> String?,
+        byAuthorName: Boolean,
     ): SearchOutcome {
+        val authorNames = mutableMapOf<Long, String>()
         val scan =
             scan(
                 keywords = keywords,
                 offset = offset,
                 batchSize = CARD_SCAN_BATCH_SIZE,
-                fetch = { groupSearchRepository.findCardsOrderByLatest(groupId, it, CARD_SCAN_BATCH_SIZE) },
-                textOf = textOf,
+                fetch = { start ->
+                    fetchCards(groupId, start).also { if (byAuthorName) loadAuthorNames(it, authorNames) }
+                },
+                textOf = { card -> if (byAuthorName) authorNames[card.authorMemberId].orEmpty() else card.title },
                 toHit = { card, _ -> card },
             )
+        val listTitles = loadListTitles(scan.hits.mapNotNull { it.listId })
         return SearchOutcome(
             matchedCount = scan.matchedCount,
-            items = scan.hits.map { card -> card.toItem(recordId = null, matchedText = matchedTextOf(card)) },
+            items =
+                scan.hits.mapNotNull { card ->
+                    card.toItem(
+                        listTitles = listTitles,
+                        recordId = null,
+                        matchedText = if (byAuthorName) authorNames[card.authorMemberId] else null,
+                    )
+                },
         )
     }
 
     // 기록 본문 검색. 저장 형식(HTML·JSON)에서 표시 텍스트를 추출해야 일치 여부를 알 수 있다.
+    // 기록은 본문이 커서 엔티티로 받지 않고 View로 읽는다(GroupSearchRepository 참고).
     private fun searchRecords(
         groupId: Long,
         keywords: GroupSearchKeywords,
@@ -102,13 +121,44 @@ class GroupSearchService(
                 toHit = { record, match -> RecordHit(record.recordId, record.cardId, GroupSearchPreview.create(match)) },
             )
         val cards =
-            groupSearchRepository
-                .findCardViewsByIds(groupId, scan.hits.map { it.cardId }.toSet())
-                .associateBy { it.cardId }
+            groupCardRepository
+                .findAllById(scan.hits.map { it.cardId }.toSet())
+                .filter { it.groupId == groupId && !it.isDeleted }
+                .associateBy { it.id }
+        val listTitles = loadListTitles(cards.values.mapNotNull { it.listId })
         return SearchOutcome(
             matchedCount = scan.matchedCount,
-            items = scan.hits.mapNotNull { hit -> cards[hit.cardId]?.toItem(recordId = hit.recordId, matchedText = hit.preview) },
+            items =
+                scan.hits.mapNotNull { hit ->
+                    cards[hit.cardId]?.toItem(listTitles = listTitles, recordId = hit.recordId, matchedText = hit.preview)
+                },
         )
+    }
+
+    // 스캔은 항상 배치 크기의 배수 위치에서 다음 배치를 읽으므로 오프셋은 페이지 번호로 정확히 환산된다.
+    private fun fetchCards(
+        groupId: Long,
+        offset: Long,
+    ): List<GroupCard> =
+        groupCardRepository.findByGroupIdAndDeletedAtIsNullOrderByUpdatedAtDescIdDesc(
+            groupId,
+            PageRequest.of((offset / CARD_SCAN_BATCH_SIZE).toInt(), CARD_SCAN_BATCH_SIZE),
+        )
+
+    // 이미 읽은 회원은 다시 조회하지 않는다. 탈퇴해도 회원 행과 실명은 남는다.
+    private fun loadAuthorNames(
+        cards: List<GroupCard>,
+        authorNames: MutableMap<Long, String>,
+    ) {
+        val missing = cards.map { it.authorMemberId }.filter { it !in authorNames }.toSet()
+        if (missing.isEmpty()) return
+        memberRepository.findAllById(missing).forEach { authorNames[it.id] = it.realname }
+    }
+
+    private fun loadListTitles(listIds: Collection<Long>): Map<Long, String> {
+        val ids = listIds.toSet()
+        if (ids.isEmpty()) return emptyMap()
+        return groupKanbanListRepository.findAllById(ids).associate { it.id to it.title }
     }
 
     // 최근 변경순으로 배치 단위로 읽으며 일치 건수를 센다. 요청한 페이지에 해당하는 항목만 `toHit`으로 작은 값으로 바꿔 보관하고,
@@ -156,18 +206,23 @@ class GroupSearchService(
 
     private fun totalPages(totalCount: Long): Long = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE
 
-    private fun GroupSearchCardView.toItem(
+    // 삭제되지 않은 카드는 항상 리스트에 속한다. 리스트를 찾지 못하면 결과에서 뺀다.
+    private fun GroupCard.toItem(
+        listTitles: Map<Long, String>,
         recordId: Long?,
         matchedText: String?,
-    ): GroupSearchItem =
-        GroupSearchItem(
-            listId = listId,
+    ): GroupSearchItem? {
+        val cardListId = listId ?: return null
+        val listTitle = listTitles[cardListId] ?: return null
+        return GroupSearchItem(
+            listId = cardListId,
             listTitle = listTitle,
-            cardId = cardId,
-            cardTitle = cardTitle,
+            cardId = id,
+            cardTitle = title,
             recordId = recordId,
             matchedText = matchedText,
         )
+    }
 
     companion object {
         // 한 페이지에 반환하는 결과 수.

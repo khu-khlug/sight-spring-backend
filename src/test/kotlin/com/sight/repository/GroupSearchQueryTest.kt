@@ -4,9 +4,6 @@ import com.sight.config.QueryDslConfig
 import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupKanbanList
 import com.sight.domain.group.GroupRecord
-import com.sight.domain.member.Member
-import com.sight.domain.member.StudentStatus
-import com.sight.domain.member.UserStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,42 +12,33 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.context.annotation.Import
+import org.springframework.data.domain.PageRequest
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.text.Normalizer
 import java.time.Instant
 
-// 실제 MySQL에서 검색용 조회의 삭제 제외·정렬·페이징을 검증한다.
+// 실제 MySQL에서 검색용 조회(카드 파생 쿼리, 기록 조인 쿼리)의 삭제 제외·정렬·페이징을 검증한다.
 // Docker를 쓸 수 없는 환경에서는 다른 테스트가 실패하지 않도록 이 테스트만 건너뛴다.
 @DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop"])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @Import(QueryDslConfig::class, GroupSearchRepositoryImpl::class)
-class GroupSearchRepositoryImplTest {
+class GroupSearchQueryTest {
     @Autowired
     private lateinit var entityManager: TestEntityManager
 
     @Autowired
-    private lateinit var repository: GroupSearchRepositoryImpl
+    private lateinit var groupCardRepository: GroupCardRepository
+
+    @Autowired
+    private lateinit var groupKanbanListRepository: GroupKanbanListRepository
+
+    @Autowired
+    private lateinit var searchRepository: GroupSearchRepositoryImpl
 
     private fun at(second: Int): Instant = Instant.parse("2025-01-01T00:00:00Z").plusSeconds(second.toLong())
-
-    private fun member(
-        id: Long,
-        realname: String,
-    ) = entityManager.persist(
-        Member(
-            id = id,
-            name = "user$id",
-            realname = realname,
-            admission = "19",
-            college = "공과대학",
-            grade = 3L,
-            studentStatus = StudentStatus.UNDERGRADUATE,
-            status = UserStatus.ACTIVE,
-        ),
-    )
 
     private fun list(
         id: Long,
@@ -63,14 +51,13 @@ class GroupSearchRepositoryImplTest {
         title: String,
         groupId: Long = GROUP_ID,
         listId: Long = LIST_ID,
-        authorId: Long = AUTHOR_ID,
         createdAt: Instant = at(0),
     ) = entityManager.persist(
         GroupCard(
             id = id,
             groupId = groupId,
             listId = listId,
-            authorMemberId = authorId,
+            authorMemberId = AUTHOR_ID,
             title = title,
             position = id,
             createdAt = createdAt,
@@ -89,16 +76,20 @@ class GroupSearchRepositoryImplTest {
     }
 
     private fun setUpBase() {
-        member(AUTHOR_ID, "Hong Gildong")
-        member(OTHER_AUTHOR_ID, "Kim Minsu")
         list(LIST_ID)
         list(OTHER_GROUP_LIST_ID, groupId = OTHER_GROUP_ID, title = "다른 그룹")
     }
 
+    private fun cards(
+        pageIndex: Int = 0,
+        size: Int = 50,
+    ): List<GroupCard> =
+        groupCardRepository.findByGroupIdAndDeletedAtIsNullOrderByUpdatedAtDescIdDesc(GROUP_ID, PageRequest.of(pageIndex, size))
+
     private fun cardIds(
-        offset: Long = 0,
-        limit: Int = 50,
-    ): List<Long> = repository.findCardsOrderByLatest(GROUP_ID, offset, limit).map { it.cardId }
+        pageIndex: Int = 0,
+        size: Int = 50,
+    ): List<Long> = cards(pageIndex, size).map { it.id }
 
     @Test
     fun `카드 조회는 삭제된 카드와 다른 그룹의 카드를 제외하고 비활성 카드는 포함한다`() {
@@ -110,21 +101,6 @@ class GroupSearchRepositoryImplTest {
         commit()
 
         assertEquals(setOf(1L, 3L), cardIds().toSet())
-    }
-
-    @Test
-    fun `카드 조회에는 리스트 아이디·제목과 카드 아이디·카드명과 카드 생성자명이 들어 있다`() {
-        setUpBase()
-        card(1, "스프링 스터디", authorId = OTHER_AUTHOR_ID)
-        commit()
-
-        val view = repository.findCardsOrderByLatest(GROUP_ID, 0, 50).single()
-
-        assertEquals(LIST_ID, view.listId)
-        assertEquals("할 일", view.listTitle)
-        assertEquals(1L, view.cardId)
-        assertEquals("스프링 스터디", view.cardTitle)
-        assertEquals("Kim Minsu", view.authorName)
     }
 
     @Test
@@ -154,13 +130,29 @@ class GroupSearchRepositoryImplTest {
     }
 
     @Test
-    fun `카드 페이지는 offset과 limit으로 나눈다`() {
+    fun `카드 페이지는 페이지 번호와 크기로 나눈다`() {
         setUpBase()
         (1L..5L).forEach { card(it, "페이지 $it", createdAt = at(it.toInt())) }
         commit()
 
-        assertEquals(listOf(3L, 2L), cardIds(offset = 2, limit = 2))
-        assertEquals(listOf(1L), cardIds(offset = 4, limit = 2))
+        assertEquals(listOf(5L, 4L), cardIds(pageIndex = 0, size = 2))
+        assertEquals(listOf(3L, 2L), cardIds(pageIndex = 1, size = 2))
+        assertEquals(listOf(1L), cardIds(pageIndex = 2, size = 2))
+        assertEquals(emptyList<Long>(), cardIds(pageIndex = 3, size = 2))
+    }
+
+    @Test
+    fun `카드와 리스트는 아이디로 객체를 읽을 수 있다`() {
+        setUpBase()
+        card(1, "스프링 스터디")
+        commit()
+
+        val card = cards().single()
+        val list = groupKanbanListRepository.findAllById(listOf(card.listId!!)).single()
+
+        assertEquals("스프링 스터디", card.title)
+        assertEquals(AUTHOR_ID, card.authorMemberId)
+        assertEquals("할 일", list.title)
     }
 
     @Test
@@ -170,9 +162,9 @@ class GroupSearchRepositoryImplTest {
         titles.forEachIndexed { index, title -> card(index + 1L, title, createdAt = at(index)) }
         commit()
 
-        val stored = repository.findCardsOrderByLatest(GROUP_ID, 0, 50).sortedBy { it.cardId }.map { it.cardTitle }
+        val stored = cards().sortedBy { it.id }.map { it.title }
 
-        assertEquals(titles.map { it.trim() }, stored)
+        assertEquals(titles, stored)
     }
 
     @Test
@@ -189,7 +181,7 @@ class GroupSearchRepositoryImplTest {
         record(14, cardId = 4)
         commit()
 
-        val ids = repository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).map { it.recordId }
+        val ids = searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).map { it.recordId }
 
         assertEquals(setOf(10L, 13L), ids.toSet())
     }
@@ -204,27 +196,13 @@ class GroupSearchRepositoryImplTest {
         record(13, cardId = 1, createdAt = at(20))
         commit()
 
-        assertEquals(listOf(12L, 11L, 13L, 10L), repository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).map { it.recordId })
-        assertEquals(listOf(13L, 10L), repository.findSearchableRecordsOrderByLatest(GROUP_ID, 2, 2).map { it.recordId })
+        assertEquals(listOf(12L, 11L, 13L, 10L), searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).map { it.recordId })
+        assertEquals(listOf(13L, 10L), searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 2, 2).map { it.recordId })
 
         entityManager.find(GroupRecord::class.java, 10L).edit("수정된 본문", isFileLinksChanged = false, at = at(500))
         commit()
 
-        assertEquals(10L, repository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).first().recordId)
-    }
-
-    @Test
-    fun `카드 정보 조회는 삭제된 카드와 다른 그룹의 카드를 제외한다`() {
-        setUpBase()
-        card(1, "카드1")
-        card(2, "삭제된 카드").also { it.delete(at(5)) }
-        card(3, "다른 그룹 카드", groupId = OTHER_GROUP_ID, listId = OTHER_GROUP_LIST_ID)
-        commit()
-
-        val ids = repository.findCardViewsByIds(GROUP_ID, listOf(1L, 2L, 3L)).map { it.cardId }
-
-        assertEquals(listOf(1L), ids)
-        assertEquals(emptyList<Long>(), repository.findCardViewsByIds(GROUP_ID, emptyList()).map { it.cardId })
+        assertEquals(10L, searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).first().recordId)
     }
 
     companion object {
@@ -233,7 +211,6 @@ class GroupSearchRepositoryImplTest {
         private const val LIST_ID = 1L
         private const val OTHER_GROUP_LIST_ID = 2L
         private const val AUTHOR_ID = 11L
-        private const val OTHER_AUTHOR_ID = 12L
 
         @Container
         @ServiceConnection

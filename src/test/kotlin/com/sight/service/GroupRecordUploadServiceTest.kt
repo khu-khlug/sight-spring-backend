@@ -40,7 +40,15 @@ class GroupRecordUploadServiceTest {
     private val future = mock<ScheduledFuture<*>>()
     private lateinit var task: Runnable
     private val service =
-        GroupRecordUploadService(fileUploadRepository, recordFileRepository, storage, fileReferenceService, deletions, scheduler, transactions)
+        GroupRecordUploadService(
+            fileUploadRepository,
+            recordFileRepository,
+            storage,
+            fileReferenceService,
+            deletions,
+            scheduler,
+            transactions,
+        )
 
     @BeforeEach
     fun `발급 트랜잭션과 일회성 스케줄러를 준비한다`() {
@@ -126,8 +134,12 @@ class GroupRecordUploadServiceTest {
         inOrder(recordFileRepository, fileReferenceService) {
             verify(recordFileRepository).deleteAll(listOf(recordAttachment.recordFile, draftAttachment.recordFile))
             verify(recordFileRepository).flush()
-            verify(fileReferenceService).deleteFileReference(recordAttachment.fileReference.id, recordAttachment.fileReference.referenceType, "3")
-            verify(fileReferenceService).deleteFileReference(draftAttachment.fileReference.id, draftAttachment.fileReference.referenceType, "4")
+            verify(
+                fileReferenceService,
+            ).deleteFileReference(recordAttachment.fileReference.id, recordAttachment.fileReference.referenceType, "3")
+            verify(
+                fileReferenceService,
+            ).deleteFileReference(draftAttachment.fileReference.id, draftAttachment.fileReference.referenceType, "4")
         }
         verifyNoInteractions(deletions)
         verify(transactions).commit(any())

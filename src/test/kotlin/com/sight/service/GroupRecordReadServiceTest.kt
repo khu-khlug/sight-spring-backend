@@ -83,13 +83,23 @@ class GroupRecordReadServiceTest {
         given(members.findAllById(listOf(8L))).willReturn(listOf(author))
         given(archives.findByMemberIdAndRecordIdIn(2L, recordIds)).willReturn(listOf(GroupRecordArchive(9L, 2L, 4L, 1L, NOW)))
         val refType = FileReferenceType.GROUP_RECORD_ATTACHMENT
-        val firstFile = FileUpload("first-file", "key-1", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "first.txt", 1L, "text/plain", NOW)
-        val secondFile = FileUpload("second-file", "key-2", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "second.txt", 2L, "text/plain", NOW)
+        val firstFile =
+            FileUpload("first-file", "key-1", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "first.txt", 1L, "text/plain", NOW)
+        val secondFile =
+            FileUpload("second-file", "key-2", 8L, GroupFilePaths.recordAttachmentApiPath(1L), "second.txt", 2L, "text/plain", NOW)
         secondFile.markUploaded()
         given(recordFileRepository.findByRefTypeAndReferrerInOrderById(refType, listOf("5", "4"))).willReturn(
             listOf(
-                GroupRecordFileView(GroupRecordFile(11L, "ref-2", "block-2"), FileReference("ref-2", secondFile.id, refType, "4"), secondFile),
-                GroupRecordFileView(GroupRecordFile(12L, "ref-1", "block-1"), FileReference("ref-1", firstFile.id, refType, "5"), firstFile),
+                GroupRecordFileView(
+                    GroupRecordFile(11L, "ref-2", "block-2"),
+                    FileReference("ref-2", secondFile.id, refType, "4"),
+                    secondFile,
+                ),
+                GroupRecordFileView(
+                    GroupRecordFile(12L, "ref-1", "block-1"),
+                    FileReference("ref-1", firstFile.id, refType, "5"),
+                    firstFile,
+                ),
             ),
         )
 

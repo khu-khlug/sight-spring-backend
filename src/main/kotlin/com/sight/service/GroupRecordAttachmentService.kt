@@ -37,7 +37,15 @@ class GroupRecordAttachmentService(
         memberId: Long,
         recordId: Long,
         files: List<RecordFileInput>,
-    ): List<RecordFileUploadResult> = replace(groupId, memberId, FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString(), files, false)
+    ): List<RecordFileUploadResult> =
+        replace(
+            groupId,
+            memberId,
+            FileReferenceType.GROUP_RECORD_ATTACHMENT,
+            recordId.toString(),
+            files,
+            false,
+        )
 
     @Transactional
     fun replaceDraftFiles(
@@ -62,14 +70,20 @@ class GroupRecordAttachmentService(
         groupId: Long,
         draftId: Long,
     ): List<RecordFileResult> =
-        readFiles(groupId, recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString()))
+        readFiles(
+            groupId,
+            recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, draftId.toString()),
+        )
 
     @Transactional(readOnly = true)
     fun getRecordFiles(
         groupId: Long,
         recordId: Long,
     ): List<RecordFileResult> =
-        readFiles(groupId, recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString()))
+        readFiles(
+            groupId,
+            recordFileRepository.findByRefTypeAndReferrerOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordId.toString()),
+        )
 
     private fun readFiles(
         groupId: Long,

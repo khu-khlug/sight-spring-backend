@@ -81,7 +81,10 @@ class GroupRecordReadService(
         if (records.isEmpty()) return emptyList()
         val recordIds = records.map { it.id }
         val attachments =
-            recordFileRepository.findByRefTypeAndReferrerInOrderById(FileReferenceType.GROUP_RECORD_ATTACHMENT, recordIds.map { it.toString() })
+            recordFileRepository.findByRefTypeAndReferrerInOrderById(
+                FileReferenceType.GROUP_RECORD_ATTACHMENT,
+                recordIds.map { it.toString() },
+            )
         val attachmentsByRecordId = attachments.groupBy { it.fileReference.referrerId }
         val authors = members.findAllById(records.map { it.authorMemberId }.distinct()).associateBy { it.id }
         val savedIds = archives.findByMemberIdAndRecordIdIn(memberId, recordIds).map { it.recordId }.toSet()

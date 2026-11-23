@@ -33,7 +33,9 @@ class GroupRecordUploadService(
         fileId: String,
         at: Instant,
     ) {
-        check(TransactionSynchronizationManager.isActualTransactionActive() && TransactionSynchronizationManager.isSynchronizationActive()) {
+        check(
+            TransactionSynchronizationManager.isActualTransactionActive() && TransactionSynchronizationManager.isSynchronizationActive(),
+        ) {
             "업로드 확인 예약에는 파일을 저장하는 트랜잭션이 필요합니다."
         }
         // 예약 등록 실패는 발급을 롤백하고, 발급 롤백 시에는 메모리의 예약도 취소한다.

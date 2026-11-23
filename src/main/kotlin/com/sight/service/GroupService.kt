@@ -1,19 +1,24 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
+import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
+import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.LocalDateTime
@@ -47,8 +52,10 @@ class GroupService(
     private val groupRepository: GroupRepository,
     private val groupBookmarkRepository: GroupBookmarkRepository,
     private val groupMemberRepository: GroupMemberRepository,
-    private val pointService: PointService,
+    private val memberRepository: MemberRepository,
     private val notificationService: NotificationService,
+    private val groupLogService: GroupLogService,
+    private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
     fun listGroupsByQuery(
@@ -153,12 +160,18 @@ class GroupService(
         groupId: Long,
         requesterId: Long,
     ) {
-        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        val group = getGroupForBookmarkChange(groupId, requesterId)
         if (groupBookmarkRepository.existsByMemberIdAndGroupId(requesterId, groupId)) {
             throw UnprocessableEntityException("이미 즐겨찾기한 그룹입니다.")
         }
-        groupBookmarkRepository.save(
+        groupBookmarkRepository.saveAndFlush(
             GroupBookmark(id = integerIdService.nextId(), memberId = requesterId, groupId = groupId, createdAt = Instant.now()),
+        )
+        notificationService.createNotification(
+            userId = requesterId,
+            category = NotificationCategory.GROUP,
+            title = "그룹 즐겨찾기 추가",
+            content = "‘${group.title}’ 그룹을 즐겨찾기에 추가했습니다.",
         )
     }
 
@@ -167,58 +180,81 @@ class GroupService(
         groupId: Long,
         requesterId: Long,
     ) {
-        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!groupBookmarkRepository.existsByMemberIdAndGroupId(requesterId, groupId)) {
+        val group = getGroupForBookmarkChange(groupId, requesterId)
+        if (groupBookmarkRepository.deleteByMemberIdAndGroupId(requesterId, groupId) == 0) {
             throw UnprocessableEntityException("즐겨찾기 되어있지 않습니다.")
         }
-        groupBookmarkRepository.deleteByMemberIdAndGroupId(requesterId, groupId)
+        notificationService.createNotification(
+            userId = requesterId,
+            category = NotificationCategory.GROUP,
+            title = "그룹 즐겨찾기 해제",
+            content = "‘${group.title}’ 그룹을 즐겨찾기에서 해제했습니다.",
+        )
     }
 
-    @Transactional
-    fun publishPortfolio(groupId: Long): Boolean {
+    private fun getGroupForBookmarkChange(
+        groupId: Long,
+        requesterId: Long,
+    ): Group {
+        // 스냅샷 조회 전에 잠가 앞선 요청의 커밋이 중복 조회에 반영되게 한다.
+        memberRepository.findForUpdateById(requesterId)
+            ?: throw NotFoundException("회원을 찾을 수 없습니다.")
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (group.isPortfolioPublished) throw BadRequestException("이미 발행된 포트폴리오입니다.")
+        if (group.isStopped) throw BadRequestException("중단된 그룹은 즐겨찾기를 변경할 수 없습니다.")
+        return group
+    }
 
-        // 동시에 발행하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.
-        if (groupRepository.updatePortfolioPublishedById(groupId, published = true) == 0) {
-            throw BadRequestException("이미 발행된 포트폴리오입니다.")
-        }
-
-        val members = groupMemberRepository.findByGroupId(groupId)
-        members.forEach { member ->
-            pointService.givePoint(member.memberId, 10, "포트폴리오 발행")
-            notificationService.createNotification(
-                userId = member.memberId,
-                category = NotificationCategory.GROUP,
-                title = "포트폴리오 발행",
-                content = "${group.title} 그룹의 포트폴리오가 발행되었습니다.",
-            )
-        }
-
+    @Transactional(isolation = Isolation.READ_COMMITTED, rollbackFor = [Exception::class])
+    fun publishPortfolio(groupId: Long, requesterId: Long): Boolean {
+        changePortfolioPublication(groupId, requesterId, published = true)
         return true
     }
 
-    @Transactional
-    fun cancelPortfolio(groupId: Long) {
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (!group.isPortfolioPublished) throw NotFoundException("발행된 포트폴리오가 없습니다.")
+    @Transactional(isolation = Isolation.READ_COMMITTED, rollbackFor = [Exception::class])
+    fun cancelPortfolio(groupId: Long, requesterId: Long) {
+        changePortfolioPublication(groupId, requesterId, published = false)
+    }
 
-        // 동시에 취소하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림을 다시 보내지 않는다.
-        if (groupRepository.updatePortfolioPublishedById(groupId, published = false) == 0) {
-            throw NotFoundException("발행된 포트폴리오가 없습니다.")
+    private fun changePortfolioPublication(groupId: Long, requesterId: Long, published: Boolean) {
+        val group = getGroupForPortfolioChange(groupId, requesterId)
+        if (group.isPortfolioPublished == published) throw portfolioAlreadyInState(published)
+
+        if (groupRepository.updatePortfolioPublishedById(groupId, published, GroupStatus.PROGRESS, requesterId) == 0) {
+            getGroupForPortfolioChange(groupId, requesterId)
+            throw portfolioAlreadyInState(published)
         }
 
-        val members = groupMemberRepository.findByGroupId(groupId)
+        val points = if (published) 10 else -10
+        val title = if (published) "포트폴리오 발행" else "포트폴리오 취소"
+        val action = if (published) "발행" else "취소"
+        val members = groupMemberRepository.findByGroupId(groupId).sortedBy { it.memberId }
         members.forEach { member ->
-            pointService.givePoint(member.memberId, -10, "포트폴리오 취소")
             notificationService.createNotification(
                 userId = member.memberId,
                 category = NotificationCategory.GROUP,
-                title = "포트폴리오 취소",
-                content = "${group.title} 그룹의 포트폴리오가 취소되었습니다.",
+                title = title,
+                content = "${group.title} 그룹의 포트폴리오가 ${action}되었습니다.",
             )
         }
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            data = if (published) GroupLogData.GroupPortfolioPublished else GroupLogData.GroupPortfolioUnpublished,
+        )
+        members.forEach { member -> pointService.givePoint(member.memberId, points, title) }
     }
+
+    private fun getGroupForPortfolioChange(groupId: Long, requesterId: Long): Group {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (!group.isLeader(requesterId)) throw ForbiddenException("그룹장만 포트폴리오를 변경할 수 있습니다.")
+        if (group.isStopped || group.isEnded) {
+            throw BadRequestException("중단되거나 종료된 그룹은 포트폴리오를 변경할 수 없습니다.")
+        }
+        return group
+    }
+
+    private fun portfolioAlreadyInState(published: Boolean): RuntimeException =
+        if (published) BadRequestException("이미 발행된 포트폴리오입니다.") else NotFoundException("발행된 포트폴리오가 없습니다.")
 
     private fun GroupListDto.toGroupListItem(): GroupListItem =
         GroupListItem(

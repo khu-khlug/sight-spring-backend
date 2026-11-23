@@ -1,8 +1,10 @@
 package com.sight.controllers.http
 
+import com.sight.config.MockAuthenticationFilter
 import com.sight.core.auth.AuthAspect
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.core.exception.UnprocessableEntityException
 import com.sight.core.groupauth.GroupAuthAspect
 import com.sight.core.groupauth.GroupAuthorizationService
 import com.sight.core.groupauth.GroupVisibility
@@ -22,12 +24,16 @@ import com.sight.service.GroupService
 import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.mockito.BDDMockito.willThrow
 import org.mockito.kotlin.given
+import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.context.annotation.EnableAspectJAutoProxy
+import org.springframework.context.annotation.FilterType
 import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -36,6 +42,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
@@ -45,6 +52,7 @@ import java.util.Optional
 @WebMvcTest(
     GroupController::class,
     excludeAutoConfiguration = [SecurityAutoConfiguration::class],
+    excludeFilters = [ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = [MockAuthenticationFilter::class])],
 )
 @Import(AuthAspect::class, GroupAuthAspect::class, GroupAuthorizationService::class)
 @EnableAspectJAutoProxy
@@ -110,8 +118,25 @@ class GroupControllerTest {
         mockMvc.perform(delete("/groups/$GROUP_ID/bookmark")).andExpect(status().isForbidden)
 
         authenticate(MEMBER_ID, UserRole.USER)
-        mockMvc.perform(post("/groups/$GROUP_ID/bookmark")).andExpect(status().isCreated)
-        mockMvc.perform(delete("/groups/$GROUP_ID/bookmark")).andExpect(status().isNoContent)
+        mockMvc.perform(post("/groups/$GROUP_ID/bookmark")).andExpect(status().isCreated).andExpect(content().string(""))
+        mockMvc.perform(delete("/groups/$GROUP_ID/bookmark")).andExpect(status().isNoContent).andExpect(content().string(""))
+    }
+
+    @Test
+    fun `즐겨찾기 추가와 취소에서 서비스의 중복 상태 오류는 422를 반환한다`() {
+        givenGroup(GroupVisibility.PRIVATE)
+        authenticate(MEMBER_ID, UserRole.USER)
+        willThrow(UnprocessableEntityException("이미 즐겨찾기한 그룹입니다."))
+            .given(groupService).addBookmark(GROUP_ID, MEMBER_ID)
+        willThrow(UnprocessableEntityException("즐겨찾기 되어있지 않습니다."))
+            .given(groupService).cancelBookmark(GROUP_ID, MEMBER_ID)
+
+        mockMvc.perform(post("/groups/$GROUP_ID/bookmark"))
+            .andExpect(status().isUnprocessableEntity)
+            .andExpect(jsonPath("$.statusCode").value(422))
+        mockMvc.perform(delete("/groups/$GROUP_ID/bookmark"))
+            .andExpect(status().isUnprocessableEntity)
+            .andExpect(jsonPath("$.statusCode").value(422))
     }
 
     @Test
@@ -127,8 +152,56 @@ class GroupControllerTest {
         mockMvc.perform(delete("/groups/$GROUP_ID/portfolio")).andExpect(status().isForbidden)
 
         authenticate(LEADER_ID, UserRole.USER)
-        mockMvc.perform(post("/groups/$GROUP_ID/portfolio")).andExpect(status().isOk)
-        mockMvc.perform(delete("/groups/$GROUP_ID/portfolio")).andExpect(status().isNoContent)
+        given(groupService.publishPortfolio(GROUP_ID, LEADER_ID)).willReturn(true)
+        mockMvc.perform(post("/groups/$GROUP_ID/portfolio"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.isPublished").value(true))
+            .andExpect(jsonPath("$.published").doesNotExist())
+        mockMvc.perform(delete("/groups/$GROUP_ID/portfolio")).andExpect(status().isNoContent).andExpect(content().string(""))
+    }
+
+    @Test
+    fun `즐겨찾기와 포트폴리오는 큰 10진 그룹 아이디를 그대로 서비스에 전달한다`() {
+        val groupId = 906558544281600001L
+        given(groupRepository.findById(groupId))
+            .willReturn(Optional.of(testGroup(id = groupId, leaderMemberId = LEADER_ID)))
+        given(groupService.publishPortfolio(groupId, LEADER_ID)).willReturn(true)
+        authenticate(LEADER_ID, UserRole.USER)
+
+        mockMvc.perform(post("/groups/$groupId/bookmark")).andExpect(status().isCreated)
+        mockMvc.perform(delete("/groups/$groupId/bookmark")).andExpect(status().isNoContent)
+        mockMvc.perform(post("/groups/$groupId/portfolio")).andExpect(status().isOk)
+        mockMvc.perform(delete("/groups/$groupId/portfolio")).andExpect(status().isNoContent)
+        verify(groupService).addBookmark(groupId, LEADER_ID)
+        verify(groupService).cancelBookmark(groupId, LEADER_ID)
+        verify(groupService).publishPortfolio(groupId, LEADER_ID)
+        verify(groupService).cancelPortfolio(groupId, LEADER_ID)
+    }
+
+    @Test
+    fun `즐겨찾기와 포트폴리오는 그룹 아이디가 0 또는 음수이면 400으로 거부한다`() {
+        authenticate(LEADER_ID, UserRole.USER)
+        for (id in listOf("0", "-1")) {
+            mockMvc.perform(post("/groups/$id/bookmark")).andExpect(status().isBadRequest)
+            mockMvc.perform(delete("/groups/$id/bookmark")).andExpect(status().isBadRequest)
+            mockMvc.perform(post("/groups/$id/portfolio")).andExpect(status().isBadRequest)
+            mockMvc.perform(delete("/groups/$id/portfolio")).andExpect(status().isBadRequest)
+        }
+    }
+
+    @Test
+    fun `즐겨찾기와 포트폴리오는 인증 없이는 401이고 그룹이 없으면 404다`() {
+        val requests = listOf(
+            post("/groups/$GROUP_ID/bookmark"),
+            delete("/groups/$GROUP_ID/bookmark"),
+            post("/groups/$GROUP_ID/portfolio"),
+            delete("/groups/$GROUP_ID/portfolio"),
+        )
+        requests.forEach { mockMvc.perform(it).andExpect(status().isUnauthorized) }
+
+        authenticate(LEADER_ID, UserRole.USER)
+        given(groupRepository.findById(GROUP_ID)).willReturn(Optional.empty())
+        requests.forEach { mockMvc.perform(it).andExpect(status().isNotFound) }
     }
 
     @Test

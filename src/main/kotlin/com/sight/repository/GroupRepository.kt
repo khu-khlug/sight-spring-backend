@@ -47,15 +47,18 @@ interface GroupRepository : JpaRepository<Group, Long>, GroupRepositoryCustom {
         @Param("newLeaderMemberId") newLeaderMemberId: Long,
     ): Int
 
-    // 포트폴리오 발행 여부가 반대 상태일 때만 바꾼다. 바뀐 행 수가 0이면 이미 같은 상태로 바뀐 것이다.
-    @Modifying
+    // 쓰는 시점에도 상태와 그룹장을 확인한다. 실패 원인은 서비스가 다시 조회해 판정한다.
+    @Modifying(clearAutomatically = true)
     @Query(
         "UPDATE KhlugGroup g SET g.isPortfolioPublished = :published " +
-            "WHERE g.id = :id AND g.isPortfolioPublished <> :published",
+            "WHERE g.id = :id AND g.isPortfolioPublished <> :published " +
+            "AND g.status = :status AND g.leaderMemberId = :leaderMemberId",
     )
     fun updatePortfolioPublishedById(
         @Param("id") id: Long,
         @Param("published") published: Boolean,
+        @Param("status") status: GroupStatus,
+        @Param("leaderMemberId") leaderMemberId: Long,
     ): Int
 
     @Query(

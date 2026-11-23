@@ -30,8 +30,6 @@ USER and 그룹장
 | --------------- | ------ | --------- |
 | 포트폴리오 취소 | -10    | 멤버 전체 |
 
-ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` INSERT 처리.
-
 ### 알림
 
 그룹 멤버 전체에게 알림
@@ -85,5 +83,3 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | -------------- | ----------------------------------------------- |
 | `group`        | `portfolio` 컬럼 UPDATE + 그룹장 여부 확인      |
 | `group_member` | 전체 멤버 목록 조회 (ExPoint 일괄 처리 시 사용) |
-| `members`      | `expoint` 직접 UPDATE                           |
-| `expoint_log`  | ExPoint 변동 이력 INSERT                        |

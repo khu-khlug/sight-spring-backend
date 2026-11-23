@@ -35,8 +35,6 @@ USER and (그룹장 or 운영진)
 | 세미나 발표 등록 취소 | -150 | 멤버 전체 |
 | 보고서 제출 취소·삭제 | -150 | 멤버 전체 |
 
-ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` INSERT 처리.
-
 - 세미나 발표와 보고서 모두 제출 취소·삭제 시 멤버 전체에게 -150 exp를 적용한다. 운영진이 세미나 세션을 강제로 제거할 때도 같은 차감 기준을 적용한다.
 
 ### 알림
@@ -108,5 +106,3 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | `big_seminar`+`schedule`| 접수 기간 내 여부 확인 (`schedule.endAt`)           |
 | `file_upload`        | 해당 파일 row DELETE                                |
 | `group_member`          | 전체 멤버 목록 조회 (ExPoint 일괄 처리 시 사용)     |
-| `members`               | `expoint` 직접 UPDATE                               |
-| `expoint_log`           | ExPoint 변동 이력 INSERT                            |

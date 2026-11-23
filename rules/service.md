@@ -24,6 +24,7 @@
 - 하나의 비즈니스 기능이 일반 회원과 운영진 여부에 따라 분기되면, Service는 운영진 여부만 Boolean 값으로 받는다.
 - Service는 일반 회원과 운영진 역할을 나타내는 객체나 역할 목록을 받지 않는다.
 - 데이터베이스 변경 뒤 외부 시스템 호출이 실패할 수 있으면, 재시도, 보상 처리, 오류 기록 중 필요한 방법을 정한다.
+- 그룹 활동으로 경험치를 지급·차감하거나 되돌리는 Service는 `docs/plans/group/global.md`의 경험치 절에 따라 변동량은 `ExpointRule`로 참조하고, 지급은 그룹 로그와 함께 기록하며, 취소는 `GroupLogService.revertExpointChange`로 되돌린다.
 - Service는 Repository와 외부 시스템 호출 인터페이스를 생성자 주입으로 받는다.
 
 ## 금지 규칙

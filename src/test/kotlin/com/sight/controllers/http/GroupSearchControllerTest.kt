@@ -186,7 +186,8 @@ class GroupSearchControllerTest {
         givenGroup(GroupVisibility.PUBLIC)
         authenticate(MEMBER_ID, UserRole.USER)
 
-        // 검색어의 공백·길이(글자 수) 검증은 한 곳(GroupSearchKeywords)에서 하며 서비스 테스트가 확인한다.
+        // 검색어의 공백·길이(글자 수) 검증은 한 곳(GroupSearchKeywords)에서 하며,
+        // HTTP 400 응답은 GroupSearchRequestValidationTest가 실제 서비스를 연결해 확인한다.
         mockMvc.perform(get("/groups/$GROUP_ID/search").param("target", "TITLE")).andExpect(status().isBadRequest)
     }
 

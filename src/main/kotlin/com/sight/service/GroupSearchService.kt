@@ -8,6 +8,7 @@ import com.sight.repository.GroupRepository
 import com.sight.repository.GroupSearchRepository
 import com.sight.repository.dto.GroupSearchCardView
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
 
 data class GroupSearchItem(
@@ -31,22 +32,24 @@ class GroupSearchService(
     private val groupSearchRepository: GroupSearchRepository,
     private val groupRecordTextExtractor: GroupRecordTextExtractor,
 ) {
-    @Transactional(readOnly = true)
+    // 한 번의 검색이 오프셋을 키워 가며 여러 번 읽으므로, 서버 기본 격리 수준과 관계없이 첫 읽기 시점의 스냅샷으로 일관되게 읽는다.
+    // 중간에 카드·기록이 바뀌어도 같은 항목이 두 번 나오거나 빠지지 않는다.
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     fun listGroupSearchResults(
         groupId: Long,
         target: GroupSearchTarget,
         keyword: String,
         page: Int,
     ): GroupSearchResult {
+        if (!groupRepository.existsById(groupId)) {
+            throw NotFoundException("그룹을 찾을 수 없습니다")
+        }
         val keywords =
             try {
                 GroupSearchKeywords.parse(keyword)
             } catch (e: IllegalArgumentException) {
                 throw BadRequestException(e.message ?: "검색어가 올바르지 않습니다")
             }
-        if (!groupRepository.existsById(groupId)) {
-            throw NotFoundException("그룹을 찾을 수 없습니다")
-        }
 
         val offset = (page - 1).toLong() * PAGE_SIZE
         // 대상과 관계없이 같은 비교 규칙(GroupSearchKeywords)으로 일치 여부를 판정하고, 결과는 한 곳에서 만든다.
@@ -74,10 +77,11 @@ class GroupSearchService(
                 batchSize = CARD_SCAN_BATCH_SIZE,
                 fetch = { groupSearchRepository.findCardsOrderByLatest(groupId, it, CARD_SCAN_BATCH_SIZE) },
                 textOf = textOf,
+                toHit = { card, _ -> card },
             )
         return SearchOutcome(
             matchedCount = scan.matchedCount,
-            items = scan.hits.map { (card, _) -> card.toItem(recordId = null, matchedText = matchedTextOf(card)) },
+            items = scan.hits.map { card -> card.toItem(recordId = null, matchedText = matchedTextOf(card)) },
         )
     }
 
@@ -94,36 +98,37 @@ class GroupSearchService(
                 batchSize = RECORD_SCAN_BATCH_SIZE,
                 fetch = { groupSearchRepository.findSearchableRecordsOrderByLatest(groupId, it, RECORD_SCAN_BATCH_SIZE) },
                 textOf = { groupRecordTextExtractor.extract(it.type, it.content) },
+                // 본문(최대 1MB)을 붙들지 않도록 일치한 시점에 미리보기만 만들어 보관한다.
+                toHit = { record, match -> RecordHit(record.recordId, record.cardId, GroupSearchPreview.create(match)) },
             )
         val cards =
             groupSearchRepository
-                .findCardViewsByIds(groupId, scan.hits.map { (record, _) -> record.cardId }.toSet())
+                .findCardViewsByIds(groupId, scan.hits.map { it.cardId }.toSet())
                 .associateBy { it.cardId }
         return SearchOutcome(
             matchedCount = scan.matchedCount,
-            items =
-                scan.hits.mapNotNull { (record, match) ->
-                    cards[record.cardId]?.toItem(recordId = record.recordId, matchedText = GroupSearchPreview.create(match))
-                },
+            items = scan.hits.mapNotNull { hit -> cards[hit.cardId]?.toItem(recordId = hit.recordId, matchedText = hit.preview) },
         )
     }
 
-    // 최근 변경순으로 배치 단위로 읽으며 일치 건수를 세고, 요청한 페이지에 해당하는 항목만 일치 정보와 함께 보관한다.
-    private fun <T> scan(
+    // 최근 변경순으로 배치 단위로 읽으며 일치 건수를 센다. 요청한 페이지에 해당하는 항목만 `toHit`으로 작은 값으로 바꿔 보관하고,
+    // 읽은 배치와 일치 정보(정규화한 본문 전체)는 항목마다 바로 버려 메모리를 오래 쥐지 않는다.
+    private fun <T, R> scan(
         keywords: GroupSearchKeywords,
         offset: Long,
         batchSize: Int,
         fetch: (Long) -> List<T>,
         textOf: (T) -> String,
-    ): ScanResult<T> {
-        val hits = mutableListOf<Pair<T, GroupSearchKeywords.Match>>()
+        toHit: (T, GroupSearchKeywords.Match) -> R,
+    ): ScanResult<R> {
+        val hits = mutableListOf<R>()
         var matchedCount = 0L
         var scanned = 0L
         while (true) {
             val batch = fetch(scanned)
             batch.forEach { item ->
                 val match = keywords.find(textOf(item)) ?: return@forEach
-                if (matchedCount >= offset && hits.size < PAGE_SIZE) hits += item to match
+                if (matchedCount >= offset && hits.size < PAGE_SIZE) hits += toHit(item, match)
                 matchedCount++
             }
             scanned += batch.size
@@ -132,9 +137,16 @@ class GroupSearchService(
         return ScanResult(matchedCount, hits)
     }
 
-    private class ScanResult<T>(
+    private class ScanResult<R>(
         val matchedCount: Long,
-        val hits: List<Pair<T, GroupSearchKeywords.Match>>,
+        val hits: List<R>,
+    )
+
+    // 기록 검색의 일치 항목. 본문 대신 미리보기만 가진다.
+    private class RecordHit(
+        val recordId: Long,
+        val cardId: Long,
+        val preview: String,
     )
 
     private class SearchOutcome(

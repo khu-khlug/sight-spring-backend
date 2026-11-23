@@ -18,6 +18,8 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.springframework.transaction.annotation.Isolation
+import org.springframework.transaction.annotation.Transactional
 import java.text.Normalizer
 
 class GroupSearchServiceTest {
@@ -230,6 +232,8 @@ class GroupSearchServiceTest {
 
     @Test
     fun `공백뿐이거나 20자를 넘는 검색어는 거부한다`() {
+        givenGroupExists()
+
         assertThrows<BadRequestException> { search(GroupSearchTarget.TITLE, "  ") }
         assertThrows<BadRequestException> { search(GroupSearchTarget.TITLE, "가".repeat(21)) }
 
@@ -251,6 +255,43 @@ class GroupSearchServiceTest {
         given(groupRepository.existsById(GROUP_ID)).willReturn(false)
 
         assertThrows<NotFoundException> { search(GroupSearchTarget.TITLE, "카드") }
+    }
+
+    @Test
+    fun `없는 그룹에 잘못된 검색어를 보내도 검색어 오류가 아니라 찾을 수 없음 오류를 반환한다`() {
+        given(groupRepository.existsById(GROUP_ID)).willReturn(false)
+
+        assertThrows<NotFoundException> { search(GroupSearchTarget.TITLE, "  ") }
+        assertThrows<NotFoundException> { search(GroupSearchTarget.TITLE, "가".repeat(21)) }
+    }
+
+    @Test
+    fun `한 번의 검색은 서버 기본 설정과 관계없이 스냅샷으로 일관되게 읽는다`() {
+        val transactional =
+            GroupSearchService::class.java
+                .getMethod("listGroupSearchResults", Long::class.java, GroupSearchTarget::class.java, String::class.java, Int::class.java)
+                .getAnnotation(Transactional::class.java)
+
+        assertEquals(true, transactional.readOnly)
+        assertEquals(Isolation.REPEATABLE_READ, transactional.isolation)
+    }
+
+    @Test
+    fun `일치한 기록이 많아도 요청한 페이지의 결과만 미리보기와 함께 반환한다`() {
+        givenGroupExists()
+        val big = "<p>" + "가".repeat(50_000) + " 스프링 " + "나".repeat(50_000) + "</p>"
+        val records = (1L..60L).map { legacyRecord(it, 1, big) }
+        given(groupSearchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0L, recordBatch)).willReturn(records.take(recordBatch))
+        given(groupSearchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, recordBatch.toLong(), recordBatch))
+            .willReturn(records.drop(recordBatch))
+        given(groupSearchRepository.findCardViewsByIds(eq(GROUP_ID), any())).willReturn(listOf(card(1)))
+
+        val result = search(GroupSearchTarget.RECORD, "스프링", page = 1)
+
+        assertEquals(2L, result.totalPages)
+        assertEquals(50, result.results.size)
+        // 미리보기는 일치 위치 주변만 담고 본문 전체(10만 자)를 담지 않는다.
+        assertEquals(true, result.results.all { (it.matchedText ?: "").length < 300 })
     }
 
     companion object {

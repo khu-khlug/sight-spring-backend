@@ -48,8 +48,6 @@ USER and 그룹장
 | 세미나 발표 등록(`isPresentation=true`) | +150 | 멤버 전체 |
 | 보고서 제출(`isPresentation=false`) | +150 | 멤버 전체 |
 
-ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` INSERT 처리.
-
 - 세미나 발표와 보고서 모두 제출 시 멤버 전체에게 +150 exp를 지급한다.
 
 ### 알림
@@ -145,5 +143,3 @@ ExPoint 변동 시 멤버별로 `members.expoint` 직접 UPDATE + `expoint_log` 
 | `file_upload`           | 파일 검증 + `isUploaded` UPDATE                             |
 | `group_activity_report` | 활동보고 INSERT                                             |
 | `group_member`          | 전체 멤버 목록 조회 (ExPoint 일괄 처리 시 사용)             |
-| `members`               | `expoint` 직접 UPDATE                                       |
-| `expoint_log`           | ExPoint 변동 이력 INSERT                                    |

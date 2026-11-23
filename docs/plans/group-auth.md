@@ -77,7 +77,7 @@ fun updateGroup(...) { ... }
 
 어노테이션·Aspect·그룹 권한 enum·판정 서비스는 `com.sight.core.groupauth`에 둔다. 기존 `core/auth`처럼 권한 판정 서비스는 Repository에서 필요한 정보를 조회한다. 그룹 공개 범위·그룹원 포함 관계·운영 그룹 권한 정책도 `GroupAuthorizationService`에서 관리하며 업무 Service와 그룹 도메인에 분산하지 않는다.
 
-`GroupAuthAspect`는 선언한 경로 변수 이름에 대응하는 컨트롤러의 `@PathVariable` 인자에서 Spring MVC가 변환한 `Long` ID를 읽어 판정 서비스를 호출한다. ID 형식 검증은 HTTP 입력 처리에서 담당한다. `AuthAspect`의 order는 `HIGHEST_PRECEDENCE + 100`, `GroupAuthAspect`는 `+ 101`로 사용자 역할 검사를 먼저 실행한다.
+`GroupAuthAspect`는 선언한 경로 변수 이름에 대응하는 컨트롤러의 `@PathVariable` 인자에서 ID를 읽는다. `@IntegerId`를 적용한 `String` 인자는 `Long`으로 변환해 판정 서비스에 전달한다. 기존 `Long` 인자도 지원한다. ID 형식 검증은 HTTP 입력 처리에서 담당한다. `AuthAspect`의 order는 `HIGHEST_PRECEDENCE + 100`, `GroupAuthAspect`는 `+ 101`로 사용자 역할 검사를 먼저 실행한다.
 
 선언 검사기 `GroupAuthDeclaration`은 테스트 소스에 둔다. CI의 `check`에 포함된 `GroupAuthDeclarationTest`가 Kotlin 선언 분석으로 어노테이션 순서·인자 이름을 검사하고 리플렉션으로 역할 집합·경로 변수를 검사한다.
 

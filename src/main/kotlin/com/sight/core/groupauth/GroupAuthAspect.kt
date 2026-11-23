@@ -2,6 +2,7 @@ package com.sight.core.groupauth
 
 import com.sight.core.auth.AuthenticationHelper
 import com.sight.core.auth.UserRole
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
 import org.aspectj.lang.ProceedingJoinPoint
 import org.aspectj.lang.annotation.Around
@@ -41,8 +42,12 @@ class GroupAuthAspect(
                     variable != null &&
                         variable.name.ifEmpty { variable.value }.ifEmpty { names?.get(index).orEmpty() } == name
                 }
-            return joinPoint.args.getOrNull(index) as? Long
-                ?: throw InternalServerErrorException("경로 변수 $name 에 대응하는 Long 인자를 찾을 수 없습니다.")
+            return when (val value = joinPoint.args.getOrNull(index)) {
+                is Long -> value
+                is String -> value.toLongOrNull()?.takeIf { it > 0 }
+                    ?: throw BadRequestException("경로 변수 $name 값은 양의 정수여야 합니다.")
+                else -> throw InternalServerErrorException("경로 변수 $name 에 대응하는 인자를 찾을 수 없습니다.")
+            }
         }
 
         groupAuthorizationService.requirePermission(

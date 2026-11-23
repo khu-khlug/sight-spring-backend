@@ -9,7 +9,7 @@ import kotlin.reflect.KClass
 // 정수 식별자를 담는 문자열이 선행 0 없는 양의 Long 10진 표기인지 검증한다.
 // TSID는 JavaScript의 안전한 정수 범위를 넘으므로 API에서는 정수 식별자를 문자열로 주고받는다.
 // 값이 없는 경우는 다른 제약이 판단한다.
-@Target(AnnotationTarget.FIELD)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [IntegerIdValidator::class])
 annotation class IntegerId(

@@ -11,11 +11,12 @@ import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
 import com.sight.domain.group.testGroupMember
+import com.sight.domain.member.Member
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.repository.MemberPointRepository
+import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -40,7 +41,8 @@ class GroupServiceTest {
     private val groupRepository = mock<GroupRepository>()
     private val groupBookmarkRepository = mock<GroupBookmarkRepository>()
     private val groupMemberRepository = mock<GroupMemberRepository>()
-    private val memberPointRepository = mock<MemberPointRepository>()
+    private val memberRepository = mock<MemberRepository>()
+    private val pointService = mock<PointService>()
     private val groupLogService = mock<GroupLogService>()
     private val notificationService = mock<NotificationService>()
     private lateinit var groupService: GroupService
@@ -62,9 +64,10 @@ class GroupServiceTest {
                 groupRepository,
                 groupBookmarkRepository,
                 groupMemberRepository,
-                memberPointRepository,
+                memberRepository,
                 notificationService,
                 groupLogService,
+                pointService,
             )
         given(
             groupRepository.findGroups(
@@ -92,8 +95,7 @@ class GroupServiceTest {
             ),
         ).willReturn(0L)
         given(groupRepository.updatePortfolioPublishedById(any(), any(), any(), any())).willReturn(1)
-        given(memberPointRepository.addPoints(any(), any())).willReturn(1)
-        given(groupBookmarkRepository.lockMemberById(10L)).willReturn(10L)
+        given(memberRepository.findForUpdateById(10L)).willReturn(mock<Member>())
     }
 
     @Test
@@ -753,8 +755,6 @@ class GroupServiceTest {
         assertTrue(result)
         verify(groupRepository).updatePortfolioPublishedById(1L, true, GroupStatus.PROGRESS, 10L)
         members.forEach { member ->
-            verify(memberPointRepository).addPoints(member.memberId, 10)
-            verify(memberPointRepository).recordPointChange(member.memberId, 10L, 10, "포트폴리오 발행")
             verify(notificationService).createNotification(
                 userId = member.memberId,
                 category = NotificationCategory.GROUP,
@@ -763,6 +763,7 @@ class GroupServiceTest {
             )
         }
         verify(groupLogService).createLog(1L, 10L, GroupLogData.GroupPortfolioPublished)
+        members.forEach { member -> verify(pointService).givePoint(member.memberId, 10, "포트폴리오 발행") }
     }
 
     @Test
@@ -801,8 +802,6 @@ class GroupServiceTest {
         // then
         verify(groupRepository).updatePortfolioPublishedById(1L, false, GroupStatus.PROGRESS, 10L)
         members.forEach { member ->
-            verify(memberPointRepository).addPoints(member.memberId, -10)
-            verify(memberPointRepository).recordPointChange(member.memberId, 10L, -10, "포트폴리오 취소")
             verify(notificationService).createNotification(
                 userId = member.memberId,
                 category = NotificationCategory.GROUP,
@@ -811,6 +810,7 @@ class GroupServiceTest {
             )
         }
         verify(groupLogService).createLog(1L, 10L, GroupLogData.GroupPortfolioUnpublished)
+        members.forEach { member -> verify(pointService).givePoint(member.memberId, -10, "포트폴리오 취소") }
     }
 
     @Test
@@ -844,7 +844,7 @@ class GroupServiceTest {
         assertThrows<BadRequestException> { groupService.cancelPortfolio(1L, 10L) }
 
         verify(groupRepository, never()).updatePortfolioPublishedById(any(), any(), any(), any())
-        verifyNoInteractions(memberPointRepository, notificationService, groupLogService)
+        verifyNoInteractions(pointService, notificationService, groupLogService)
     }
 
     @Test
@@ -859,6 +859,6 @@ class GroupServiceTest {
         given(groupRepository.updatePortfolioPublishedById(1L, false, GroupStatus.PROGRESS, 10L)).willReturn(0)
 
         assertThrows<NotFoundException> { groupService.cancelPortfolio(1L, 10L) }
-        verifyNoInteractions(memberPointRepository, notificationService, groupLogService)
+        verifyNoInteractions(pointService, notificationService, groupLogService)
     }
 }

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.willThrow
 import org.mockito.kotlin.given
+import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -157,6 +158,35 @@ class GroupControllerTest {
             .andExpect(jsonPath("$.isPublished").value(true))
             .andExpect(jsonPath("$.published").doesNotExist())
         mockMvc.perform(delete("/groups/$GROUP_ID/portfolio")).andExpect(status().isNoContent).andExpect(content().string(""))
+    }
+
+    @Test
+    fun `즐겨찾기와 포트폴리오는 큰 10진 그룹 아이디를 그대로 서비스에 전달한다`() {
+        val groupId = 906558544281600001L
+        given(groupRepository.findById(groupId))
+            .willReturn(Optional.of(testGroup(id = groupId, leaderMemberId = LEADER_ID)))
+        given(groupService.publishPortfolio(groupId, LEADER_ID)).willReturn(true)
+        authenticate(LEADER_ID, UserRole.USER)
+
+        mockMvc.perform(post("/groups/$groupId/bookmark")).andExpect(status().isCreated)
+        mockMvc.perform(delete("/groups/$groupId/bookmark")).andExpect(status().isNoContent)
+        mockMvc.perform(post("/groups/$groupId/portfolio")).andExpect(status().isOk)
+        mockMvc.perform(delete("/groups/$groupId/portfolio")).andExpect(status().isNoContent)
+        verify(groupService).addBookmark(groupId, LEADER_ID)
+        verify(groupService).cancelBookmark(groupId, LEADER_ID)
+        verify(groupService).publishPortfolio(groupId, LEADER_ID)
+        verify(groupService).cancelPortfolio(groupId, LEADER_ID)
+    }
+
+    @Test
+    fun `즐겨찾기와 포트폴리오는 그룹 아이디가 0 또는 음수이면 400으로 거부한다`() {
+        authenticate(LEADER_ID, UserRole.USER)
+        for (id in listOf("0", "-1")) {
+            mockMvc.perform(post("/groups/$id/bookmark")).andExpect(status().isBadRequest)
+            mockMvc.perform(delete("/groups/$id/bookmark")).andExpect(status().isBadRequest)
+            mockMvc.perform(post("/groups/$id/portfolio")).andExpect(status().isBadRequest)
+            mockMvc.perform(delete("/groups/$id/portfolio")).andExpect(status().isBadRequest)
+        }
     }
 
     @Test

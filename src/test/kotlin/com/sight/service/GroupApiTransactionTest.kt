@@ -13,16 +13,21 @@ import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.repository.MemberPointRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpMethod
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -30,6 +35,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.web.client.RestTemplate
 import org.testcontainers.containers.MySQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -41,14 +47,16 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop", "integer-id.node-id=0"])
+@DataJpaTest(
+    properties = ["spring.jpa.hibernate.ddl-auto=create-drop", "integer-id.node-id=0", "auth.service.endpoint=http://points.test"],
+)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import(
     GroupService::class,
     GroupMemberRepository::class,
-    MemberPointRepository::class,
+    PointService::class,
     GroupLogService::class,
     NotificationService::class,
     IntegerIdConfig::class,
@@ -78,21 +86,12 @@ class GroupApiTransactionTest {
     @Autowired
     private lateinit var transactionManager: PlatformTransactionManager
 
+    @MockBean
+    private lateinit var restTemplate: RestTemplate
+
     @BeforeEach
     fun setUp() {
-        jdbc.execute(
-            """
-            CREATE TABLE IF NOT EXISTS expoint_log (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                `member` BIGINT NOT NULL,
-                `from` BIGINT NOT NULL,
-                message LONGTEXT NOT NULL,
-                point BIGINT NOT NULL,
-                created_at TIMESTAMP NOT NULL
-            ) ENGINE=InnoDB
-            """.trimIndent(),
-        )
-        listOf("expoint_log", "notification", "khlug_group_log", "khlug_group_bookmark", "khlug_group_member").forEach {
+        listOf("notification", "khlug_group_log", "khlug_group_bookmark", "khlug_group_member").forEach {
             jdbc.update("DELETE FROM $it")
         }
         groups.deleteAll()
@@ -161,15 +160,13 @@ class GroupApiTransactionTest {
     fun `동시 포트폴리오 발행과 취소는 각각 한 번만 경험치 알림과 로그를 저장한다`() {
         assertEquals(listOf(200, 400), race(200) { service.publishPortfolio(1L, 10L) })
         assertEquals(true, groups.findById(1L).orElseThrow().isPortfolioPublished)
-        assertEquals(2L, count("SELECT COUNT(*) FROM khlug_members WHERE expoint = 10"))
-        assertEquals(2L, count("SELECT COUNT(*) FROM expoint_log WHERE point = 10"))
+        verifyPointRequests(10, "포트폴리오 발행")
         assertEquals(2L, count("SELECT COUNT(*) FROM notification"))
         assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log WHERE log_type = '${GroupLogType.GROUP_PORTFOLIO_PUBLISHED}'"))
 
         assertEquals(listOf(204, 404), race(204) { service.cancelPortfolio(1L, 10L) })
         assertEquals(false, groups.findById(1L).orElseThrow().isPortfolioPublished)
-        assertEquals(2L, count("SELECT COUNT(*) FROM khlug_members WHERE expoint = 0"))
-        assertEquals(2L, count("SELECT COUNT(*) FROM expoint_log WHERE point = -10"))
+        verifyPointRequests(-10, "포트폴리오 취소")
         assertEquals(4L, count("SELECT COUNT(*) FROM notification"))
         assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log WHERE log_type = '${GroupLogType.GROUP_PORTFOLIO_UNPUBLISHED}'"))
     }
@@ -185,11 +182,20 @@ class GroupApiTransactionTest {
         }
 
         assertEquals(false, groups.findById(1L).orElseThrow().isPortfolioPublished)
-        assertEquals(2L, count("SELECT COUNT(*) FROM khlug_members WHERE expoint = 0"))
-        assertEquals(0L, count("SELECT COUNT(*) FROM expoint_log"))
         assertEquals(0L, count("SELECT COUNT(*) FROM notification"))
         assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log WHERE log_type = 'GROUP_PROGRESS'"))
         assertEquals(1L, count("SELECT COUNT(*) FROM khlug_group_log"))
+    }
+
+    private fun verifyPointRequests(points: Int, message: String) {
+        for (memberId in listOf(10L, 20L)) {
+            verify(restTemplate).exchange(
+                eq("http://points.test/internal/point"),
+                eq(HttpMethod.POST),
+                argThat<HttpEntity<*>> { body == PointRequest(message, points, memberId) },
+                eq(Void::class.java),
+            )
+        }
     }
 
     private fun count(sql: String): Long = requireNotNull(jdbc.queryForObject(sql, Long::class.javaObjectType))

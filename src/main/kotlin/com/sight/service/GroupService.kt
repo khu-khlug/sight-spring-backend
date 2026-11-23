@@ -15,7 +15,7 @@ import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupBookmarkRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.repository.MemberPointRepository
+import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
@@ -52,9 +52,10 @@ class GroupService(
     private val groupRepository: GroupRepository,
     private val groupBookmarkRepository: GroupBookmarkRepository,
     private val groupMemberRepository: GroupMemberRepository,
-    private val memberPointRepository: MemberPointRepository,
+    private val memberRepository: MemberRepository,
     private val notificationService: NotificationService,
     private val groupLogService: GroupLogService,
+    private val pointService: PointService,
 ) {
     @Transactional(readOnly = true)
     fun listGroupsByQuery(
@@ -196,7 +197,7 @@ class GroupService(
         requesterId: Long,
     ): Group {
         // 스냅샷 조회 전에 잠가 앞선 요청의 커밋이 중복 조회에 반영되게 한다.
-        groupBookmarkRepository.lockMemberById(requesterId)
+        memberRepository.findForUpdateById(requesterId)
             ?: throw NotFoundException("회원을 찾을 수 없습니다.")
         val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (group.isStopped) throw BadRequestException("중단된 그룹은 즐겨찾기를 변경할 수 없습니다.")
@@ -228,10 +229,6 @@ class GroupService(
         val action = if (published) "발행" else "취소"
         val members = groupMemberRepository.findByGroupId(groupId).sortedBy { it.memberId }
         members.forEach { member ->
-            if (memberPointRepository.addPoints(member.memberId, points) == 0) {
-                throw NotFoundException("경험치를 변경할 회원을 찾을 수 없습니다.")
-            }
-            memberPointRepository.recordPointChange(member.memberId, requesterId, points, title)
             notificationService.createNotification(
                 userId = member.memberId,
                 category = NotificationCategory.GROUP,
@@ -244,6 +241,7 @@ class GroupService(
             actorMemberId = requesterId,
             data = if (published) GroupLogData.GroupPortfolioPublished else GroupLogData.GroupPortfolioUnpublished,
         )
+        members.forEach { member -> pointService.givePoint(member.memberId, points, title) }
     }
 
     private fun getGroupForPortfolioChange(groupId: Long, requesterId: Long): Group {

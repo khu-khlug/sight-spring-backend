@@ -21,6 +21,7 @@ import java.time.Instant
 
 // 실제 MySQL에서 검색용 조회(카드 파생 쿼리, 기록 조인 쿼리)의 삭제 제외·정렬·페이징을 검증한다.
 // Docker를 쓸 수 없는 환경에서는 다른 테스트가 실패하지 않도록 이 테스트만 건너뛴다.
+// 기존 DB 테스트와 같이 테이블은 엔티티로 만들고(create-drop) SQL 초기화 스크립트는 실행하지 않는다(spring.sql.init.mode=never).
 @DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop", "spring.sql.init.mode=never"])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)

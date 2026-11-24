@@ -567,7 +567,7 @@ class GroupMemberServiceTest {
             groupMemberService.kickMember(groupId = 100L, requesterId = 1L, kickedMemberId = 5L)
         }
         verify(pointService, never()).givePoint(any(), any(), any())
-        verify(groupLogService, never()).createLog(any(), any(), any())
+        verify(groupLogService, never()).createLog(any(), any(), any(), anyOrNull())
         verify(groupRepository, never()).addMemberCountById(any(), any())
     }
 

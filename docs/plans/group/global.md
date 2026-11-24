@@ -68,6 +68,133 @@
 
 경험치 수치와 지급·차감 대상은 사용자 제공 회칙을 반영한 [경험치 기준](../experience-points.md)을 따른다. 실습 그룹은 더 이상 운영하지 않으므로 현행 설계에서 경험치 제외 예외를 적용하지 않는다.
 
+그룹 활동으로 경험치를 지급·차감하는 서비스는 아래 방식으로 변동을 기록하고 되돌린다. 기록해 두면 경험치 기준이 바뀐 뒤에도 행위를 취소할 때 당시 지급한 회원과 양 그대로 되돌릴 수 있다.
+
+### 변동량
+
+- 변동량은 `com.sight.domain.expoint.ExpointRule`의 `point`를 쓴다. 항목 이름은 경험치 기준 표의 활동 이름이다(예: `ExpointRule.보고서제출.point`는 `150`).
+- 그룹 서비스 코드에 변동량 숫자를 직접 쓰지 않는다. 숫자를 직접 쓴 기존 코드는 그 코드를 수정할 때 `ExpointRule` 참조로 바꾼다.
+- `ExpointRule`의 항목 이름은 한글이며, ktlint의 enum 항목 이름 규칙은 `ExpointRule` 선언에서만 끈다. 참조하는 코드에는 별도 설정이 필요 없다.
+
+### 변동 기록
+
+경험치 변동은 `khlug_group_expoint_change`에 회원 1명당 1행으로 저장한다. 그룹·로그타입·발생 일시는 `group_log_id`로 이은 그룹 로그를 따르며 이 테이블에 따로 두지 않는다.
+
+| 컬럼 | 타입 | 내용 |
+| :-- | :-- | :-- |
+| `id` | `BIGINT` PK | `IntegerIdService.nextId()`로 발급한 TSID |
+| `group_log_id` | `BIGINT NOT NULL` | 변동을 일으킨 행위의 그룹 로그 |
+| `target_id` | `VARCHAR(100) NOT NULL` | 변동을 일으킨 대상의 식별자. [대상 식별자](#대상-식별자) 참고 |
+| `member_id` | `BIGINT NOT NULL` | 변동을 받은 회원 |
+| `point` | `INT NOT NULL` | 그 회원에게 적용한 변동량. 0이 아니다 |
+
+- 인덱스 `(target_id)`로 대상의 변동을, `(group_log_id)`로 한 행위의 변동을 조회한다.
+- 운영 환경은 스키마 검증(`ddl-auto: validate`)만 하므로 배포 전에 아래 DDL로 테이블을 만든다.
+
+```sql
+CREATE TABLE khlug_group_expoint_change (
+    id           BIGINT       NOT NULL PRIMARY KEY,
+    group_log_id BIGINT       NOT NULL,
+    target_id    VARCHAR(100) NOT NULL,
+    member_id    BIGINT       NOT NULL,
+    point        INT          NOT NULL,
+    INDEX idx_group_expoint_change_target (target_id),
+    INDEX idx_group_expoint_change_log (group_log_id)
+) CHARSET = utf8mb4;
+```
+
+### 대상 식별자
+
+`targetId`는 경험치를 지급한 행위와 그 지급을 되돌리는 행위가 함께 가리키는, 그 행위만의 행 식별자다.
+
+- 그룹·리스트·카드·기록 식별자는 레거시도 전역 시퀀스(`khlug_sequence`)로 채번했고, 신규 식별자와 그룹 멤버 행 식별자는 공통 TSID 발급기로 발급하며, 활동보고 식별자는 ULID다. 따라서 종류가 달라도 값이 겹치지 않는다. 종류를 나타내는 접두어를 붙이지 않고 식별자 값만 문자열로 넣는다(예: `cardId.toString()`, `reportId`).
+- 회원마다 따로 일어나는 행위는 그룹 식별자가 아니라 그 회원의 행 식별자를 쓴다. 그룹 참여·탈퇴는 그룹 멤버 행의 `GroupMember.id`를 쓴다. 그룹 식별자를 쓰면 다른 회원의 참여 기록을 되돌리게 된다.
+- 그룹 식별자를 대상으로 쓰는 그룹 단위 행위(그룹 생성, 종료, 포트폴리오)는 여러 종류가 같은 `targetId`를 쓰므로, 되돌릴 때 `targetLogTypes`로 종류를 구분한다.
+
+### 지급하는 행위
+
+1. 대상 회원마다 `PointService.givePoint`로 경험치를 지급한다.
+2. 같은 행위의 로그를 `GroupLogService.createLog` 또는 `createSystemLog`로 남기면서 `expointChange`에 지급한 대상 식별자·변동량·회원을 넘긴다.
+
+`expointChange`는 기본값이 `null`인 선택 인자다. 경험치가 없는 행위는 넘기지 않는다. `createLog`는 기록만 하고 경험치를 지급하지 않으므로 1번을 빠뜨리지 않는다.
+
+```kotlin
+// 활동보고 제출: 그룹 멤버 전체에게 +150
+val point = ExpointRule.보고서제출.point
+memberIds.forEach { pointService.givePoint(targetUserId = it, point = point, message = "활동보고 제출") }
+groupLogService.createLog(
+    groupId = group.id,
+    actorMemberId = requesterId,
+    data = GroupLogData.ActivityReportSubmitted(reportId = report.id, seminarId = report.seminarId),
+    expointChange = GroupLogExpointChange(targetId = report.id, point = point, memberIds = memberIds),
+)
+```
+
+### 되돌리는 행위
+
+`GroupLogService.revertExpointChange` 하나만 호출한다. 이 함수가 되돌리는 행위의 로그를 남기고, 경험치를 지급하고, 지급한 변동을 기록한다. 같은 행위에 대해 `createLog`나 `PointService.givePoint`를 따로 호출하지 않는다.
+
+| 인자 | 넘기는 값 |
+| :-- | :-- |
+| `groupId` | 그룹 식별자 |
+| `actorMemberId` | 요청자. 시스템이 처리하면 `null` |
+| `targetId` | 되돌릴 지급과 같은 대상 식별자 |
+| `targetLogTypes` | 되돌릴 지급 행위의 로그타입 집합. 되돌리는 행위 자신의 로그타입은 넣지 않는다 |
+| `revertLog` | 되돌리는 행위의 로그데이터 |
+| `message` | 경험치 이력 문구 |
+| `fallbackRule` | 기록이 없을 때 적용할 되돌리는 행위의 현재 규칙 |
+| `fallbackMemberIds` | 기록이 없을 때 `fallbackRule`을 적용할 회원 |
+
+- `targetId`로 기록된 변동 중 로그타입이 `targetLogTypes`에 속하는 가장 최근 행위를 찾아, 그 행위의 회원별 변동량을 부호만 바꿔 같은 회원에게 적용한다.
+- 해당하는 기록이 없으면 `fallbackRule.point`를 `fallbackMemberIds`에게 적용한다. 변동 기록이 생기기 전에 지급한 경험치를 되돌릴 때 이 경로를 쓴다. `fallbackMemberIds`는 경험치 기준 표의 대상 회원을 현재 상태로 구한 값이다.
+- 적용한 변동은 `revertLog` 로그에 같은 `targetId`로 기록하고 반환한다. 적용할 회원이 없으면 경험치를 바꾸지 않고 로그만 남기며 빈 목록을 반환한다.
+- 같은 행위를 두 번 되돌리지 않는 것은 호출하는 서비스의 상태 검사가 보장한다. 예를 들어 이미 취소된 활동보고는 다시 취소하지 않는다.
+
+```kotlin
+// 활동보고 취소: 제출 때 지급한 회원에게 지급한 양만큼 차감
+groupLogService.revertExpointChange(
+    groupId = group.id,
+    actorMemberId = requesterId,
+    targetId = report.id,
+    targetLogTypes = setOf(GroupLogType.ACTIVITY_REPORT_SUBMITTED),
+    revertLog = GroupLogData.ActivityReportCancelled(reportId = report.id, seminarId = report.seminarId),
+    message = "활동보고 취소",
+    fallbackRule = ExpointRule.보고서제출취소,
+    fallbackMemberIds = groupMemberRepository.findByGroupId(group.id).map { it.memberId }.distinct(),
+)
+```
+
+### 행위별 적용
+
+| 행위 | 방식 | `targetId` | `targetLogTypes` | `ExpointRule` | 대상 회원 (`memberIds`·`fallbackMemberIds`) |
+| :-- | :-- | :-- | :-- | :-- | :-- |
+| 그룹 생성 | 지급 | 그룹 | - | `그룹생성` | 생성한 회원 |
+| 그룹 참여 | 지급 | 그룹 멤버 행 | - | `그룹참여` | 참여한 회원 |
+| 그룹 탈퇴·내보내기 | 되돌림 | 그룹 멤버 행 | `GROUP_MEMBER_JOINED` | `그룹탈퇴` | 탈퇴하거나 내보내진 회원 |
+| 그룹 성공·실패 종료 | 지급 | 그룹 | - | `그룹성공종료`·`그룹실패종료` | 그룹 멤버 전체 |
+| 종료 후 재진행 | 되돌림 | 그룹 | `GROUP_ENDED_SUCCESS`, `GROUP_ENDED_FAIL` | 재진행 전 상태에 따라 `성공종료후재진행`·`실패종료후재진행` | 그룹 멤버 전체 |
+| 포트폴리오 발행 | 지급 | 그룹 | - | `그룹포트폴리오발행` | 그룹 멤버 전체 |
+| 포트폴리오 취소 | 되돌림 | 그룹 | `GROUP_PORTFOLIO_PUBLISHED` | `그룹포트폴리오취소` | 그룹 멤버 전체 |
+| 세미나 발표 등록 | 지급 | 발표 등록 행 | - | `세미나발표등록` | 그룹 멤버 전체 |
+| 세미나 발표 등록 취소·세션 강제 제거 | 되돌림 | 발표 등록 행 | `SEMINAR_PRESENTATION_REGISTERED` | `세미나발표등록취소`·`세미나세션강제제거` | 그룹 멤버 전체 |
+| 활동보고 제출 | 지급 | 활동보고 | - | `보고서제출` | 그룹 멤버 전체 |
+| 활동보고 취소 | 되돌림 | 활동보고 | `ACTIVITY_REPORT_SUBMITTED` | `보고서제출취소` | 그룹 멤버 전체 |
+| 카드 생성 | 지급 | 카드 | - | `카드생성` | 카드를 만든 회원 |
+| 카드 삭제 | 되돌림 | 카드 | `CARD_CREATED`, `CARD_RESTORED` | `카드삭제` | 카드를 만든 회원 |
+| 카드 복구 | 지급 | 카드 | - | `카드복구` | 복구 요청자 |
+| 기록 작성 | 지급 | 기록 | - | `카드기록작성` | 기록을 작성한 회원 |
+| 기록 삭제 | 되돌림 | 기록 | `RECORD_CREATED`, `RECORD_RESTORED` | `기록삭제` | 기록을 작성한 회원 |
+| 기록 복구 | 지급 | 기록 | - | `기록복구` | 복구 요청자 |
+
+- 지급 행의 `targetLogTypes`는 해당하지 않는다(`-`). 지급 행은 `createLog`의 `expointChange`로 기록한다.
+- 카드·기록 복구는 삭제를 되돌리지 않고 복구 요청자에게 새로 지급한다. 그래서 복구된 카드·기록을 다시 삭제하면 마지막 지급인 복구를 되돌려 복구한 회원에게서 차감한다.
+- 삭제를 되돌리지 않으므로 처음 삭제할 때 생성자·작성자에게서 차감한 양은 복구해도 돌려주지 않는다.
+- 세미나 발표 등록을 저장하는 행이 아직 없다. 구현할 때 그 행의 식별자를 `targetId`로 쓰며 그룹 식별자나 학기 값을 쓰지 않는다.
+
+### 외부 지급 실패
+
+`PointService.givePoint`는 외부 호출이 실패해도 예외를 던지지 않으므로, 기록된 변동과 실제 지급이 다를 수 있다. 실패 처리는 경험치 서비스를 이전할 때 함께 정하며, 그룹 서비스에서 별도 재시도·보상 코드를 추가하지 않는다.
+
 ## 활동에 따른 중단 상태 해제
 
 - 중단 상태를 자동 해제하는 API는 각 문서의 `부수 효과 > 그룹 상태`에 그 동작을 명시한다. 활동 로그 기록이나 최근 활동 일시 갱신이라는 표현만으로 중단 해제를 추론하지 않는다.

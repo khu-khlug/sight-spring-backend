@@ -2,7 +2,9 @@ package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupFile
 import com.sight.domain.notification.NotificationCategory
@@ -47,7 +49,7 @@ data class ActivityReportListResult(
 )
 
 // 활동보고 API는 응답 형식(파일 key, LocalDateTime 시각)을 유지한다.
-// 새 도메인은 파일을 업로드 기록 아이디로 참조하므로, 파일 key는 각 함수에서 업로드 기록을 조회해 채운다.
+// 파일 key는 활동보고의 공통 파일 참조를 통해 업로드 기록에서 조회한다.
 @Service
 class GroupActivityReportService(
     private val integerIdService: IntegerIdService,
@@ -61,6 +63,7 @@ class GroupActivityReportService(
     private val notificationService: NotificationService,
     private val fileUploadService: FileUploadService,
     private val groupFileRepository: GroupFileRepository,
+    private val fileReferences: FileReferenceService,
 ) {
     @Transactional
     fun getUploadLink(
@@ -90,19 +93,20 @@ class GroupActivityReportService(
             throw BadRequestException("이미 활동보고를 제출했습니다.")
         }
         val fileUpload = fileUploadService.validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
+        val reportId = UlidCreator.getUlid().toString()
 
         val report =
             groupActivityReportRepository.save(
                 GroupActivityReport(
-                    id = UlidCreator.getUlid().toString(),
+                    id = reportId,
                     groupId = groupId,
                     seminarId = seminar.id,
                     isPresentation = isPresentation,
-                    reportFileUploadId = fileUpload.id,
                     createdAt = Instant.now(),
                 ),
             )
 
+        fileReferences.createFileReference(fileUpload.id, FileReferenceType.GROUP_ACTIVITY_REPORT, reportId)
         fileUploadService.markAsUsed(fileUpload)
 
         val members = groupMemberRepository.findByGroupId(groupId)
@@ -135,26 +139,28 @@ class GroupActivityReportService(
     ): ActivityReportResult {
         if (isPresentation == null && fileUploadId == null) throw BadRequestException("수정할 내용이 없습니다.")
 
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-
         val report =
-            groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
+            groupActivityReportRepository.findLockedById(reportId) ?: throw NotFoundException("활동보고를 찾을 수 없습니다.")
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
-        val oldFileUpload = fileUploadService.getFileUploadById(report.reportFileUploadId)
+        val oldFileUpload = getReportFileUpload(report)
         val newFileUpload =
             fileUploadId?.let {
                 fileUploadService.validateFileUpload(it, requesterId, uploadLinkRequestPath)
             }
+        val isFileChanged = newFileUpload != null && newFileUpload.id != oldFileUpload.id
+        if (isFileChanged) {
+            fileReferences.replaceSingleFileReference(requireNotNull(newFileUpload).id, FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
+            fileUploadService.markAsUsed(newFileUpload)
+        }
 
-        report.change(
-            isPresentation = isPresentation,
-            reportFileUploadId = newFileUpload?.id,
-            at = Instant.now(),
-        )
-        newFileUpload?.let { fileUploadService.markAsUsed(it) }
+        val nextIsPresentation = isPresentation ?: report.isPresentation
+        if (nextIsPresentation != report.isPresentation || isFileChanged) {
+            report.update(isPresentation = nextIsPresentation, updatedAt = Instant.now())
+        }
         val savedReport = groupActivityReportRepository.save(report)
 
         val members = groupMemberRepository.findByGroupId(groupId)
@@ -173,12 +179,6 @@ class GroupActivityReportService(
             content = notificationContent,
         )
 
-        if (newFileUpload != null) {
-            groupFileRepository.deleteByFileUploadId(oldFileUpload.id)
-            fileUploadService.deleteFileUpload(oldFileUpload.id)
-            storageService.deleteFile(oldFileUpload.fileKey)
-        }
-
         return savedReport.toResult(reportFileKey = (newFileUpload ?: oldFileUpload).fileKey)
     }
 
@@ -187,18 +187,15 @@ class GroupActivityReportService(
         groupId: Long,
         reportId: String,
     ) {
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-
         val report =
-            groupActivityReportRepository.findById(reportId).orElseThrow { NotFoundException("활동보고를 찾을 수 없습니다.") }
+            groupActivityReportRepository.findLockedById(reportId) ?: throw NotFoundException("활동보고를 찾을 수 없습니다.")
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
         if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
 
         validateGroupActivitySubmitPeriod(report.seminarId)
 
-        val fileUpload = fileUploadService.getFileUploadById(report.reportFileUploadId)
-        groupFileRepository.deleteByFileUploadId(fileUpload.id)
-        fileUploadService.deleteFileUpload(fileUpload.id)
         groupActivityReportRepository.delete(report)
+        fileReferences.deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
 
         val members = groupMemberRepository.findByGroupId(groupId)
         members.forEach { member ->
@@ -215,23 +212,26 @@ class GroupActivityReportService(
             title = "활동보고 취소",
             content = "${group.title} 그룹의 활동보고가 취소되었습니다.",
         )
-
-        storageService.deleteFile(fileUpload.fileKey)
     }
 
     @Transactional(readOnly = true)
     fun listReports(groupId: Long): ActivityReportListResult {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        val reports = groupActivityReportRepository.findByGroupId(groupId)
+        val rows = groupActivityReportRepository.findWithFilesByGroupId(groupId)
+        if (rows.groupBy { it.report.id }.values.any { it.size > 1 }) {
+            throw InternalServerErrorException("활동보고 파일 참조가 중복되어 있습니다.")
+        }
+        val reports = rows.map { it.report }
 
         val seminars = bigSeminarRepository.findAllById(reports.map { it.seminarId }).associateBy { it.id }
         val schedules = scheduleRepository.findAllById(seminars.values.map { it.scheduleId }).associateBy { it.id }
 
         val items =
-            reports.map { report ->
+            rows.map { row ->
+                val report = row.report
                 val seminar = seminars[report.seminarId]
                 val schedule = seminar?.let { schedules[it.scheduleId] }
-                val fileUpload = fileUploadService.getFileUploadById(report.reportFileUploadId)
+                val fileKey = row.fileKey ?: throw NotFoundException("활동보고 파일을 찾을 수 없습니다.")
 
                 ActivityReportListItem(
                     id = report.id,
@@ -241,13 +241,22 @@ class GroupActivityReportService(
                     seminarIsSummerSeason = seminar?.isSummerSeason,
                     seminarIsSpeakAfter = seminar?.isSpeakAfter,
                     isPresentation = report.isPresentation,
-                    reportFileUrl = storageService.getDownloadUrl(fileUpload.fileKey),
+                    reportFileUrl = storageService.getDownloadUrl(fileKey),
                     createdAt = report.createdAt.toUtcLocalDateTime(),
                     updatedAt = report.updatedAt.toUtcLocalDateTime(),
                 )
             }
 
         return ActivityReportListResult(reports = items)
+    }
+
+    private fun getReportFileUpload(report: GroupActivityReport): com.sight.domain.file.FileUpload {
+        val reference =
+            fileReferences.getSingleFileReferenceByReferrer(
+                FileReferenceType.GROUP_ACTIVITY_REPORT,
+                report.id,
+            ) ?: throw NotFoundException("활동보고 파일 참조를 찾을 수 없습니다.")
+        return fileUploadService.getFileUploadById(reference.fileUploadId)
     }
 
     private fun findNextSeminar(): BigSeminar? {

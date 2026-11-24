@@ -1,6 +1,7 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
@@ -20,23 +21,43 @@ data class UploadLinkResult(
 class FileUploadService(
     private val fileUploadRepository: FileUploadRepository,
     private val storageService: StorageService,
+    private val deletions: FileUploadDeletionService,
 ) {
     @Transactional
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
+    ): UploadLinkResult = createUpload(memberId, apiPath, null)
+
+    @Transactional
+    fun createUploadLink(
+        memberId: Long,
+        apiPath: String,
+        size: Long,
+    ): UploadLinkResult {
+        if (size !in 0..FileUpload.MAX_FILE_SIZE) {
+            throw BadRequestException("파일 크기는 0바이트 이상 ${FileUpload.MAX_FILE_SIZE}바이트 이하여야 합니다.")
+        }
+        return createUpload(memberId, apiPath, size)
+    }
+
+    private fun createUpload(
+        memberId: Long,
+        apiPath: String,
+        size: Long?,
     ): UploadLinkResult {
         val fileKey = UlidCreator.getUlid().toString()
-        val url = storageService.generateUploadUrl(fileKey)
+        val url =
+            if (size == null) storageService.generateUploadUrl(fileKey) else storageService.generateUploadUrl(fileKey, size)
         val fileUpload =
-            fileUploadRepository.save(
+            fileUploadRepository.saveAndFlush(
                 FileUpload(
                     id = UlidCreator.getUlid().toString(),
                     fileKey = fileKey,
                     uploaderMemberId = memberId,
                     apiPath = apiPath,
                     fileName = null,
-                    size = null,
+                    size = size,
                     contentType = null,
                     createdAt = Instant.now(),
                 ),
@@ -51,8 +72,8 @@ class FileUploadService(
         apiPath: String,
     ): FileUpload {
         val fileUpload =
-            fileUploadRepository.findById(fileUploadId)
-                .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+            fileUploadRepository.findForUpdateById(fileUploadId)
+                ?: throw NotFoundException("파일을 찾을 수 없습니다.")
         if (fileUpload.apiPath != apiPath) throw UnprocessableEntityException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
         if (!fileUpload.isIssuedBy(memberId)) throw ForbiddenException("링크 발급자가 아닙니다.")
         if (fileUpload.isUploaded) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
@@ -76,6 +97,6 @@ class FileUploadService(
 
     @Transactional
     fun deleteFileUpload(fileUploadId: String) {
-        fileUploadRepository.deleteById(fileUploadId)
+        deletions.deleteFileUpload(fileUploadId)
     }
 }

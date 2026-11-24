@@ -2,6 +2,8 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.file.FileReference
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.testFileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupCategory
@@ -19,6 +21,7 @@ import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.ScheduleRepository
+import com.sight.repository.dto.GroupActivityReportFileView
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
@@ -44,6 +47,7 @@ class GroupActivityReportServiceTest {
     private val notificationService = mock<NotificationService>()
     private val fileUploadService = mock<FileUploadService>()
     private val groupFileRepository = mock<GroupFileRepository>()
+    private val fileReferences = mock<FileReferenceService>()
     private lateinit var service: GroupActivityReportService
 
     private val now = LocalDateTime.now()
@@ -76,6 +80,7 @@ class GroupActivityReportServiceTest {
         testFileUpload(id = "file-1", fileKey = "key-1", uploaderMemberId = 10L)
 
     private val baseReport = createReport()
+    private val baseReference = FileReference("reference-1", "file-1", FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
 
     private fun createReport(groupId: Long = 1L) =
         GroupActivityReport(
@@ -83,7 +88,6 @@ class GroupActivityReportServiceTest {
             groupId = groupId,
             seminarId = "seminar-1",
             isPresentation = false,
-            reportFileUploadId = "file-1",
             createdAt = Instant.parse("2025-01-01T00:00:00Z"),
         )
 
@@ -104,6 +108,7 @@ class GroupActivityReportServiceTest {
                 notificationService,
                 fileUploadService,
                 groupFileRepository,
+                fileReferences,
             )
         given(storageService.getDownloadUrl(any())).willReturn("https://download.example.com")
         given(fileUploadService.createUploadLink(any(), any())).willReturn(
@@ -111,6 +116,9 @@ class GroupActivityReportServiceTest {
         )
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
         given(fileUploadService.getFileUploadById("file-1")).willReturn(baseFileUpload)
+        given(fileReferences.createFileReference(any(), any(), any())).willReturn(baseReference)
+        given(fileReferences.getSingleFileReferenceByReferrer(any(), any())).willReturn(baseReference)
+        given(fileReferences.replaceSingleFileReference(any(), any(), any())).willReturn(baseReference)
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
 
@@ -266,7 +274,7 @@ class GroupActivityReportServiceTest {
     @Test
     fun `editReport는 존재하지 않는 reportId 요청 시 404를 반환한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.empty())
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(null)
 
         assertFailsWith<NotFoundException> {
             service.editReport(
@@ -284,7 +292,7 @@ class GroupActivityReportServiceTest {
     fun `editReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
         val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(otherGroupReport)
 
         assertFailsWith<NotFoundException> {
             service.editReport(
@@ -299,10 +307,10 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `editReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 수정할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(expiredSchedule))
 
@@ -321,7 +329,7 @@ class GroupActivityReportServiceTest {
     @Test
     fun `editReport는 isPresentation만 변경하면 isPresentation을 업데이트한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
@@ -335,7 +343,7 @@ class GroupActivityReportServiceTest {
             uploadLinkRequestPath = "/groups/1/activity-report/upload-link",
         )
 
-        verify(groupActivityReportRepository).save(argThat { isPresentation && reportFileUploadId == "file-1" })
+        verify(groupActivityReportRepository).save(argThat { isPresentation })
         verify(storageService, never()).deleteFile(any())
     }
 
@@ -344,7 +352,7 @@ class GroupActivityReportServiceTest {
     @Test
     fun `cancelReport는 접수 기간 안의 활동보고를 삭제한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
@@ -352,16 +360,16 @@ class GroupActivityReportServiceTest {
         service.cancelReport(groupId = 1L, reportId = "report-1")
 
         verify(groupActivityReportRepository).delete(baseReport)
-        verify(groupFileRepository).deleteByFileUploadId("file-1")
-        verify(fileUploadService).deleteFileUpload("file-1")
-        verify(storageService).deleteFile("key-1")
+        verify(fileReferences).deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
+        verify(groupFileRepository, never()).deleteByFileUploadId(any())
+        verify(storageService, never()).deleteFile(any())
     }
 
     @Test
     fun `cancelReport는 다른 그룹의 reportId를 전달하면 404를 반환한다`() {
         val otherGroupReport = createReport(groupId = 99L)
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(otherGroupReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(otherGroupReport)
 
         assertFailsWith<NotFoundException> {
             service.cancelReport(groupId = 1L, reportId = "report-1")
@@ -369,10 +377,10 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `cancelReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 취소할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(expiredSchedule))
 
@@ -384,7 +392,7 @@ class GroupActivityReportServiceTest {
     @Test
     fun `cancelReport는 취소 성공 시 그룹원 전원에게 ExPoint -150을 지급한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findById("report-1")).willReturn(Optional.of(baseReport))
+        given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
@@ -400,7 +408,9 @@ class GroupActivityReportServiceTest {
     @Test
     fun `listReports는 그룹의 활동보고 목록을 반환한다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findByGroupId(1L)).willReturn(listOf(baseReport))
+        given(groupActivityReportRepository.findWithFilesByGroupId(1L)).willReturn(
+            listOf(GroupActivityReportFileView(baseReport, "reference-1", "file-1", "key-1")),
+        )
         given(bigSeminarRepository.findById("seminar-1")).willReturn(Optional.of(baseSeminar))
         given(scheduleRepository.findById(1L)).willReturn(Optional.of(baseSchedule))
 

@@ -32,7 +32,7 @@
 - 이름·제목·소속은 동작 당시 원문 텍스트다. JSON 이스케이프 외에 HTML·Markdown 이스케이프를 적용하지 않는다.
 - changedFields는 실제 변경한 항목의 표시명 배열이다. 레거시 기준 제목·목적·분야·기술·공개 범위·저장소 중 변경한 항목을 담는다.
 - category는 GroupCategory의 API enum 값이다. label은 카드 레이블 API의 값이며 색상을 문자열로 보존한다.
-- description은 당시 설명 원문 문자열이며 렌더링에서는 일반 텍스트로 취급한다. contentText는 당시 기록 본문에서 추출한 텍스트이며 문단·줄바꿈을 보존한다. 실행 가능한 원문 HTML을 신규 로그데이터에 넣지 않는다.
+- description은 당시 설명 원문 문자열이며 렌더링에서는 일반 텍스트로 취급한다. 기록 작성·수정 로그는 기록 식별자와 당시 소속 카드 정보만 저장한다. 본문이 필요하면 기록 단건 조회 API로 조회한다. 실행 가능한 원문 HTML을 신규 로그데이터에 넣지 않는다.
 - termYear는 연도 정수, termSemester는 당시 학기 표시명 문자열이다. 구분자의 위치에 의존하는 합성 문자열로 저장하지 않는다.
 
 ### 그룹
@@ -94,8 +94,8 @@
 
 | logType | 기록되는 동작 | logData 필드 | 레거시 근거 |
 | :-- | :-- | :-- | :-- |
-| `RECORD_UPDATED` | 기록 본문 수정 | recordId, cardId, cardTitle, contentText | [코드](../../../../opened-sight-legacy/GroupController.php:1615) |
-| `RECORD_CREATED` | 기록 작성. Slack 경유 작성도 같은 타입 | recordId, cardId, cardTitle, contentText | [코드](../../../../opened-sight-legacy/GroupController.php:1672) |
+| `RECORD_UPDATED` | 기록 본문 수정 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1615) |
+| `RECORD_CREATED` | 기록 작성. Slack 경유 작성도 같은 타입 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1672) |
 | `RECORD_DELETED` | 기록 소프트 삭제 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1714) |
 | `RECORD_RESTORED` | 기록 복구 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1747) |
 | `RECORD_PORTFOLIO_REMOVED` | 기록 포트폴리오 제외 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1784) |

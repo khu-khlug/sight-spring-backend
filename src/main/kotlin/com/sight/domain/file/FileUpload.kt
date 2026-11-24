@@ -41,7 +41,7 @@ class FileUpload(
     val fileKey: String = fileKey
 
     @Embedded
-    val readCache: FileReadCache = FileReadCache()
+    private var urlCache: FileUrlCache? = null
 
     // 업로드 링크를 발급받은 회원. 제출할 때 요청자와 같아야 한다.
     @Column(name = "member_id", nullable = false)
@@ -83,7 +83,7 @@ class FileUpload(
     val createdAt: Instant = createdAt
 
     init {
-        require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "업로드 기록 식별자가 올바르지 않습니다." }
+        require(isValidId(id)) { "업로드 기록 식별자가 올바르지 않습니다." }
         require(fileKey.isNotBlank()) { "파일 key가 필요합니다." }
         require(uploaderMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         require(apiPath.isNotBlank()) { "발급 경로가 필요합니다." }
@@ -114,11 +114,25 @@ class FileUpload(
     fun markDeleted(at: Instant) {
         require(!isDeleted) { "이미 삭제 처리된 파일입니다." }
         deletedAt = at
-        readCache.invalidate()
+        urlCache = null
+    }
+
+    fun reusableFileUrl(at: Instant): String? = urlCache?.reusableUrl(at)
+
+    fun cacheFileUrl(
+        url: String,
+        expiresAt: Instant,
+        at: Instant,
+    ) {
+        require(!isDeleted && isUploaded) { "읽기 주소를 저장할 수 없는 파일입니다." }
+        require(expiresAt.isAfter(at)) { "읽기 주소의 만료 시각은 발급 시각보다 늦어야 합니다." }
+        urlCache = FileUrlCache(url, expiresAt)
     }
 
     companion object {
         const val ID_MAX_LENGTH: Int = 100
+
+        fun isValidId(id: String): Boolean = id.isNotBlank() && id.length <= ID_MAX_LENGTH
 
         // 파일 하나의 최대 크기. 정확히 같은 크기는 허용한다.
         const val MAX_FILE_SIZE: Long = 20L * 1024 * 1024
@@ -127,6 +141,6 @@ class FileUpload(
         val DEFAULT_UPLOAD_CHECK_GRACE: Duration = Duration.ofMinutes(1)
 
         // 읽기 링크 유효 시간. R2 Presigned GET URL의 최대치다.
-        val READ_LINK_VALIDITY: Duration = Duration.ofDays(7)
+        val DOWNLOAD_LINK_VALIDITY: Duration = Duration.ofDays(7)
     }
 }

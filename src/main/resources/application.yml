@@ -1,6 +1,14 @@
 server:
   port: 8080
 
+storage:
+  r2:
+    enabled: ${R2_ENABLED:false}
+    endpoint: ${R2_ENDPOINT:}
+    bucket: ${R2_BUCKET:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+
 spring:
   application:
     name: sight-spring-backend

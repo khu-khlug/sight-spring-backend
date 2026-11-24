@@ -9,17 +9,17 @@ import org.springframework.stereotype.Repository
 class FileReferenceRepositoryImpl(private val entityManager: EntityManager) : FileReferenceRepository {
     override fun findById(id: String): FileReference? = entityManager.find(FileReference::class.java, id)
 
-    override fun findByTypeAndOwnerOrderById(
+    override fun findByRefTypeAndReferrerOrderById(
         referenceType: FileReferenceType,
-        ownerId: String,
+        referrerId: String,
         cursor: String,
         limit: Int,
     ): List<FileReference> =
         entityManager.createQuery(
-            "select r from FileReference r where r.referenceType = :type and r.ownerId = :owner " +
+            "select r from FileReference r where r.referenceType = :type and r.referrerId = :referrerId " +
                 "and r.id > :cursor order by r.id",
             FileReference::class.java,
-        ).setParameter("type", referenceType).setParameter("owner", ownerId)
+        ).setParameter("type", referenceType).setParameter("referrerId", referrerId)
             .setParameter("cursor", cursor).setMaxResults(limit).resultList
 
     override fun existsByFileUploadId(fileUploadId: String): Boolean =
@@ -41,15 +41,15 @@ class FileReferenceRepositoryImpl(private val entityManager: EntityManager) : Fi
         return reference
     }
 
-    override fun deleteByIdAndTypeAndOwner(
+    override fun deleteByIdAndRefTypeAndReferrer(
         id: String,
         referenceType: FileReferenceType,
-        ownerId: String,
+        referrerId: String,
     ): Boolean {
         // 도메인별 부가정보의 FK 해제를 먼저 반영한다.
         entityManager.flush()
         return entityManager.createQuery(
-            "delete from FileReference r where r.id = :id and r.referenceType = :type and r.ownerId = :owner",
-        ).setParameter("id", id).setParameter("type", referenceType).setParameter("owner", ownerId).executeUpdate() == 1
+            "delete from FileReference r where r.id = :id and r.referenceType = :type and r.referrerId = :referrerId",
+        ).setParameter("id", id).setParameter("type", referenceType).setParameter("referrerId", referrerId).executeUpdate() == 1
     }
 }

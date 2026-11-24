@@ -17,14 +17,14 @@ import jakarta.persistence.Table
     name = "file_reference",
     indexes = [
         Index(name = "idx_file_reference_upload", columnList = "file_upload_id"),
-        Index(name = "idx_file_reference_owner", columnList = "reference_type, owner_id"),
+        Index(name = "idx_file_reference_referrer", columnList = "reference_type, referrer_id"),
     ],
 )
 class FileReference(
     id: String,
     fileUploadId: String,
     referenceType: FileReferenceType,
-    ownerId: String,
+    referrerId: String,
 ) {
     @Id
     @Column(name = "id", nullable = false, length = ID_MAX_LENGTH)
@@ -47,25 +47,25 @@ class FileReference(
     @Column(name = "reference_type", nullable = false, length = 50, columnDefinition = "VARCHAR(50)")
     val referenceType: FileReferenceType = referenceType
 
-    // 소유자 식별자는 참조 종류가 정한 리소스의 식별자 원문이다.
+    // 파일을 참조하는 개체의 식별자 원문. 실제 개체 종류는 referenceType으로 구분한다.
     @Column(
-        name = "owner_id",
+        name = "referrer_id",
         nullable = false,
-        length = OWNER_ID_MAX_LENGTH,
+        length = REFERRER_ID_MAX_LENGTH,
         columnDefinition = "VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin",
     )
-    val ownerId: String = ownerId
+    val referrerId: String = referrerId
 
     init {
         require(id.isNotBlank() && id.length <= ID_MAX_LENGTH) { "파일 참조 식별자가 올바르지 않습니다." }
         require(fileUploadId.isNotBlank() && fileUploadId.length <= FileUpload.ID_MAX_LENGTH) {
             "업로드 파일 식별자가 올바르지 않습니다."
         }
-        require(ownerId.isNotBlank() && ownerId.length <= OWNER_ID_MAX_LENGTH) { "소유자 식별자가 올바르지 않습니다." }
+        require(referrerId.isNotBlank() && referrerId.length <= REFERRER_ID_MAX_LENGTH) { "참조 개체 식별자가 올바르지 않습니다." }
     }
 
     companion object {
         const val ID_MAX_LENGTH: Int = 100
-        const val OWNER_ID_MAX_LENGTH: Int = 100
+        const val REFERRER_ID_MAX_LENGTH: Int = 100
     }
 }

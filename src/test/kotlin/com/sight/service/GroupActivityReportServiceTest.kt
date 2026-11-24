@@ -117,7 +117,7 @@ class GroupActivityReportServiceTest {
         given(fileUploadService.validateFileUpload(any(), any(), any())).willReturn(baseFileUpload)
         given(fileUploadService.getFileUploadById("file-1")).willReturn(baseFileUpload)
         given(fileReferences.createFileReference(any(), any(), any())).willReturn(baseReference)
-        given(fileReferences.getSingleFileReferenceByOwner(any(), any())).willReturn(baseReference)
+        given(fileReferences.getSingleFileReferenceByReferrer(any(), any())).willReturn(baseReference)
         given(fileReferences.replaceSingleFileReference(any(), any(), any())).willReturn(baseReference)
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
@@ -307,7 +307,7 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `editReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 수정할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)
@@ -360,7 +360,7 @@ class GroupActivityReportServiceTest {
         service.cancelReport(groupId = 1L, reportId = "report-1")
 
         verify(groupActivityReportRepository).delete(baseReport)
-        verify(fileReferences).deleteSingleFileReferenceByOwner(FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
+        verify(fileReferences).deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, "report-1")
         verify(groupFileRepository, never()).deleteByFileUploadId(any())
         verify(storageService, never()).deleteFile(any())
     }
@@ -377,7 +377,7 @@ class GroupActivityReportServiceTest {
     }
 
     @Test
-    fun `cancelReport는 접수 기간이 지난 세미나의 보고서는 400을 반환한다`() {
+    fun `접수 기간이 지난 세미나의 활동보고는 취소할 수 없다`() {
         val expiredSchedule = baseSchedule.copy(endAt = now.minusDays(1))
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.findLockedById("report-1")).willReturn(baseReport)

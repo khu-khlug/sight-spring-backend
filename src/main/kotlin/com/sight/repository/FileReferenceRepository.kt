@@ -6,9 +6,9 @@ import com.sight.domain.file.FileReferenceType
 interface FileReferenceRepository {
     fun findById(id: String): FileReference?
 
-    fun findByTypeAndOwnerOrderById(
+    fun findByRefTypeAndReferrerOrderById(
         referenceType: FileReferenceType,
-        ownerId: String,
+        referrerId: String,
         cursor: String,
         limit: Int,
     ): List<FileReference>
@@ -19,9 +19,9 @@ interface FileReferenceRepository {
 
     fun save(reference: FileReference): FileReference
 
-    fun deleteByIdAndTypeAndOwner(
+    fun deleteByIdAndRefTypeAndReferrer(
         id: String,
         referenceType: FileReferenceType,
-        ownerId: String,
+        referrerId: String,
     ): Boolean
 }

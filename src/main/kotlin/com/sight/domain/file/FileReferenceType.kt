@@ -7,6 +7,6 @@ enum class FileReferenceType {
     GROUP_ACTIVITY_REPORT,
     ;
 
-    val isSingleOwnerFile: Boolean
+    val isSingleFileReferrer: Boolean
         get() = this == GROUP_CARD_COVER || this == GROUP_ACTIVITY_REPORT
 }

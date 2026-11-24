@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder
+import org.springframework.web.util.UriComponentsBuilder
 
 @RestController
 class GroupActivityReportController(
@@ -35,7 +37,13 @@ class GroupActivityReportController(
         @RequestBody request: CreateActivityReportUploadLinkRequest,
         requester: Requester,
     ): GetUploadLinkResponse {
-        val result = groupActivityReportService.getUploadLink(groupId, requester.userId, request.size)
+        val result =
+            groupActivityReportService.getUploadLink(
+                groupId,
+                requester.userId,
+                request.size,
+                uploadLinkRequestPath(groupId),
+            )
         return GetUploadLinkResponse(
             url = result.url,
             fileKey = result.fileKey,
@@ -58,6 +66,7 @@ class GroupActivityReportController(
                 requesterId = requester.userId,
                 isPresentation = request.isPresentation,
                 fileUploadId = request.fileUploadId,
+                uploadLinkRequestPath = uploadLinkRequestPath(groupId),
             )
         return ActivityReportResponse.from(result)
     }
@@ -79,6 +88,7 @@ class GroupActivityReportController(
                 requesterId = requester.userId,
                 isPresentation = request.isPresentation,
                 fileUploadId = request.fileUploadId,
+                uploadLinkRequestPath = uploadLinkRequestPath(groupId),
             )
         return ActivityReportResponse.from(result)
     }
@@ -106,4 +116,16 @@ class GroupActivityReportController(
     fun listReports(
         @PathVariable groupId: Long,
     ): ListActivityReportsResponse = ListActivityReportsResponse.from(groupActivityReportService.listReports(groupId))
+
+    companion object {
+        private fun uploadLinkRequestPath(groupId: Long): String =
+            MvcUriComponentsBuilder.fromMethodName(
+                UriComponentsBuilder.fromPath(""),
+                GroupActivityReportController::class.java,
+                GroupActivityReportController::getUploadLink.name,
+                groupId,
+                null,
+                null,
+            ).build().toUriString()
+    }
 }

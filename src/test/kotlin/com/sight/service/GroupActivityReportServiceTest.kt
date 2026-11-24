@@ -55,6 +55,8 @@ class GroupActivityReportServiceTest {
     private val fileReferenceService = mock<FileReferenceService>()
     private lateinit var service: GroupActivityReportService
 
+    private val uploadLinkRequestPath = "/issued/activity-report/upload-link"
+
     private val scheduledAt = LocalDateTime.of(2026, 12, 5, 14, 0)
     private val baseGroup =
         testGroup(
@@ -101,7 +103,7 @@ class GroupActivityReportServiceTest {
         given(storageService.getDownloadUrl(any(), any())).willReturn(
             SignedFileUrl("https://download.example.com", Instant.parse("2026-12-05T00:00:00Z")),
         )
-        given(activityReportUploadService.createUploadLink(1L, 10L, 1024L)).willReturn(
+        given(activityReportUploadService.createUploadLink(1L, 10L, 1024L, uploadLinkRequestPath)).willReturn(
             UploadLinkResult(url = "https://upload.example.com", fileKey = "key-1", fileUploadId = "file-1"),
         )
         given(transactions.getTransaction(any())).willAnswer { SimpleTransactionStatus() }
@@ -128,10 +130,10 @@ class GroupActivityReportServiceTest {
 
     @Test
     fun `getUploadLink는 활동보고 파일 발급을 위임하고 결과를 반환한다`() {
-        val result = service.getUploadLink(groupId = 1L, requesterId = 10L, size = 1024L)
+        val result = service.getUploadLink(groupId = 1L, requesterId = 10L, size = 1024L, uploadLinkRequestPath = uploadLinkRequestPath)
 
         assertEquals("https://upload.example.com", result.url)
-        verify(activityReportUploadService).createUploadLink(1L, 10L, 1024L)
+        verify(activityReportUploadService).createUploadLink(1L, 10L, 1024L, uploadLinkRequestPath)
     }
 
     @Test
@@ -139,7 +141,7 @@ class GroupActivityReportServiceTest {
         given(groupRepository.findLockedById(1L)).willReturn(null)
 
         assertFailsWith<NotFoundException> {
-            service.getUploadLink(groupId = 1L, requesterId = 10L, size = 1024L)
+            service.getUploadLink(groupId = 1L, requesterId = 10L, size = 1024L, uploadLinkRequestPath = uploadLinkRequestPath)
         }
     }
 
@@ -157,6 +159,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = false,
                 fileUploadId = "file-1",
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
 
         assertEquals(false, result.isPresentation)
@@ -174,6 +177,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = false,
                 fileUploadId = "file-1",
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -189,6 +193,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = false,
                 fileUploadId = "file-1",
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -203,6 +208,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = false,
                 fileUploadId = "file-1",
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -219,6 +225,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = false,
                 fileUploadId = "file-1",
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -227,12 +234,18 @@ class GroupActivityReportServiceTest {
     fun `submitReport는 크기 초과 파일의 정리를 커밋하고 보고서는 만들지 않는다`() {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         val uploadStatus = ActivityReportUploadStatus.TOO_LARGE
-        given(activityReportUploadService.checkUploadedObject(1L, "file-1", 10L)).willReturn(uploadStatus)
-        given(activityReportUploadService.confirmUpload(1L, "file-1", 10L, uploadStatus)).willReturn(null)
+        given(activityReportUploadService.checkUploadedObject("file-1", 10L, uploadLinkRequestPath)).willReturn(uploadStatus)
+        given(activityReportUploadService.confirmUpload("file-1", 10L, uploadStatus, uploadLinkRequestPath)).willReturn(null)
 
         val error =
             assertFailsWith<BadRequestException> {
-                service.submitReport(groupId = 1L, requesterId = 10L, isPresentation = false, fileUploadId = "file-1")
+                service.submitReport(
+                    groupId = 1L,
+                    requesterId = 10L,
+                    isPresentation = false,
+                    fileUploadId = "file-1",
+                    uploadLinkRequestPath = uploadLinkRequestPath,
+                )
             }
 
         assertEquals(uploadStatus.rejectionMessage, error.message)
@@ -252,6 +265,7 @@ class GroupActivityReportServiceTest {
             requesterId = 10L,
             isPresentation = isPresentation,
             fileUploadId = "file-1",
+            uploadLinkRequestPath = uploadLinkRequestPath,
         )
 
         verify(pointService).givePoint(20L, 150, "활동보고 제출")
@@ -278,6 +292,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = true,
                 fileUploadId = null,
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -294,6 +309,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = true,
                 fileUploadId = null,
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -311,6 +327,7 @@ class GroupActivityReportServiceTest {
                 requesterId = 10L,
                 isPresentation = true,
                 fileUploadId = null,
+                uploadLinkRequestPath = uploadLinkRequestPath,
             )
         }
     }
@@ -327,6 +344,7 @@ class GroupActivityReportServiceTest {
             requesterId = 10L,
             isPresentation = true,
             fileUploadId = null,
+            uploadLinkRequestPath = uploadLinkRequestPath,
         )
 
         assertEquals(true, baseReport.isPresentation)
@@ -344,6 +362,7 @@ class GroupActivityReportServiceTest {
             requesterId = 10L,
             isPresentation = true,
             fileUploadId = null,
+            uploadLinkRequestPath = uploadLinkRequestPath,
         )
 
         verifyNoInteractions(pointService)

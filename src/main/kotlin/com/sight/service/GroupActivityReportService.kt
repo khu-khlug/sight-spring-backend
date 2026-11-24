@@ -73,9 +73,10 @@ class GroupActivityReportService(
         groupId: Long,
         requesterId: Long,
         size: Long,
+        uploadLinkRequestPath: String,
     ): UploadLinkResult {
         requireActiveGroup(groupRepository.findLockedById(groupId))
-        return activityReportUploadService.createUploadLink(groupId, requesterId, size)
+        return activityReportUploadService.createUploadLink(groupId, requesterId, size, uploadLinkRequestPath)
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -84,16 +85,17 @@ class GroupActivityReportService(
         requesterId: Long,
         isPresentation: Boolean,
         fileUploadId: String,
+        uploadLinkRequestPath: String,
     ): ActivityReportResult {
         requireActiveGroup(groupRepository.findById(groupId).orElse(null))
         requireSubmissionSeminar(groupId)
-        val uploadStatus = activityReportUploadService.checkUploadedObject(groupId, fileUploadId, requesterId)
+        val uploadStatus = activityReportUploadService.checkUploadedObject(fileUploadId, requesterId, uploadLinkRequestPath)
         val result =
             writeTransaction.execute {
                 val group = requireActiveGroup(groupRepository.findLockedById(groupId))
                 val seminar = requireSubmissionSeminar(groupId)
                 val file =
-                    activityReportUploadService.confirmUpload(groupId, fileUploadId, requesterId, uploadStatus)
+                    activityReportUploadService.confirmUpload(fileUploadId, requesterId, uploadStatus, uploadLinkRequestPath)
                         ?: return@execute null
                 createReport(group, seminar.id, requesterId, isPresentation, file)
             }
@@ -154,13 +156,14 @@ class GroupActivityReportService(
         requesterId: Long,
         isPresentation: Boolean?,
         fileUploadId: String?,
+        uploadLinkRequestPath: String,
     ): ActivityReportResult {
         val uploadStatus =
             fileUploadId?.let {
                 requireActiveGroup(groupRepository.findById(groupId).orElse(null))
                 val report = requireReport(groupActivityReportRepository.findByGroupIdAndId(groupId, reportId))
                 seminarService.requireActivityReportPeriod(report.seminarId)
-                activityReportUploadService.checkUploadedObject(groupId, it, requesterId)
+                activityReportUploadService.checkUploadedObject(it, requesterId, uploadLinkRequestPath)
             }
         val result =
             writeTransaction.execute {
@@ -169,7 +172,7 @@ class GroupActivityReportService(
                 seminarService.requireActivityReportPeriod(report.seminarId)
                 val newFile =
                     fileUploadId?.let {
-                        activityReportUploadService.confirmUpload(groupId, it, requesterId, requireNotNull(uploadStatus))
+                        activityReportUploadService.confirmUpload(it, requesterId, requireNotNull(uploadStatus), uploadLinkRequestPath)
                             ?: return@execute null
                     }
                 updateReport(group, report, requesterId, isPresentation, newFile)

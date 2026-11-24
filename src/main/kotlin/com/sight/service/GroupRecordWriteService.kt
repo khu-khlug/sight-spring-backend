@@ -3,7 +3,9 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
 import com.sight.domain.group.GroupRecord
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupCardRepository
@@ -73,7 +75,13 @@ class GroupRecordWriteService(
         group.increaseRecordCount()
         group.resumeByActivity()
         group.recordActivity(now)
-        logs.createLog(groupId, memberId, GroupLogData.RecordCreated(record.id, cardId, card.title))
+        val point = ExpointRule.카드기록작성.point
+        logs.createLog(
+            groupId,
+            memberId,
+            GroupLogData.RecordCreated(record.id, cardId, card.title),
+            GroupLogExpointChange(targetId = record.id.toString(), point = point, memberIds = listOf(memberId)),
+        )
         groupMembers.findByGroupId(groupId).forEach {
             notifications.createNotification(
                 it.memberId,
@@ -85,7 +93,7 @@ class GroupRecordWriteService(
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
                 override fun afterCommit() {
-                    pointService.givePoint(memberId, 2, "그룹 기록 작성")
+                    pointService.givePoint(memberId, point, "그룹 기록 작성")
                 }
             },
         )

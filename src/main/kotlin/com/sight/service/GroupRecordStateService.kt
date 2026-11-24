@@ -1,7 +1,10 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.repository.GroupCardRepository
 import com.sight.repository.GroupRecordRepository
 import org.springframework.stereotype.Service
@@ -29,8 +32,18 @@ class GroupRecordStateService(
         records.delete(record, now)
         card.decreaseRecordCount(now)
         group.decreaseRecordCount()
-        support.recordActivity(context, memberId, GroupLogData.RecordDeleted(record.id, card.id, card.title), now)
-        support.givePointAfterCommit(record.authorMemberId, -2, "그룹 기록 삭제")
+        group.resumeByActivity()
+        group.recordActivity(now)
+        logs.revertExpointChange(
+            groupId = groupId,
+            actorMemberId = memberId,
+            targetId = record.id.toString(),
+            targetLogTypes = setOf(GroupLogType.RECORD_CREATED, GroupLogType.RECORD_RESTORED),
+            revertLog = GroupLogData.RecordDeleted(record.id, card.id, card.title),
+            message = "그룹 기록 삭제",
+            fallbackRule = ExpointRule.기록삭제,
+            fallbackMemberIds = listOf(record.authorMemberId),
+        )
     }
 
     @Transactional
@@ -46,8 +59,15 @@ class GroupRecordStateService(
         val now = Instant.now()
         card.increaseRecordCount(now)
         group.increaseRecordCount()
-        support.recordActivity(context, memberId, GroupLogData.RecordRestored(record.id, card.id, card.title), now)
-        support.givePointAfterCommit(memberId, 2, "그룹 기록 복구")
+        val point = ExpointRule.기록복구.point
+        support.recordActivity(
+            context,
+            memberId,
+            GroupLogData.RecordRestored(record.id, card.id, card.title),
+            now,
+            GroupLogExpointChange(targetId = record.id.toString(), point = point, memberIds = listOf(memberId)),
+        )
+        support.givePointAfterCommit(memberId, point, "그룹 기록 복구")
     }
 
     @Transactional

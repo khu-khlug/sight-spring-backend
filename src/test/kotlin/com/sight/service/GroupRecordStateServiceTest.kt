@@ -1,8 +1,11 @@
 package com.sight.service
 
 import com.sight.core.exception.BadRequestException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupRecord
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
@@ -23,6 +26,7 @@ import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.verifyNoMoreInteractions
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant
 import java.util.Optional
@@ -49,7 +53,7 @@ class GroupRecordStateServiceTest {
     }
 
     @Test
-    fun `기록 삭제는 한 번만 반영하며 작성자의 경험치는 커밋 후 차감한다`() {
+    fun `기록 삭제는 한 번만 반영하고 작성 또는 복구 때 지급한 경험치의 회수를 위임한다`() {
         card.increaseRecordCount(NOW)
         group.increaseRecordCount()
         willAnswer {
@@ -57,22 +61,25 @@ class GroupRecordStateServiceTest {
             null
         }.given(records).delete(eq(record), any())
 
-        TransactionSynchronizationManager.initSynchronization()
-        try {
-            service.deleteGroupRecord(1L, 2L, 4L)
-            assertThrows<BadRequestException> { service.deleteGroupRecord(1L, 2L, 4L) }
+        service.deleteGroupRecord(1L, 2L, 4L)
+        assertThrows<BadRequestException> { service.deleteGroupRecord(1L, 2L, 4L) }
 
-            assertTrue(record.isDeleted)
-            assertEquals(0L, card.recordCount)
-            assertEquals(0L, group.recordCount)
-            assertEquals(GroupStatus.PROGRESS, group.status)
-            verify(logs).createLog(1L, 2L, GroupLogData.RecordDeleted(4L, card.id, card.title))
-            verifyNoInteractions(points)
-            TransactionSynchronizationManager.getSynchronizations().single().afterCommit()
-            verify(points).givePoint(8L, -2, "그룹 기록 삭제")
-        } finally {
-            TransactionSynchronizationManager.clearSynchronization()
-        }
+        assertTrue(record.isDeleted)
+        assertEquals(0L, card.recordCount)
+        assertEquals(0L, group.recordCount)
+        assertEquals(GroupStatus.PROGRESS, group.status)
+        verify(logs).revertExpointChange(
+            groupId = 1L,
+            actorMemberId = 2L,
+            targetId = "4",
+            targetLogTypes = setOf(GroupLogType.RECORD_CREATED, GroupLogType.RECORD_RESTORED),
+            revertLog = GroupLogData.RecordDeleted(4L, card.id, card.title),
+            message = "그룹 기록 삭제",
+            fallbackRule = ExpointRule.기록삭제,
+            fallbackMemberIds = listOf(8L),
+        )
+        verifyNoMoreInteractions(logs)
+        verifyNoInteractions(points)
     }
 
     @Test
@@ -86,7 +93,12 @@ class GroupRecordStateServiceTest {
             assertEquals(1L, card.recordCount)
             assertEquals(1L, group.recordCount)
             assertEquals(GroupStatus.PROGRESS, group.status)
-            verify(logs).createLog(1L, 2L, GroupLogData.RecordRestored(4L, card.id, card.title))
+            verify(logs).createLog(
+                1L,
+                2L,
+                GroupLogData.RecordRestored(4L, card.id, card.title),
+                GroupLogExpointChange(targetId = "4", point = 2, memberIds = listOf(2L)),
+            )
             verifyNoInteractions(points)
             TransactionSynchronizationManager.getSynchronizations().single().afterCommit()
             verify(points).givePoint(2L, 2, "그룹 기록 복구")

@@ -4,6 +4,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
 import com.sight.domain.group.GroupRecord
 import com.sight.domain.group.GroupRecordDraft
 import com.sight.domain.group.GroupStatus
@@ -120,6 +121,28 @@ class GroupRecordWriteServiceTest {
             assertEquals(1L, card.recordCount)
             assertEquals(1L, group.recordCount)
             assertEquals(GroupStatus.PROGRESS, group.status)
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization()
+        }
+    }
+
+    @Test
+    fun `기록 작성은 지급 대상과 금액을 로그에 남기고 커밋 후 작성자에게 경험치를 지급한다`() {
+        prepareRecordCreation()
+
+        TransactionSynchronizationManager.initSynchronization()
+        try {
+            service.createGroupRecord(1L, 3L, 2L, "본문", emptyList())
+
+            verify(logs).createLog(
+                1L,
+                2L,
+                GroupLogData.RecordCreated(4L, card.id, card.title),
+                GroupLogExpointChange(targetId = "4", point = 2, memberIds = listOf(2L)),
+            )
+            verifyNoInteractions(points)
+            TransactionSynchronizationManager.getSynchronizations().single().afterCommit()
+            verify(points).givePoint(2L, 2, "그룹 기록 작성")
         } finally {
             TransactionSynchronizationManager.clearSynchronization()
         }

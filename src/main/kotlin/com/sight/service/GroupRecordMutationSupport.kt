@@ -5,6 +5,7 @@ import com.sight.core.exception.NotFoundException
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCard
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
 import com.sight.domain.group.GroupRecord
 import com.sight.domain.group.GroupStatus
 import com.sight.repository.GroupCardRepository
@@ -60,10 +61,11 @@ class GroupRecordMutationSupport(
         memberId: Long,
         data: GroupLogData,
         at: Instant,
+        expointChange: GroupLogExpointChange? = null,
     ) {
         context.group.resumeByActivity()
         context.group.recordActivity(at)
-        logs.createLog(context.group.id, memberId, data)
+        logs.createLog(context.group.id, memberId, data, expointChange)
     }
 
     @Transactional

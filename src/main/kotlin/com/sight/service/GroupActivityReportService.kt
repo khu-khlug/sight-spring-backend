@@ -5,13 +5,15 @@ import com.sight.core.exception.BadGatewayException
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.notification.NotificationCategory
-import com.sight.repository.ActivityReportPointRepository
 import com.sight.repository.GroupActivityReportRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
@@ -55,7 +57,7 @@ class GroupActivityReportService(
     private val groupMemberRepository: GroupMemberRepository,
     private val groupActivityReportRepository: GroupActivityReportRepository,
     private val storageService: StorageService,
-    private val activityReportPointRepository: ActivityReportPointRepository,
+    private val pointService: PointService,
     private val notificationService: NotificationService,
     private val fileUploadService: FileUploadService,
     private val fileReferenceService: FileReferenceService,
@@ -131,8 +133,16 @@ class GroupActivityReportService(
         fileReferenceService.createFileReference(fileUpload.id, FileReferenceType.GROUP_ACTIVITY_REPORT, reportId)
         fileUploadService.markAsUsed(fileUpload)
 
-        recordReportActivity(group, requesterId, GroupLogData.ActivityReportSubmitted(report.id, seminarId), now)
-        notifyMembers(group, requesterId, "활동보고 제출", "${group.title} 그룹의 활동보고가 제출되었습니다.", 150)
+        val memberIds = getMemberIds(group.id)
+        val point = ExpointRule.보고서제출.point
+        val expointChange =
+            memberIds.takeIf { it.isNotEmpty() }
+                ?.let { GroupLogExpointChange(targetId = report.id, point = point, memberIds = it) }
+        recordReportActivity(group, requesterId, GroupLogData.ActivityReportSubmitted(report.id, seminarId), now, expointChange)
+        notifyMembers(memberIds, "활동보고 제출", "${group.title} 그룹의 활동보고가 제출되었습니다.")
+        memberIds.forEach { memberId ->
+            pointService.givePoint(memberId, point, "활동보고 제출")
+        }
 
         return report.toResult(reportFileKey = fileUpload.fileKey)
     }
@@ -187,7 +197,7 @@ class GroupActivityReportService(
         val now = Instant.now()
         report.update(isPresentation = nextIsPresentation, updatedAt = now)
         recordReportActivity(group, requesterId, GroupLogData.ActivityReportUpdated(report.id, report.seminarId), now)
-        notifyMembers(group, requesterId, "활동보고 수정", buildEditNotificationContent(isPresentationChanged, isFileChanged, group.title))
+        notifyMembers(getMemberIds(group.id), "활동보고 수정", buildEditNotificationContent(isPresentationChanged, isFileChanged, group.title))
         return report.toResult(reportFileKey = fileUpload.fileKey)
     }
 
@@ -205,20 +215,28 @@ class GroupActivityReportService(
         groupActivityReportRepository.delete(report)
         fileReferenceService.deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
 
-        recordReportActivity(group, requesterId, GroupLogData.ActivityReportCancelled(report.id, report.seminarId), Instant.now())
-        notifyMembers(group, requesterId, "활동보고 취소", "${group.title} 그룹의 활동보고가 취소되었습니다.", -150)
+        val memberIds = getMemberIds(group.id)
+        group.resumeByActivity()
+        group.recordActivity(Instant.now())
+        notifyMembers(memberIds, "활동보고 취소", "${group.title} 그룹의 활동보고가 취소되었습니다.")
+        groupLogService.revertExpointChange(
+            groupId = group.id,
+            actorMemberId = requesterId,
+            targetId = report.id,
+            targetLogTypes = setOf(GroupLogType.ACTIVITY_REPORT_SUBMITTED),
+            revertLog = GroupLogData.ActivityReportCancelled(report.id, report.seminarId),
+            message = "활동보고 취소",
+            fallbackRule = ExpointRule.보고서제출취소,
+            fallbackMemberIds = memberIds,
+        )
     }
 
     private fun notifyMembers(
-        group: Group,
-        requesterId: Long,
+        memberIds: List<Long>,
         title: String,
         content: String,
-        pointDelta: Int = 0,
     ) {
-        val memberIds = groupMemberRepository.findByGroupId(group.id).map { it.memberId }.distinct().sorted()
         memberIds.forEach { memberId ->
-            if (pointDelta != 0) activityReportPointRepository.addPoints(memberId, requesterId, pointDelta, title)
             notificationService.createNotification(
                 userId = memberId,
                 category = NotificationCategory.GROUP,
@@ -232,6 +250,9 @@ class GroupActivityReportService(
             content = content,
         )
     }
+
+    private fun getMemberIds(groupId: Long): List<Long> =
+        groupMemberRepository.findByGroupId(groupId).map { it.memberId }.distinct().sorted()
 
     @Transactional(readOnly = true)
     fun listReports(groupId: Long): ActivityReportListResult {
@@ -298,10 +319,11 @@ class GroupActivityReportService(
         actorId: Long,
         log: GroupLogData,
         at: Instant,
+        expointChange: GroupLogExpointChange? = null,
     ) {
         group.resumeByActivity()
         group.recordActivity(at)
-        groupLogService.createLog(group.id, actorId, log)
+        groupLogService.createLog(group.id, actorId, log, expointChange)
     }
 
     private fun buildEditNotificationContent(

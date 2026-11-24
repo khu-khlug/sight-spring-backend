@@ -2,27 +2,36 @@ package com.sight.service
 
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.file.FileReference
 import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.testFileUpload
 import com.sight.domain.group.GroupActivityReport
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupExpointChange
+import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.group.testGroup
 import com.sight.domain.group.testGroupMember
-import com.sight.repository.ActivityReportPointRepository
+import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupActivityReportRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupActivityReportView
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.verifyNoMoreInteractions
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.SimpleTransactionStatus
 import java.time.Instant
@@ -36,7 +45,7 @@ class GroupActivityReportServiceTest {
     private val groupMemberRepository = mock<GroupMemberRepository>()
     private val groupActivityReportRepository = mock<GroupActivityReportRepository>()
     private val storageService = mock<StorageService>()
-    private val activityReportPointRepository = mock<ActivityReportPointRepository>()
+    private val pointService = mock<PointService>()
     private val seminarService = mock<SeminarService>()
     private val activityReportUploadService = mock<ActivityReportUploadService>()
     private val groupLogService = mock<GroupLogService>()
@@ -80,7 +89,7 @@ class GroupActivityReportServiceTest {
                 groupMemberRepository,
                 groupActivityReportRepository,
                 storageService,
-                activityReportPointRepository,
+                pointService,
                 notificationService,
                 fileUploadService,
                 fileReferenceService,
@@ -231,8 +240,9 @@ class GroupActivityReportServiceTest {
         verify(groupActivityReportRepository, never()).save(any<GroupActivityReport>())
     }
 
-    @Test
-    fun `submitReport는 제출 성공 시 그룹원 전원에게 ExPoint +150을 지급한다`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `보고서와 발표 제출은 그룹원에게 150 exp를 지급하고 지급량과 대상을 로그에 남긴다`(isPresentation: Boolean) {
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
         given(groupActivityReportRepository.existsByGroupIdAndSeminarId(1L, "seminar-1")).willReturn(false)
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
@@ -240,12 +250,18 @@ class GroupActivityReportServiceTest {
         service.submitReport(
             groupId = 1L,
             requesterId = 10L,
-            isPresentation = false,
+            isPresentation = isPresentation,
             fileUploadId = "file-1",
         )
 
-        verify(activityReportPointRepository).addPoints(20L, 10L, 150, "활동보고 제출")
-        verify(activityReportPointRepository).addPoints(30L, 10L, 150, "활동보고 제출")
+        verify(pointService).givePoint(20L, 150, "활동보고 제출")
+        verify(pointService).givePoint(30L, 150, "활동보고 제출")
+        verify(groupLogService).createLog(
+            groupId = 1L,
+            actorMemberId = 10L,
+            data = GroupLogData.ActivityReportSubmitted("report-1", "seminar-1"),
+            expointChange = GroupLogExpointChange(targetId = "report-1", point = 150, memberIds = listOf(20L, 30L)),
+        )
     }
 
     // ── editReport ────────────────────────────────────────────────────────────
@@ -317,6 +333,24 @@ class GroupActivityReportServiceTest {
         verify(storageService, never()).deleteFile(any())
     }
 
+    @Test
+    fun `발표 여부를 수정해도 경험치를 추가 지급하거나 회수하지 않는다`() {
+        given(groupActivityReportRepository.findLockedByGroupIdAndId(1L, "report-1")).willReturn(baseReport)
+        given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
+
+        service.editReport(
+            groupId = 1L,
+            reportId = "report-1",
+            requesterId = 10L,
+            isPresentation = true,
+            fileUploadId = null,
+        )
+
+        verifyNoInteractions(pointService)
+        verify(groupLogService).createLog(1L, 10L, GroupLogData.ActivityReportUpdated("report-1", "seminar-1"), null)
+        verifyNoMoreInteractions(groupLogService)
+    }
+
     // ── cancelReport ──────────────────────────────────────────────────────────
 
     @Test
@@ -340,6 +374,7 @@ class GroupActivityReportServiceTest {
         assertFailsWith<NotFoundException> {
             service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L)
         }
+        verifyNoInteractions(groupLogService, pointService)
     }
 
     @Test
@@ -353,16 +388,64 @@ class GroupActivityReportServiceTest {
         }
     }
 
-    @Test
-    fun `cancelReport는 취소 성공 시 그룹원 전원에게 ExPoint -150을 지급한다`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `보고서와 발표 취소는 해당 제출 로그를 지정해 경험치 회수를 위임한다`(isPresentation: Boolean) {
+        val report = createReport().apply { update(isPresentation, Instant.now()) }
         given(groupRepository.findById(1L)).willReturn(Optional.of(baseGroup))
-        given(groupActivityReportRepository.findLockedByGroupIdAndId(1L, "report-1")).willReturn(baseReport)
+        given(groupActivityReportRepository.findLockedByGroupIdAndId(1L, "report-1")).willReturn(report)
         given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
 
         service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L)
 
-        verify(activityReportPointRepository).addPoints(20L, 10L, -150, "활동보고 취소")
-        verify(activityReportPointRepository).addPoints(30L, 10L, -150, "활동보고 취소")
+        verify(groupLogService).revertExpointChange(
+            groupId = 1L,
+            actorMemberId = 10L,
+            targetId = "report-1",
+            targetLogTypes = setOf(GroupLogType.ACTIVITY_REPORT_SUBMITTED),
+            revertLog = GroupLogData.ActivityReportCancelled("report-1", "seminar-1"),
+            message = "활동보고 취소",
+            fallbackRule = ExpointRule.보고서제출취소,
+            fallbackMemberIds = listOf(20L, 30L),
+        )
+        verifyNoInteractions(pointService)
+    }
+
+    @Test
+    fun `활동보고 취소 알림은 경험치 회수 대상과 달라도 현재 그룹원과 운영진에게 보낸다`() {
+        given(groupActivityReportRepository.findLockedByGroupIdAndId(1L, "report-1")).willReturn(baseReport)
+        given(groupMemberRepository.findByGroupId(1L)).willReturn(baseMembers)
+        given(
+            groupLogService.revertExpointChange(
+                groupId = 1L,
+                actorMemberId = 10L,
+                targetId = "report-1",
+                targetLogTypes = setOf(GroupLogType.ACTIVITY_REPORT_SUBMITTED),
+                revertLog = GroupLogData.ActivityReportCancelled("report-1", "seminar-1"),
+                message = "활동보고 취소",
+                fallbackRule = ExpointRule.보고서제출취소,
+                fallbackMemberIds = listOf(20L, 30L),
+            ),
+        ).willReturn(
+            listOf(GroupExpointChange(id = 100L, groupLogId = 200L, targetId = "report-1", memberId = 40L, point = -100)),
+        )
+
+        service.cancelReport(groupId = 1L, reportId = "report-1", requesterId = 10L)
+
+        baseMembers.forEach { member ->
+            verify(notificationService).createNotification(
+                userId = member.memberId,
+                category = NotificationCategory.GROUP,
+                title = "활동보고 취소",
+                content = "테스트 그룹 그룹의 활동보고가 취소되었습니다.",
+            )
+        }
+        verify(notificationService).createNotificationForManagers(
+            category = NotificationCategory.GROUP,
+            title = "활동보고 취소",
+            content = "테스트 그룹 그룹의 활동보고가 취소되었습니다.",
+        )
+        verifyNoMoreInteractions(notificationService)
     }
 
     // ── listReports ───────────────────────────────────────────────────────────

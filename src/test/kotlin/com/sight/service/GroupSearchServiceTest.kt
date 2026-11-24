@@ -217,7 +217,7 @@ class GroupSearchServiceTest {
     }
 
     @Test
-    fun `결과가 51개면 전체 페이지 수는 2이고 2페이지에는 1개가 있다`() {
+    fun `결과가 51개면 전체 페이지 수는 2이고 두 번째 페이지(page=1)에는 1개가 있다`() {
         givenGroupExists()
         givenCardPage(0, (1L..51L).map { card(it, "카드 $it") })
 

@@ -11,6 +11,9 @@ import java.text.Normalizer
 class GroupSearchKeywordsTest {
     private fun nfd(text: String) = Normalizer.normalize(text, Normalizer.Form.NFD)
 
+    // 운영 코드는 일치 위치까지 필요해 `find`만 쓰므로, 일치 여부만 보는 테스트에서만 쓰는 도우미다.
+    private fun GroupSearchKeywords.matches(text: String): Boolean = find(text) != null
+
     @Test
     fun `앞뒤 공백·연속 공백·탭·줄바꿈·같은 단어의 반복은 검색어에 영향을 주지 않는다`() {
         val keywords = GroupSearchKeywords.parse("  스프링 \t 백엔드\n스프링  ")

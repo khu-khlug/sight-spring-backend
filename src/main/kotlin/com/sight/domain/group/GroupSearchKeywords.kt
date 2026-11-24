@@ -18,8 +18,6 @@ class GroupSearchKeywords private constructor(
         return Match(normalized, firstIndex[first], terms[first].length)
     }
 
-    fun matches(text: String): Boolean = find(text) != null
-
     // 일치한 텍스트와 가장 앞에 나오는 검색어의 위치. 위치는 정규화된 텍스트 기준이다.
     data class Match(
         val text: String,
@@ -28,6 +26,7 @@ class GroupSearchKeywords private constructor(
     )
 
     companion object {
+        // 검색어 최대 길이. NFC로 정규화한 뒤의 글자(코드 포인트) 수 기준이다.
         const val MAX_LENGTH: Int = 20
 
         // 스페이스·탭·줄바꿈뿐 아니라 NBSP·전각 공백 같은 유니코드 공백 구분 문자도 공백으로 본다.

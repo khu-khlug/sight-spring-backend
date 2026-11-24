@@ -99,10 +99,13 @@ class GroupSearchRequestValidationTest {
         get("/groups/$GROUP_ID/search").param("target", "TITLE").param("keyword", keyword)
 
     @Test
-    fun `공백뿐인 검색어는 400과 한국어 오류 메시지를 반환한다`() {
-        mockMvc.perform(search("   "))
-            .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.message").value("검색어가 필요합니다."))
+    fun `비어 있거나 공백뿐인 검색어는 400과 한국어 오류 메시지를 반환한다`() {
+        // 빈 값, 스페이스, 탭, NBSP, 전각 공백만으로 된 검색어
+        for (blank in listOf("", "   ", "\t", " ", "　　")) {
+            mockMvc.perform(search(blank))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.message").value("검색어가 필요합니다."))
+        }
 
         verifyNoInteractions(groupCardRepository)
     }

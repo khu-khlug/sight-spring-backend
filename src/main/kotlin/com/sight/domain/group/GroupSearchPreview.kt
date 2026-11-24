@@ -3,7 +3,10 @@ package com.sight.domain.group
 // 기록 검색 결과의 일치 부분 미리보기. 검색에 사용한 정규화된 텍스트에서 일치 위치 주변만 잘라 만든다.
 // 길이는 글자(코드 포인트) 단위이며 이모지 같은 서로게이트 쌍을 중간에서 자르지 않는다.
 object GroupSearchPreview {
+    // 일치한 검색어 앞에 보여 주는 글자 수.
     const val BEFORE_LENGTH: Int = 30
+
+    // 일치한 검색어 뒤에 보여 주는 글자 수.
     const val AFTER_LENGTH: Int = 70
     private const val ELLIPSIS = "…"
 

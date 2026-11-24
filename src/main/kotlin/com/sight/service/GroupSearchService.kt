@@ -71,7 +71,7 @@ class GroupSearchService(
     }
 
     // 카드명 또는 카드 생성자명 검색. 카드·리스트·회원을 각 Repository에서 객체로 읽어 이 서비스에서 조합한다.
-    // 카드 엔티티는 영속성 컨텍스트에 트랜잭션이 끝날 때까지 남지만 짧은 필드만 가지므로 크기가 작다.
+    // 카드 엔티티는 영속성 컨텍스트에 트랜잭션이 끝날 때까지 남는다. 설명(최대 4KB)을 빼면 짧은 필드뿐이라 한 그룹의 카드 전체여도 크기가 작다.
     private fun searchCards(
         groupId: Long,
         keywords: GroupSearchKeywords,

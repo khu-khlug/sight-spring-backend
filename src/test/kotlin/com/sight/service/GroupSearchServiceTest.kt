@@ -58,10 +58,11 @@ class GroupSearchServiceTest {
         title: String = "카드$id",
         authorId: Long = AUTHOR_ID,
         groupId: Long = GROUP_ID,
+        listId: Long = LIST_ID,
     ) = GroupCard(
         id = id,
         groupId = groupId,
-        listId = LIST_ID,
+        listId = listId,
         authorMemberId = authorId,
         title = title,
         position = id,
@@ -116,7 +117,7 @@ class GroupSearchServiceTest {
     private fun search(
         target: GroupSearchTarget,
         keyword: String,
-        page: Int = 1,
+        page: Int = 0,
     ) = groupSearchService.listGroupSearchResults(GROUP_ID, target, keyword, page)
 
     @Test
@@ -126,7 +127,7 @@ class GroupSearchServiceTest {
 
         val result = search(GroupSearchTarget.TITLE, "스프링")
 
-        assertEquals(1, result.page)
+        assertEquals(0, result.page)
         assertEquals(1L, result.totalPages)
         val item = result.results.single()
         assertEquals(LIST_ID, item.listId)
@@ -220,8 +221,8 @@ class GroupSearchServiceTest {
         givenGroupExists()
         givenCardPage(0, (1L..51L).map { card(it, "카드 $it") })
 
-        val first = search(GroupSearchTarget.TITLE, "카드", page = 1)
-        val second = search(GroupSearchTarget.TITLE, "카드", page = 2)
+        val first = search(GroupSearchTarget.TITLE, "카드", page = 0)
+        val second = search(GroupSearchTarget.TITLE, "카드", page = 1)
 
         assertEquals(2L, first.totalPages)
         assertEquals(50, first.results.size)
@@ -230,11 +231,64 @@ class GroupSearchServiceTest {
     }
 
     @Test
+    fun `리스트를 찾을 수 없는 카드는 일치 건수와 결과에서 처음부터 제외해 한 페이지를 채운다`() {
+        givenGroupExists()
+        // 최신 카드 하나는 존재하지 않는 리스트에 속해 있다. 나중에 빼면 첫 페이지가 49개가 된다.
+        val dangling = card(9999, "카드 리스트없음", listId = 999)
+        givenCardPage(0, listOf(dangling) + (1L..51L).map { card(it, "카드 $it") })
+
+        val first = search(GroupSearchTarget.TITLE, "카드", page = 0)
+        val second = search(GroupSearchTarget.TITLE, "카드", page = 1)
+
+        assertEquals(2L, first.totalPages)
+        assertEquals(50, first.results.size)
+        assertEquals(1, second.results.size)
+        assertEquals(false, (first.results + second.results).any { it.cardId == 9999L })
+    }
+
+    @Test
+    fun `삭제되어 리스트가 없는 카드는 결과와 일치 건수에서 제외한다`() {
+        givenGroupExists()
+        val deleted = card(2, "카드 삭제됨").also { it.delete(Instant.parse("2025-01-02T00:00:00Z")) }
+        givenCardPage(0, listOf(card(1, "카드 하나"), deleted))
+
+        val result = search(GroupSearchTarget.TITLE, "카드")
+
+        assertEquals(listOf(1L), result.results.map { it.cardId })
+        assertEquals(1L, result.totalPages)
+    }
+
+    @Test
+    fun `생성자명 검색도 리스트를 찾을 수 없는 카드를 제외한다`() {
+        givenGroupExists(member(1, "홍길동"))
+        givenCardPage(0, listOf(card(1, "카드", authorId = 1, listId = 999), card(2, "카드", authorId = 1)))
+
+        val result = search(GroupSearchTarget.AUTHOR, "길동")
+
+        assertEquals(listOf(2L), result.results.map { it.cardId })
+    }
+
+    @Test
+    fun `기록 검색도 리스트를 찾을 수 없는 카드의 기록은 처음부터 제외해 한 페이지를 채운다`() {
+        givenGroupExists()
+        val records = listOf(legacyRecord(9999, 9, "<p>스프링</p>")) + (1L..51L).map { legacyRecord(it, 1, "<p>스프링 $it</p>") }
+        givenRecordsAndCards(records, card(1), card(9, listId = 999))
+
+        val first = search(GroupSearchTarget.RECORD, "스프링", page = 0)
+        val second = search(GroupSearchTarget.RECORD, "스프링", page = 1)
+
+        assertEquals(2L, first.totalPages)
+        assertEquals(50, first.results.size)
+        assertEquals(1, second.results.size)
+        assertEquals(false, (first.results + second.results).any { it.recordId == 9999L })
+    }
+
+    @Test
     fun `전체 페이지를 넘는 요청은 빈 배열을 반환한다`() {
         givenGroupExists()
         givenCardPage(0, listOf(card(1, "카드 하나")))
 
-        val result = search(GroupSearchTarget.TITLE, "카드", page = 100)
+        val result = search(GroupSearchTarget.TITLE, "카드", page = 99)
 
         assertEquals(1L, result.totalPages)
         assertEquals(0, result.results.size)
@@ -246,9 +300,9 @@ class GroupSearchServiceTest {
         givenCardPage(0, (1L..cardBatch.toLong()).map { card(it, "스프링 $it") })
         givenCardPage(1, listOf(card(1000, "스프링 마지막")))
 
-        val result = search(GroupSearchTarget.TITLE, "스프링", page = 5)
+        val result = search(GroupSearchTarget.TITLE, "스프링", page = 4)
 
-        // 일치 201건 → 5페이지가 있고, 5페이지에는 마지막 1건만 있다.
+        // 일치 201건 → 5페이지가 있고, 마지막 페이지(page=4)에는 마지막 1건만 있다.
         assertEquals(5L, result.totalPages)
         assertEquals(listOf(1000L), result.results.map { it.cardId })
     }
@@ -326,9 +380,9 @@ class GroupSearchServiceTest {
             .willReturn(listOf(legacyRecord(1000, 1, "<p>스프링 마지막</p>")))
         given(groupCardRepository.findAllById(any<Iterable<Long>>())).willReturn(listOf(card(1)))
 
-        val result = search(GroupSearchTarget.RECORD, "스프링", page = 3)
+        val result = search(GroupSearchTarget.RECORD, "스프링", page = 2)
 
-        // 일치 (배치 크기 × 2 + 1)건 = 101건 → 3페이지가 있고, 3페이지에는 마지막 1건만 있다.
+        // 일치 (배치 크기 × 2 + 1)건 = 101건 → 3페이지가 있고, 마지막 페이지(page=2)에는 마지막 1건만 있다.
         assertEquals(3L, result.totalPages)
         assertEquals(listOf(1000L), result.results.map { it.recordId })
     }
@@ -343,7 +397,7 @@ class GroupSearchServiceTest {
             .willReturn(records.drop(recordBatch))
         given(groupCardRepository.findAllById(any<Iterable<Long>>())).willReturn(listOf(card(1)))
 
-        val result = search(GroupSearchTarget.RECORD, "스프링", page = 1)
+        val result = search(GroupSearchTarget.RECORD, "스프링", page = 0)
 
         assertEquals(2L, result.totalPages)
         assertEquals(50, result.results.size)

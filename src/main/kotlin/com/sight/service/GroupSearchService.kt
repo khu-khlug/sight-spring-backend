@@ -58,15 +58,16 @@ class GroupSearchService(
                 throw BadRequestException(e.message ?: "검색어가 올바르지 않습니다")
             }
 
-        val offset = (page - 1).toLong() * PAGE_SIZE
+        // 페이지는 0부터 시작한다.
+        val offset = page.toLong() * PAGE_SIZE
         // 대상과 관계없이 같은 비교 규칙(GroupSearchKeywords)으로 일치 여부를 판정하고, 결과는 한 곳에서 만든다.
-        val outcome =
+        val scan =
             when (target) {
                 GroupSearchTarget.TITLE -> searchCards(groupId, keywords, offset, byAuthorName = false)
                 GroupSearchTarget.AUTHOR -> searchCards(groupId, keywords, offset, byAuthorName = true)
                 GroupSearchTarget.RECORD -> searchRecords(groupId, keywords, offset)
             }
-        return GroupSearchResult(page = page, totalPages = totalPages(outcome.matchedCount), results = outcome.items)
+        return GroupSearchResult(page = page, totalPages = totalPages(scan.matchedCount), results = scan.items)
     }
 
     // 카드명 또는 카드 생성자명 검색. 카드·리스트·회원을 각 Repository에서 객체로 읽어 이 서비스에서 조합한다.
@@ -76,30 +77,22 @@ class GroupSearchService(
         keywords: GroupSearchKeywords,
         offset: Long,
         byAuthorName: Boolean,
-    ): SearchOutcome {
-        val authorNames = mutableMapOf<Long, String>()
-        val scan =
-            scan(
-                keywords = keywords,
-                offset = offset,
-                batchSize = CARD_SCAN_BATCH_SIZE,
-                fetch = { start ->
-                    fetchCards(groupId, start).also { if (byAuthorName) loadAuthorNames(it, authorNames) }
-                },
-                textOf = { card -> if (byAuthorName) authorNames[card.authorMemberId].orEmpty() else card.title },
-                toHit = { card, _ -> card },
-            )
-        val listTitles = loadListTitles(scan.hits.mapNotNull { it.listId })
-        return SearchOutcome(
-            matchedCount = scan.matchedCount,
-            items =
-                scan.hits.mapNotNull { card ->
-                    card.toItem(
-                        listTitles = listTitles,
-                        recordId = null,
-                        matchedText = if (byAuthorName) authorNames[card.authorMemberId] else null,
-                    )
-                },
+    ): ScanResult {
+        val lookup = Lookup(groupId)
+        return scan(
+            keywords = keywords,
+            offset = offset,
+            batchSize = CARD_SCAN_BATCH_SIZE,
+            fetch = { start -> fetchCards(groupId, start) },
+            prepare = { cards ->
+                lookup.loadLists(cards.mapNotNull { it.listId })
+                if (byAuthorName) lookup.loadAuthorNames(cards)
+            },
+            accepts = { card -> lookup.hasList(card) },
+            textOf = { card -> if (byAuthorName) lookup.authorNameOf(card) else card.title },
+            toItem = { card, _ ->
+                card.toItem(lookup, recordId = null, matchedText = if (byAuthorName) lookup.authorNameOf(card) else null)
+            },
         )
     }
 
@@ -109,29 +102,24 @@ class GroupSearchService(
         groupId: Long,
         keywords: GroupSearchKeywords,
         offset: Long,
-    ): SearchOutcome {
-        val scan =
-            scan(
-                keywords = keywords,
-                offset = offset,
-                batchSize = RECORD_SCAN_BATCH_SIZE,
-                fetch = { groupSearchRepository.findSearchableRecordsOrderByLatest(groupId, it, RECORD_SCAN_BATCH_SIZE) },
-                textOf = { groupRecordTextExtractor.extract(it.type, it.content) },
-                // 본문(최대 1MB)을 붙들지 않도록 일치한 시점에 미리보기만 만들어 보관한다.
-                toHit = { record, match -> RecordHit(record.recordId, record.cardId, GroupSearchPreview.create(match)) },
-            )
-        val cards =
-            groupCardRepository
-                .findAllById(scan.hits.map { it.cardId }.toSet())
-                .filter { it.groupId == groupId && !it.isDeleted }
-                .associateBy { it.id }
-        val listTitles = loadListTitles(cards.values.mapNotNull { it.listId })
-        return SearchOutcome(
-            matchedCount = scan.matchedCount,
-            items =
-                scan.hits.mapNotNull { hit ->
-                    cards[hit.cardId]?.toItem(listTitles = listTitles, recordId = hit.recordId, matchedText = hit.preview)
-                },
+    ): ScanResult {
+        val lookup = Lookup(groupId)
+        return scan(
+            keywords = keywords,
+            offset = offset,
+            batchSize = RECORD_SCAN_BATCH_SIZE,
+            fetch = { start -> groupSearchRepository.findSearchableRecordsOrderByLatest(groupId, start, RECORD_SCAN_BATCH_SIZE) },
+            prepare = { records ->
+                lookup.loadCards(records.map { it.cardId })
+                lookup.loadLists(records.mapNotNull { lookup.cardOf(it.cardId)?.listId })
+            },
+            accepts = { record -> lookup.cardOf(record.cardId)?.let { lookup.hasList(it) } == true },
+            textOf = { record -> groupRecordTextExtractor.extract(record.type, record.content) },
+            // 본문(최대 1MB)을 붙들지 않도록 일치한 시점에 미리보기만 만들어 결과에 담는다.
+            toItem = { record, match ->
+                val card = checkNotNull(lookup.cardOf(record.cardId)) { "수락한 기록의 카드를 찾을 수 없습니다." }
+                card.toItem(lookup, recordId = record.recordId, matchedText = GroupSearchPreview.create(match))
+            },
         )
     }
 
@@ -145,84 +133,102 @@ class GroupSearchService(
             PageRequest.of((offset / CARD_SCAN_BATCH_SIZE).toInt(), CARD_SCAN_BATCH_SIZE),
         )
 
-    // 이미 읽은 회원은 다시 조회하지 않는다. 탈퇴해도 회원 행과 실명은 남는다.
-    private fun loadAuthorNames(
-        cards: List<GroupCard>,
-        authorNames: MutableMap<Long, String>,
-    ) {
-        val missing = cards.map { it.authorMemberId }.filter { it !in authorNames }.toSet()
-        if (missing.isEmpty()) return
-        memberRepository.findAllById(missing).forEach { authorNames[it.id] = it.realname }
-    }
-
-    private fun loadListTitles(listIds: Collection<Long>): Map<Long, String> {
-        val ids = listIds.toSet()
-        if (ids.isEmpty()) return emptyMap()
-        return groupKanbanListRepository.findAllById(ids).associate { it.id to it.title }
-    }
-
-    // 최근 변경순으로 배치 단위로 읽으며 일치 건수를 센다. 요청한 페이지에 해당하는 항목만 `toHit`으로 작은 값으로 바꿔 보관하고,
-    // 읽은 배치와 일치 정보(정규화한 본문 전체)는 항목마다 바로 버려 메모리를 오래 쥐지 않는다.
-    private fun <T, R> scan(
+    // 최근 변경순으로 배치 단위로 읽으며 일치 건수를 센다.
+    // - `prepare`: 읽은 배치에서 필요한 카드·리스트·회원을 한꺼번에 읽어 둔다.
+    // - `accepts`: 결과에 담을 수 없는 항목(예: 리스트를 찾을 수 없는 카드)은 일치 판정과 건수 계산 전에 걸러낸다.
+    //   나중에 결과를 만들 때 빠지면 한 페이지가 50개보다 적게 채워지고 전체 페이지 수와 어긋나기 때문이다.
+    // - `toItem`: 요청한 페이지에 해당하는 항목만 결과로 바꿔 보관하고, 읽은 배치와 일치 정보(정규화한 본문 전체)는 바로 버린다.
+    private fun <T> scan(
         keywords: GroupSearchKeywords,
         offset: Long,
         batchSize: Int,
         fetch: (Long) -> List<T>,
+        prepare: (List<T>) -> Unit,
+        accepts: (T) -> Boolean,
         textOf: (T) -> String,
-        toHit: (T, GroupSearchKeywords.Match) -> R,
-    ): ScanResult<R> {
-        val hits = mutableListOf<R>()
+        toItem: (T, GroupSearchKeywords.Match) -> GroupSearchItem,
+    ): ScanResult {
+        val items = mutableListOf<GroupSearchItem>()
         var matchedCount = 0L
         var scanned = 0L
         while (true) {
             val batch = fetch(scanned)
-            batch.forEach { item ->
-                val match = keywords.find(textOf(item)) ?: return@forEach
-                if (matchedCount >= offset && hits.size < PAGE_SIZE) hits += toHit(item, match)
+            prepare(batch)
+            batch.forEach { entry ->
+                if (!accepts(entry)) return@forEach
+                val match = keywords.find(textOf(entry)) ?: return@forEach
+                if (matchedCount >= offset && items.size < PAGE_SIZE) items += toItem(entry, match)
                 matchedCount++
             }
             scanned += batch.size
             if (batch.size < batchSize) break
         }
-        return ScanResult(matchedCount, hits)
+        return ScanResult(matchedCount, items)
     }
 
-    private class ScanResult<R>(
-        val matchedCount: Long,
-        val hits: List<R>,
-    )
-
-    // 기록 검색의 일치 항목. 본문 대신 미리보기만 가진다.
-    private class RecordHit(
-        val recordId: Long,
-        val cardId: Long,
-        val preview: String,
-    )
-
-    private class SearchOutcome(
+    private class ScanResult(
         val matchedCount: Long,
         val items: List<GroupSearchItem>,
     )
 
+    // 한 번의 검색 동안 읽은 카드·리스트·회원을 모아 둔다. 같은 아이디를 다시 조회하지 않고, 찾지 못한 아이디도 다시 묻지 않는다.
+    private inner class Lookup(
+        private val groupId: Long,
+    ) {
+        private val cards = mutableMapOf<Long, GroupCard>()
+        private val listTitles = mutableMapOf<Long, String>()
+        private val authorNames = mutableMapOf<Long, String>()
+        private val requestedCardIds = mutableSetOf<Long>()
+        private val requestedListIds = mutableSetOf<Long>()
+        private val requestedMemberIds = mutableSetOf<Long>()
+
+        fun loadCards(cardIds: Collection<Long>) {
+            val missing = cardIds.filter { requestedCardIds.add(it) }.toSet()
+            if (missing.isEmpty()) return
+            groupCardRepository
+                .findAllById(missing)
+                .filter { it.groupId == groupId && !it.isDeleted }
+                .forEach { cards[it.id] = it }
+        }
+
+        fun loadLists(listIds: Collection<Long>) {
+            val missing = listIds.filter { requestedListIds.add(it) }.toSet()
+            if (missing.isEmpty()) return
+            groupKanbanListRepository.findAllById(missing).forEach { listTitles[it.id] = it.title }
+        }
+
+        // 탈퇴해도 회원 행과 실명은 남는다.
+        fun loadAuthorNames(cards: List<GroupCard>) {
+            val missing = cards.map { it.authorMemberId }.filter { requestedMemberIds.add(it) }.toSet()
+            if (missing.isEmpty()) return
+            memberRepository.findAllById(missing).forEach { authorNames[it.id] = it.realname }
+        }
+
+        fun cardOf(cardId: Long): GroupCard? = cards[cardId]
+
+        // 삭제되지 않은 카드는 항상 리스트에 속한다. 리스트를 찾을 수 없으면 검색 결과에 담을 수 없는 카드다.
+        fun hasList(card: GroupCard): Boolean = card.listId?.let { it in listTitles } == true
+
+        fun listTitleOf(card: GroupCard): String = checkNotNull(card.listId?.let { listTitles[it] }) { "리스트를 찾을 수 없는 카드입니다." }
+
+        fun authorNameOf(card: GroupCard): String = authorNames[card.authorMemberId].orEmpty()
+    }
+
     private fun totalPages(totalCount: Long): Long = (totalCount + PAGE_SIZE - 1) / PAGE_SIZE
 
-    // 삭제되지 않은 카드는 항상 리스트에 속한다. 리스트를 찾지 못하면 결과에서 뺀다.
     private fun GroupCard.toItem(
-        listTitles: Map<Long, String>,
+        lookup: Lookup,
         recordId: Long?,
         matchedText: String?,
-    ): GroupSearchItem? {
-        val cardListId = listId ?: return null
-        val listTitle = listTitles[cardListId] ?: return null
-        return GroupSearchItem(
-            listId = cardListId,
-            listTitle = listTitle,
+    ): GroupSearchItem =
+        GroupSearchItem(
+            listId = checkNotNull(listId) { "리스트를 찾을 수 없는 카드입니다." },
+            listTitle = lookup.listTitleOf(this),
             cardId = id,
             cardTitle = title,
             recordId = recordId,
             matchedText = matchedText,
         )
-    }
 
     companion object {
         // 한 페이지에 반환하는 결과 수.

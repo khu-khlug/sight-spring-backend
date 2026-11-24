@@ -21,7 +21,7 @@ import java.time.Instant
 
 // 실제 MySQL에서 검색용 조회(카드 파생 쿼리, 기록 조인 쿼리)의 삭제 제외·정렬·페이징을 검증한다.
 // Docker를 쓸 수 없는 환경에서는 다른 테스트가 실패하지 않도록 이 테스트만 건너뛴다.
-@DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop"])
+@DataJpaTest(properties = ["spring.jpa.hibernate.ddl-auto=create-drop", "spring.sql.init.mode=never"])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @Import(QueryDslConfig::class, GroupSearchRepositoryImpl::class)
@@ -199,7 +199,7 @@ class GroupSearchQueryTest {
         assertEquals(listOf(12L, 11L, 13L, 10L), searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).map { it.recordId })
         assertEquals(listOf(13L, 10L), searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 2, 2).map { it.recordId })
 
-        entityManager.find(GroupRecord::class.java, 10L).edit("수정된 본문", isFileLinksChanged = false, at = at(500))
+        entityManager.find(GroupRecord::class.java, 10L).edit("수정된 본문", at = at(500))
         commit()
 
         assertEquals(10L, searchRepository.findSearchableRecordsOrderByLatest(GROUP_ID, 0, 50).first().recordId)

@@ -109,6 +109,26 @@ class GroupRecordTextExtractorTest {
     }
 
     @Test
+    fun `인라인 스타일로 숨긴 요소는 공백·대소문자·important 차이와 관계없이 제외한다`() {
+        val text =
+            html(
+                """
+                <p style="display:none">숨김1</p>
+                <p style="display : none">숨김2</p>
+                <p style="  DISPLAY:NONE  ">숨김3</p>
+                <p style="color:red; display:none !important">숨김4</p>
+                <p style="visibility: hidden">숨김5</p>
+                <p style="visibility :HIDDEN">숨김6</p>
+                <p style="display:block">보임1</p>
+                <p style="color:red">보임2</p>
+                <p style="display:none-ish">보임3</p>
+                """.trimIndent(),
+            )
+
+        assertEquals("보임1 보임2 보임3", text)
+    }
+
+    @Test
     fun `풀어쓴 한글과 악센트 분리 문자는 NFC로 정규화해 추출한다`() {
         val expected = Normalizer.normalize("한글 café", Normalizer.Form.NFC)
         val nfd = Normalizer.normalize("한글 café", Normalizer.Form.NFD)

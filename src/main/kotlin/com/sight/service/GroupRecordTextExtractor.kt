@@ -26,9 +26,23 @@ class GroupRecordTextExtractor(
         val document = Jsoup.parse(html)
         // 화면에 표시하지 않는 요소는 제외한다.
         document.select(HIDDEN_ELEMENT_SELECTOR).remove()
+        // Elements에는 `filter(NodeFilter)` 멤버가 있어 Kotlin의 filter와 겹치므로 목록으로 바꿔 거른다.
+        document.select("[style]").toList().filter { isHiddenByStyle(it.attr("style")) }.forEach { it.remove() }
         // body의 텍스트는 엔티티를 해제하고, 블록 요소·줄바꿈 경계를 공백으로 구분하며, 연속 공백을 하나로 정리한다.
         return GroupSearchKeywords.normalizeText(document.body().text())
     }
+
+    // 인라인 스타일이 화면에서 숨기는지 확인한다. 속성 이름과 값의 공백, 대소문자, `!important` 차이는 무시한다.
+    private fun isHiddenByStyle(style: String): Boolean =
+        style.split(';').any { declaration ->
+            val separator = declaration.indexOf(':')
+            if (separator < 0) return@any false
+            val name = declaration.substring(0, separator).filterNot { it.isBlankChar() }.lowercase()
+            val value = declaration.substring(separator + 1).filterNot { it.isBlankChar() }.lowercase().removeSuffix("!important")
+            (name == "display" && value == "none") || (name == "visibility" && value == "hidden")
+        }
+
+    private fun Char.isBlankChar(): Boolean = isWhitespace() || Character.isSpaceChar(this)
 
     private fun extractFromTiptap(json: String): String {
         val root =
@@ -70,9 +84,8 @@ class GroupRecordTextExtractor(
     }
 
     companion object {
-        private const val HIDDEN_ELEMENT_SELECTOR =
-            "script, style, noscript, template, head, [hidden], input[type=hidden], " +
-                "[style*=display:none], [style*=display: none], [style*=visibility:hidden], [style*=visibility: hidden]"
+        // 태그와 속성만으로 숨겨지는 요소. 인라인 스타일로 숨긴 요소는 공백 차이를 정리해 따로 판정한다.
+        private const val HIDDEN_ELEMENT_SELECTOR = "script, style, noscript, template, head, [hidden], input[type=hidden]"
 
         // 문장 안에 들어가는 인라인 노드. 프런트(sight-frontend `BlockContent/extensions.ts`)에서 `text`·`hardBreak` 외 인라인 노드는 인라인 수식뿐이다.
         private val INLINE_NODE_TYPES = setOf("inlineMath")

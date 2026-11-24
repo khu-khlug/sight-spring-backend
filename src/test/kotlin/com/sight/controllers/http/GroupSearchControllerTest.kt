@@ -83,10 +83,10 @@ class GroupSearchControllerTest {
     }
 
     private fun givenResult() {
-        given(groupSearchService.listGroupSearchResults(GROUP_ID, GroupSearchTarget.RECORD, "스프링", 1))
+        given(groupSearchService.listGroupSearchResults(GROUP_ID, GroupSearchTarget.RECORD, "스프링", 0))
             .willReturn(
                 GroupSearchResult(
-                    page = 1,
+                    page = 0,
                     totalPages = 1,
                     results =
                         listOf(
@@ -111,7 +111,7 @@ class GroupSearchControllerTest {
         authenticate(MEMBER_ID, UserRole.USER)
         mockMvc.perform(get("/groups/$GROUP_ID/search").param("target", "RECORD").param("keyword", "스프링"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.page").value(0))
             .andExpect(jsonPath("$.totalPages").value(1))
             .andExpect(jsonPath("$.receivedCount").value(1))
             .andExpect(jsonPath("$.results[0].listId").value("10"))
@@ -202,13 +202,23 @@ class GroupSearchControllerTest {
     }
 
     @Test
-    fun `page가 1보다 작거나 숫자가 아니면 400을 반환한다`() {
+    fun `page가 음수이거나 숫자가 아니면 400을 반환한다`() {
         givenGroup(GroupVisibility.PUBLIC)
         authenticate(MEMBER_ID, UserRole.USER)
 
-        for (page in listOf("0", "-1", "1.5", "abc")) {
+        for (page in listOf("-1", "1.5", "abc")) {
             mockMvc.perform(search().param("page", page)).andExpect(status().isBadRequest)
         }
+    }
+
+    @Test
+    fun `page를 생략하면 0페이지이고 0도 허용한다`() {
+        givenGroup(GroupVisibility.PUBLIC)
+        givenResult()
+        authenticate(MEMBER_ID, UserRole.USER)
+
+        mockMvc.perform(search()).andExpect(status().isOk).andExpect(jsonPath("$.page").value(0))
+        mockMvc.perform(search().param("page", "0")).andExpect(status().isOk)
     }
 
     private fun search() = get("/groups/$GROUP_ID/search").param("target", "RECORD").param("keyword", "스프링")

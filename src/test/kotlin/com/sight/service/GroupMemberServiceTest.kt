@@ -360,7 +360,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `joinGroup은 그룹 활용 실습 그룹에는 포인트를 부여하지 않는다`() {
+    fun `joinGroup은 그룹 활용 실습 그룹에는 포인트를 부여하지 않지만 로그와 알림은 남긴다`() {
         // given
         val group =
             createGroup(
@@ -378,6 +378,14 @@ class GroupMemberServiceTest {
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
+        verify(groupLogService).createLog(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, 2L, GroupLogData.GroupMemberJoined)
+        verify(notificationService, times(2)).createNotification(
+            userId = any(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
     }
 
     @Test
@@ -521,7 +529,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `kickMember는 그룹 활용 실습 그룹에서는 포인트를 차감하지 않는다`() {
+    fun `kickMember는 그룹 활용 실습 그룹에서는 포인트를 차감하지 않지만 로그와 알림은 남긴다`() {
         // given
         val group = createGroup(id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, master = 1L)
         val kickedMember = createMember(id = 5L)
@@ -534,6 +542,18 @@ class GroupMemberServiceTest {
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
+        verify(groupLogService).createLog(
+            GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID,
+            1L,
+            GroupLogData.GroupMemberKicked(targetUserId = 5L, targetUserName = "이름5", targetUserCollege = "공과대학"),
+        )
+        verify(notificationService).createNotification(
+            userId = eq(5L),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
     }
 
     @Test
@@ -719,7 +739,7 @@ class GroupMemberServiceTest {
     }
 
     @Test
-    fun `leaveGroup은 그룹 활용 실습 그룹에서는 포인트를 차감하지 않는다`() {
+    fun `leaveGroup은 그룹 활용 실습 그룹에서는 포인트를 차감하지 않지만 로그와 알림은 남긴다`() {
         // given
         val group = createGroup(id = GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, master = 1L)
         given(groupRepository.findById(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID)).willReturn(Optional.of(group))
@@ -730,6 +750,14 @@ class GroupMemberServiceTest {
 
         // then
         verify(pointService, never()).givePoint(any(), any(), any())
+        verify(groupLogService).createLog(GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID, 5L, GroupLogData.GroupMemberLeft)
+        verify(notificationService, times(2)).createNotification(
+            userId = any(),
+            category = eq(NotificationCategory.GROUP),
+            title = eq(""),
+            content = any(),
+            url = anyOrNull(),
+        )
     }
 
     @Test

@@ -3,10 +3,14 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupInterest
+import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
 import com.sight.domain.group.GroupOrderBy
+import com.sight.domain.group.GroupPolicy
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupBookmarkRepository
@@ -15,6 +19,7 @@ import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.util.HtmlUtils
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -49,6 +54,7 @@ class GroupService(
     private val groupMemberRepository: GroupMemberRepository,
     private val pointService: PointService,
     private val notificationService: NotificationService,
+    private val groupLogService: GroupLogService,
 ) {
     @Transactional(readOnly = true)
     fun listGroupsByQuery(
@@ -216,6 +222,64 @@ class GroupService(
                 category = NotificationCategory.GROUP,
                 title = "포트폴리오 취소",
                 content = "${group.title} 그룹의 포트폴리오가 취소되었습니다.",
+            )
+        }
+    }
+
+    // 진행 중인 그룹을 성공 또는 실패로 종료하고 현재 그룹원 전체에게 경험치와 알림을 보낸다.
+    // 종료는 활동 기록이 아니므로 최근 활동 일시를 갱신하지 않는다. 중단 상태에서는 실행하지 않는다.
+    @Transactional
+    fun endGroup(
+        groupId: Long,
+        requesterId: Long,
+        result: GroupStatus,
+    ) {
+        if (!result.isEnded) throw BadRequestException("종료 상태는 성공 또는 실패여야 합니다.")
+
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        if (group.status != GroupStatus.PROGRESS) throw BadRequestException("진행 중인 그룹만 종료할 수 있습니다.")
+
+        // 동시에 종료하면 한 요청만 상태를 바꾸고, 나머지는 경험치·알림·로그를 다시 남기지 않는다.
+        if (groupRepository.endProgressById(groupId, result) == 0) {
+            throw BadRequestException("진행 중인 그룹만 종료할 수 있습니다.")
+        }
+
+        val isSuccess = result == GroupStatus.SUCCESS
+        val resultText = if (isSuccess) "성공" else "실패"
+        val point = (if (isSuccess) ExpointRule.그룹성공종료 else ExpointRule.그룹실패종료).point
+        val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        val memberIds = groupMemberRepository.findByGroupId(groupId).map { it.memberId }
+
+        // 실습 그룹은 경험치 대상이 아니므로 지급하지 않고 로그에도 변동을 남기지 않는다. 로그와 알림은 다른 그룹과 같다.
+        val givesPoint = groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID
+
+        // 현재 그룹원 전체에게 경험치를 지급하고, 재진행에서 같은 회원에게 되돌릴 수 있도록 로그에 변동을 함께 남긴다.
+        if (givesPoint) {
+            memberIds.forEach { memberId ->
+                pointService.givePoint(
+                    targetUserId = memberId,
+                    point = point,
+                    message = "<u>$escapedTitle</u> 그룹이 종료($resultText)되었습니다.",
+                )
+            }
+        }
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            data = if (isSuccess) GroupLogData.GroupEndedSuccess else GroupLogData.GroupEndedFail,
+            expointChange =
+                memberIds.takeIf { givesPoint && it.isNotEmpty() }?.let {
+                    GroupLogExpointChange(targetId = groupId.toString(), point = point, memberIds = it)
+                },
+        )
+
+        val notificationContent = "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹이 종료($resultText)되었습니다."
+        memberIds.forEach { memberId ->
+            notificationService.createNotification(
+                userId = memberId,
+                category = NotificationCategory.GROUP,
+                title = "",
+                content = notificationContent,
             )
         }
     }

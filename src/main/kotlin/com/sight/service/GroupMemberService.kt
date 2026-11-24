@@ -3,6 +3,7 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.Group
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupLogData
@@ -185,7 +186,7 @@ class GroupMemberService(
         if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
-                point = 40,
+                point = ExpointRule.그룹참여.point,
                 message = "<u>$escapedTitle</u> 그룹에 참여했습니다.",
             )
         }
@@ -245,7 +246,7 @@ class GroupMemberService(
         if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = kickedMemberId,
-                point = -40,
+                point = ExpointRule.그룹탈퇴.point,
                 message = "<u>$escapedTitle</u> 그룹에서 내보내졌습니다.",
             )
         }
@@ -309,7 +310,7 @@ class GroupMemberService(
         if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
             pointService.givePoint(
                 targetUserId = requesterId,
-                point = -40,
+                point = ExpointRule.그룹탈퇴.point,
                 message = "<u>$escapedTitle</u> 그룹에서 나갔습니다.",
             )
         }

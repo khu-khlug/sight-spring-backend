@@ -47,6 +47,15 @@ interface GroupRepository : JpaRepository<Group, Long>, GroupRepositoryCustom {
         @Param("newLeaderMemberId") newLeaderMemberId: Long,
     ): Int
 
+    // 진행 중인 그룹만 종료 상태로 바꾼다. 바뀐 행 수가 0이면 이미 다른 요청이 상태를 바꾼 것이다.
+    @Modifying
+    @Query("UPDATE KhlugGroup g SET g.status = :result WHERE g.id = :id AND g.status = :progress")
+    fun endProgressById(
+        @Param("id") id: Long,
+        @Param("result") result: GroupStatus,
+        @Param("progress") progress: GroupStatus = GroupStatus.PROGRESS,
+    ): Int
+
     // 포트폴리오 발행 여부가 반대 상태일 때만 바꾼다. 바뀐 행 수가 0이면 이미 같은 상태로 바뀐 것이다.
     @Modifying
     @Query(

@@ -4,6 +4,7 @@ import com.sight.controllers.http.dto.AddGroupDiscordChannelMemberRequest
 import com.sight.controllers.http.dto.CreateGroupDiscordChannelResponse
 import com.sight.controllers.http.dto.CreateGroupRequest
 import com.sight.controllers.http.dto.CreateGroupResponse
+import com.sight.controllers.http.dto.EndGroupRequest
 import com.sight.controllers.http.dto.GetGroupInfoResponse
 import com.sight.controllers.http.dto.GroupInfoActivityResponse
 import com.sight.controllers.http.dto.GroupInfoExposureResponse
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -137,6 +139,22 @@ class GroupController(
                 ),
             hasChatRoom = result.hasChatRoom,
             chatRoomUrl = result.chatRoomUrl,
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = true)
+    @PutMapping("/groups/{groupId}/status/end")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun endGroup(
+        @PathVariable groupId: Long,
+        @Valid @RequestBody request: EndGroupRequest,
+        requester: Requester,
+    ) {
+        groupService.endGroup(
+            groupId = groupId,
+            requesterId = requester.userId,
+            result = request.status!!,
         )
     }
 

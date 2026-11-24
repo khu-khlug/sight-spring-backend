@@ -1,5 +1,7 @@
 package com.sight.service
 
+import com.sight.core.config.ConfigKey
+import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.domain.file.FileReference
 import com.sight.domain.file.FileReferenceType
@@ -15,6 +17,7 @@ import com.sight.repository.dto.GroupRecordFileView
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
@@ -36,10 +39,29 @@ class GroupRecordAttachmentServiceTest {
     private val groups = mock<GroupRepository>()
     private val members = mock<MemberRepository>()
     private val uploadChecks = mock<GroupRecordUploadService>()
+    private val systemConfigRegistry = mock<SystemConfigRegistry>()
     private val service =
         GroupRecordAttachmentService(
             recordFileRepository, fileUploadRepository, groupFiles, ids, storage, fileReferenceService, groups, members, uploadChecks,
+            FileUploadSizePolicyService(systemConfigRegistry),
         )
+
+    @BeforeEach
+    fun setUp() {
+        given(systemConfigRegistry.getValueAsLong(any())).willAnswer { it.getArgument<ConfigKey>(0).defaultValue.toLong() }
+    }
+
+    @Test
+    fun `기록 첨부 한도를 넘으면 기본 20 MiB보다 작아도 기록과 임시저장 모두 업로드 주소를 발급하지 않는다`() {
+        val maxSizeBytes = 5L * 1024 * 1024
+        given(systemConfigRegistry.getValueAsLong(ConfigKey.GROUP_RECORD_FILE_MAX_SIZE_BYTES)).willReturn(maxSizeBytes)
+        val files = listOf(newFile(maxSizeBytes + 1))
+
+        assertThrows<BadRequestException> { service.replaceRecordFiles(1L, 2L, 3L, files) }
+        assertThrows<BadRequestException> { service.replaceDraftFiles(1L, 2L, 3L, files) }
+
+        verifyNoInteractions(recordFileRepository, fileUploadRepository, groupFiles, storage, fileReferenceService, uploadChecks)
+    }
 
     @Test
     fun `20 MiB 파일을 첨부하면 파일 크기로 서명한 업로드 주소를 발급하고 파일 참조를 생성한다`() {

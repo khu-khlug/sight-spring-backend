@@ -88,7 +88,7 @@ class FileUpload(
         require(uploaderMemberId > 0) { "회원 식별자가 올바르지 않습니다." }
         require(apiPath.isNotBlank()) { "발급 경로가 필요합니다." }
         require(fileName == null || fileName.isNotBlank()) { "파일명이 올바르지 않습니다." }
-        require(size == null || size in 0..MAX_FILE_SIZE) { "파일 크기는 ${MAX_FILE_SIZE}바이트 이하여야 합니다." }
+        require(size == null || size >= 0) { "파일 크기는 0바이트 이상이어야 합니다." }
         require(contentType == null || contentType.isNotBlank()) { "MIME 타입이 올바르지 않습니다." }
         require(!uploadCheckGrace.isNegative) { "업로드 확인 여유 시간이 올바르지 않습니다." }
     }
@@ -133,9 +133,6 @@ class FileUpload(
         const val ID_MAX_LENGTH: Int = 100
 
         fun isValidId(id: String): Boolean = id.isNotBlank() && id.length <= ID_MAX_LENGTH
-
-        // 파일 하나의 최대 크기. 정확히 같은 크기는 허용한다.
-        const val MAX_FILE_SIZE: Long = 20L * 1024 * 1024
 
         val UPLOAD_LINK_VALIDITY: Duration = Duration.ofMinutes(10)
         val DEFAULT_UPLOAD_CHECK_GRACE: Duration = Duration.ofMinutes(1)

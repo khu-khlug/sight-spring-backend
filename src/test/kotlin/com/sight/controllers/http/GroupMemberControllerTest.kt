@@ -30,8 +30,8 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.Optional
@@ -118,7 +118,7 @@ class GroupMemberControllerTest {
     }
 
     @Test
-    fun `일반 그룹의 그룹원 내보내기는 그룹장만 할 수 있다`() {
+    fun `그룹원 내보내기는 그룹장만 할 수 있다`() {
         givenGroup()
 
         authenticate(MEMBER_ID, UserRole.USER)
@@ -128,15 +128,6 @@ class GroupMemberControllerTest {
         mockMvc.perform(delete("/groups/$GROUP_ID/members/$TARGET_ID")).andExpect(status().isForbidden)
 
         authenticate(LEADER_ID, UserRole.USER)
-        mockMvc.perform(delete("/groups/$GROUP_ID/members/$TARGET_ID")).andExpect(status().isNoContent)
-    }
-
-    @Test
-    fun `운영진 공개 운영 그룹에서는 그룹장이 아닌 운영진도 그룹원을 내보낼 수 있다`() {
-        givenGroup(category = GroupCategory.MANAGE, visibility = GroupVisibility.MANAGER_ONLY)
-        given(groupAuthorizationRepository.isManageGroup(GROUP_ID)).willReturn(true)
-
-        authenticate(MANAGER_ID, UserRole.MANAGER)
         mockMvc.perform(delete("/groups/$GROUP_ID/members/$TARGET_ID")).andExpect(status().isNoContent)
     }
 
@@ -152,9 +143,9 @@ class GroupMemberControllerTest {
     }
 
     private fun delegateRequest() =
-        patch("/groups/$GROUP_ID/master")
+        put("/groups/$GROUP_ID/leader")
             .contentType(MediaType.APPLICATION_JSON)
-            .content("""{"memberId":$MEMBER_ID}""")
+            .content("""{"userId":$MEMBER_ID}""")
 
     private fun givenGroup(
         category: GroupCategory = GroupCategory.STUDY,

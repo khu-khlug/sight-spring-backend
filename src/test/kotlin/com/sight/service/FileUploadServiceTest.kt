@@ -74,7 +74,11 @@ class FileUploadServiceTest {
     @Test
     fun `최대 크기를 초과한 파일에는 업로드 링크를 발급하지 않는다`() {
         assertThrows<BadRequestException> {
-            service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES.defaultValue.toLong() + 1)
+            service.createUploadLink(
+                10L,
+                "/groups/1/activity-reports/upload-link",
+                ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES.defaultValue.toLong() + 1,
+            )
         }
 
         verify(storageService, never()).generateUploadUrl(any(), any())
@@ -99,7 +103,12 @@ class FileUploadServiceTest {
         given(systemConfigRegistry.getValueAsLong(ConfigKey.GROUP_ACTIVITY_REPORT_FILE_MAX_SIZE_BYTES)).willReturn(maxSizeBytes)
 
         assertThrows<BadRequestException> {
-            service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", maxSizeBytes + 1, FileReferenceType.GROUP_ACTIVITY_REPORT)
+            service.createUploadLink(
+                10L,
+                "/groups/1/activity-reports/upload-link",
+                maxSizeBytes + 1,
+                FileReferenceType.GROUP_ACTIVITY_REPORT,
+            )
         }
 
         verify(storageService, never()).generateUploadUrl(any(), any())

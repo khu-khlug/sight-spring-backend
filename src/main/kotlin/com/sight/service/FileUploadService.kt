@@ -1,10 +1,10 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
-import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
 import org.springframework.stereotype.Service
@@ -22,6 +22,7 @@ class FileUploadService(
     private val fileUploadRepository: FileUploadRepository,
     private val storageService: StorageService,
     private val deletions: FileUploadDeletionService,
+    private val fileUploadSizePolicyService: FileUploadSizePolicyService,
 ) {
     @Transactional
     fun createUploadLink(
@@ -34,10 +35,9 @@ class FileUploadService(
         memberId: Long,
         apiPath: String,
         size: Long,
+        referenceType: FileReferenceType? = null,
     ): UploadLinkResult {
-        if (size !in 0..FileUpload.MAX_FILE_SIZE) {
-            throw BadRequestException("파일 크기는 0바이트 이상 ${FileUpload.MAX_FILE_SIZE}바이트 이하여야 합니다.")
-        }
+        fileUploadSizePolicyService.validateSize(size, referenceType)
         return createUpload(memberId, apiPath, size)
     }
 

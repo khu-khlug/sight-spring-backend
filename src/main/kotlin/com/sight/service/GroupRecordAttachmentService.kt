@@ -30,6 +30,7 @@ class GroupRecordAttachmentService(
     private val groups: GroupRepository,
     private val members: MemberRepository,
     private val uploadChecks: GroupRecordUploadService,
+    private val fileUploadSizePolicyService: FileUploadSizePolicyService,
 ) {
     @Transactional
     fun replaceRecordFiles(
@@ -154,10 +155,11 @@ class GroupRecordAttachmentService(
             if (input.fileId == null) {
                 if (input.name.isNullOrBlank() || input.name.length > 255 ||
                     input.contentType.isNullOrBlank() || input.contentType.length > 255 ||
-                    input.size == null || input.size !in 0..FileUpload.MAX_FILE_SIZE
+                    input.size == null
                 ) {
                     throw BadRequestException("새 파일의 이름·크기·MIME 타입이 올바르지 않습니다.")
                 }
+                fileUploadSizePolicyService.validateSize(input.size, FileReferenceType.GROUP_RECORD_ATTACHMENT)
             } else if (input.fileId.isBlank() || input.fileId.length > FileUpload.ID_MAX_LENGTH) {
                 throw BadRequestException("파일 아이디가 올바르지 않습니다.")
             }

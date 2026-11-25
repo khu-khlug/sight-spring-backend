@@ -1,9 +1,12 @@
 package com.sight.service
 
+import com.sight.core.config.ConfigKey
+import com.sight.core.config.SystemConfigRegistry
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
 import com.sight.domain.file.testFileUpload
 import com.sight.repository.FileUploadRepository
@@ -24,13 +27,15 @@ class FileUploadServiceTest {
     private val fileUploadRepository = mock<FileUploadRepository>()
     private val storageService = mock<StorageService>()
     private val deletions = mock<FileUploadDeletionService>()
+    private val systemConfigRegistry = mock<SystemConfigRegistry>()
     private lateinit var service: FileUploadService
 
     private val baseFileUpload = testFileUpload()
 
     @BeforeEach
     fun setUp() {
-        service = FileUploadService(fileUploadRepository, storageService, deletions)
+        service = FileUploadService(fileUploadRepository, storageService, deletions, FileUploadSizePolicyService(systemConfigRegistry))
+        given(systemConfigRegistry.getValueAsLong(any())).willAnswer { it.getArgument<ConfigKey>(0).defaultValue.toLong() }
         given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
         given(fileUploadRepository.saveAndFlush(any<FileUpload>())).willReturn(baseFileUpload)
@@ -57,7 +62,7 @@ class FileUploadServiceTest {
 
     @Test
     fun `요청한 크기로 업로드 링크를 발급하고 같은 크기를 저장한다`() {
-        val size = FileUpload.MAX_FILE_SIZE
+        val size = ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES.defaultValue.toLong()
         given(storageService.generateUploadUrl(any(), eq(size))).willReturn("https://upload.example.com")
 
         val link = service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", size)
@@ -69,7 +74,41 @@ class FileUploadServiceTest {
     @Test
     fun `최대 크기를 초과한 파일에는 업로드 링크를 발급하지 않는다`() {
         assertThrows<BadRequestException> {
-            service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", FileUpload.MAX_FILE_SIZE + 1)
+            service.createUploadLink(
+                10L,
+                "/groups/1/activity-reports/upload-link",
+                ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES.defaultValue.toLong() + 1,
+            )
+        }
+
+        verify(storageService, never()).generateUploadUrl(any(), any())
+        verify(fileUploadRepository, never()).saveAndFlush(any<FileUpload>())
+    }
+
+    @Test
+    fun `공통 최대 크기를 30 MiB로 설정하면 30 MiB 파일의 업로드 링크를 발급하고 저장한다`() {
+        val size = 30L * 1024 * 1024
+        given(systemConfigRegistry.getValueAsLong(ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES)).willReturn(size)
+        given(storageService.generateUploadUrl(any(), eq(size))).willReturn("https://upload.example.com")
+
+        service.createUploadLink(10L, "/groups/1/activity-reports/upload-link", size)
+
+        verify(storageService).generateUploadUrl(any(), eq(size))
+        verify(fileUploadRepository).saveAndFlush(argThat { this.size == size })
+    }
+
+    @Test
+    fun `활동보고 한도를 넘으면 공통 한도 이하여도 업로드 링크를 발급하지 않는다`() {
+        val maxSizeBytes = 5L * 1024 * 1024
+        given(systemConfigRegistry.getValueAsLong(ConfigKey.GROUP_ACTIVITY_REPORT_FILE_MAX_SIZE_BYTES)).willReturn(maxSizeBytes)
+
+        assertThrows<BadRequestException> {
+            service.createUploadLink(
+                10L,
+                "/groups/1/activity-reports/upload-link",
+                maxSizeBytes + 1,
+                FileReferenceType.GROUP_ACTIVITY_REPORT,
+            )
         }
 
         verify(storageService, never()).generateUploadUrl(any(), any())

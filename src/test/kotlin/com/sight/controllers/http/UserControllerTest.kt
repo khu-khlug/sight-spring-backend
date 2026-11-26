@@ -7,6 +7,7 @@ import com.sight.service.UserService
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.given
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.springframework.beans.factory.annotation.Autowired
@@ -18,7 +19,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @WebMvcTest(
@@ -50,6 +53,26 @@ class UserControllerTest {
     @AfterEach
     fun tearDown() {
         SecurityContextHolder.clearContext()
+    }
+
+    @Test
+    fun `개인 GitHub 사용 설정 조회는 현재 회원의 값을 200으로 반환한다`() {
+        given(userService.getPreferenceByUserId(requester.userId)).willReturn(true)
+
+        mockMvc.perform(get("/users/@me/preference"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.usePersonalGithubUsage").value(true))
+
+        verify(userService).getPreferenceByUserId(requester.userId)
+    }
+
+    @Test
+    fun `저장된 설정이 없으면 기본값 false를 200으로 반환한다`() {
+        given(userService.getPreferenceByUserId(requester.userId)).willReturn(false)
+
+        mockMvc.perform(get("/users/@me/preference"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.usePersonalGithubUsage").value(false))
     }
 
     @Test

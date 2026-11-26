@@ -104,6 +104,25 @@ class UserServiceTest {
     }
 
     @Test
+    fun `getPreferenceByUserId는 저장된 회원 설정을 반환한다`() {
+        val userId = 123L
+        given(memberPreferenceRepository.findByMemberId(userId))
+            .willReturn(MemberPreference(id = 456L, memberId = userId).apply { changeGithubUsage(true, Instant.now()) })
+
+        assertTrue(userService.getPreferenceByUserId(userId))
+    }
+
+    @Test
+    fun `getPreferenceByUserId는 설정이 없으면 기본값 false를 반환하고 저장하지 않는다`() {
+        val userId = 123L
+        given(memberPreferenceRepository.findByMemberId(userId)).willReturn(null)
+
+        assertFalse(userService.getPreferenceByUserId(userId))
+
+        verify(memberPreferenceRepository, never()).save(any())
+    }
+
+    @Test
     fun `getMemberById는 존재하는 사용자를 반환한다`() {
         // given
         val userId = 1L

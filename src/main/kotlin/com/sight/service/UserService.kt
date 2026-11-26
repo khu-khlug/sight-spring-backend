@@ -59,6 +59,9 @@ class UserService(
             NotFoundException("사용자를 찾을 수 없습니다")
         }
 
+    @Transactional(readOnly = true)
+    fun getPreferenceByUserId(userId: Long): Boolean = memberPreferenceRepository.findByMemberId(userId)?.usePersonalGithubUsage ?: false
+
     @Transactional
     fun updatePreference(
         userId: Long,

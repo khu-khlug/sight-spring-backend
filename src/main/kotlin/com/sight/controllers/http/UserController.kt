@@ -3,6 +3,7 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.CallbackDiscordIntegrationRequest
 import com.sight.controllers.http.dto.GetCurrentUserResponse
 import com.sight.controllers.http.dto.GetDiscordIntegrationResponse
+import com.sight.controllers.http.dto.GetUserPreferenceResponse
 import com.sight.controllers.http.dto.IssueDiscordIntegrationUrlResponse
 import com.sight.controllers.http.dto.UpdateUserPreferenceRequest
 import com.sight.core.auth.Auth
@@ -45,6 +46,14 @@ class UserController(
             updatedAt = member.updatedAt,
         )
     }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.OK)
+    @GetMapping("/users/@me/preference")
+    fun getCurrentUserPreference(requester: Requester): GetUserPreferenceResponse =
+        GetUserPreferenceResponse(
+            usePersonalGithubUsage = userService.getPreferenceByUserId(requester.userId),
+        )
 
     @Auth([UserRole.USER, UserRole.MANAGER])
     @ResponseStatus(HttpStatus.NO_CONTENT)

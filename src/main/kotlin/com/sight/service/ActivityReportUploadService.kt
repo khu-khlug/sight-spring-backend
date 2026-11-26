@@ -60,11 +60,9 @@ class ActivityReportUploadService(
                 if (e.reason != StorageFailureReason.NO_SUCH_KEY) throw BadGatewayException("파일 저장소에서 업로드를 확인할 수 없습니다.")
                 null
             }
-        return when {
-            size == null -> ActivityReportUploadStatus.MISSING
-            size > fileUploadSizePolicyService.getMaxSizeBytes(FileReferenceType.GROUP_ACTIVITY_REPORT) -> ActivityReportUploadStatus.TOO_LARGE
-            else -> ActivityReportUploadStatus.AVAILABLE
-        }
+        if (size == null) return ActivityReportUploadStatus.MISSING
+        val maxSizeBytes = fileUploadSizePolicyService.getMaxSizeBytes(FileReferenceType.GROUP_ACTIVITY_REPORT)
+        return if (size > maxSizeBytes) ActivityReportUploadStatus.TOO_LARGE else ActivityReportUploadStatus.AVAILABLE
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

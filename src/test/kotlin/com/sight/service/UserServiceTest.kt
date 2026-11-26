@@ -4,10 +4,12 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
+import com.sight.domain.member.MemberPreference
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.FeeHistoryRepository
+import com.sight.repository.MemberPreferenceRepository
 import com.sight.repository.MemberRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.given
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -33,6 +36,8 @@ class UserServiceTest {
     private val discordIntegrationRepository: DiscordIntegrationRepository = mock()
     private val discordMemberService: DiscordMemberService = mock()
     private val memberRepository: MemberRepository = mock()
+    private val memberPreferenceRepository: MemberPreferenceRepository = mock()
+    private val integerIdService: IntegerIdService = mock()
     private val feeHistoryRepository: FeeHistoryRepository = mock()
     private val pointService: PointService = mock()
     private val notificationService: NotificationService = mock()
@@ -45,10 +50,57 @@ class UserServiceTest {
                 discordIntegrationRepository = discordIntegrationRepository,
                 discordMemberService = discordMemberService,
                 memberRepository = memberRepository,
+                memberPreferenceRepository = memberPreferenceRepository,
+                integerIdService = integerIdService,
                 feeHistoryRepository = feeHistoryRepository,
                 pointService = pointService,
                 notificationService = notificationService,
             )
+    }
+
+    @Test
+    fun `updatePreference는 최초 활성화 설정을 저장한다`() {
+        val userId = 123L
+        given(memberRepository.findForUpdateById(userId)).willReturn(createMember(userId))
+        given(memberPreferenceRepository.findByMemberId(userId)).willReturn(null)
+        given(integerIdService.nextId()).willReturn(456L)
+
+        userService.updatePreference(userId, usePersonalGithubUsage = true)
+
+        val savedPreference = argumentCaptor<MemberPreference>()
+        verify(memberPreferenceRepository).save(savedPreference.capture())
+        assertTrue(savedPreference.firstValue.usePersonalGithubUsage)
+        assertEquals(userId, savedPreference.firstValue.memberId)
+    }
+
+    @Test
+    fun `updatePreference는 기본값 false 요청을 저장하지 않는다`() {
+        val userId = 123L
+        given(memberRepository.findForUpdateById(userId)).willReturn(createMember(userId))
+        given(memberPreferenceRepository.findByMemberId(userId)).willReturn(null)
+
+        userService.updatePreference(userId, usePersonalGithubUsage = false)
+
+        verify(memberPreferenceRepository, never()).save(any())
+        verify(integerIdService, never()).nextId()
+    }
+
+    @Test
+    fun `updatePreference는 비활성화 후 7일이 지나지 않으면 400 예외를 발생시키고 저장하지 않는다`() {
+        val userId = 123L
+        val disabledAt = Instant.now().minus(6, ChronoUnit.DAYS)
+        val preference = MemberPreference(id = 456L, memberId = userId)
+        preference.changeGithubUsage(true, disabledAt.minusSeconds(1))
+        preference.changeGithubUsage(false, disabledAt)
+        given(memberRepository.findForUpdateById(userId)).willReturn(createMember(userId))
+        given(memberPreferenceRepository.findByMemberId(userId)).willReturn(preference)
+
+        assertThrows<BadRequestException> {
+            userService.updatePreference(userId, usePersonalGithubUsage = true)
+        }
+
+        assertFalse(preference.usePersonalGithubUsage)
+        verify(memberPreferenceRepository, never()).save(any())
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.member.Member
+import com.sight.domain.member.MemberPreference
 import com.sight.domain.member.MemberTagFilter
 import com.sight.domain.member.StudentStatus
 import com.sight.domain.member.UserStatus
@@ -13,6 +14,7 @@ import com.sight.domain.member.needPayHalfFee
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.FeeHistoryRepository
+import com.sight.repository.MemberPreferenceRepository
 import com.sight.repository.MemberRepository
 import com.sight.util.UnivPeriod
 import org.slf4j.LoggerFactory
@@ -35,6 +37,8 @@ class UserService(
     private val discordIntegrationRepository: DiscordIntegrationRepository,
     private val discordMemberService: DiscordMemberService,
     private val memberRepository: MemberRepository,
+    private val memberPreferenceRepository: MemberPreferenceRepository,
+    private val integerIdService: IntegerIdService,
     private val feeHistoryRepository: FeeHistoryRepository,
     private val pointService: PointService,
     private val notificationService: NotificationService,
@@ -54,6 +58,34 @@ class UserService(
         memberRepository.findById(userId).orElseThrow {
             NotFoundException("사용자를 찾을 수 없습니다")
         }
+
+    @Transactional
+    fun updatePreference(
+        userId: Long,
+        usePersonalGithubUsage: Boolean,
+    ) {
+        memberRepository.findForUpdateById(userId)
+            ?: throw NotFoundException("사용자를 찾을 수 없습니다")
+
+        val now = Instant.now()
+        val preference = memberPreferenceRepository.findByMemberId(userId)
+        if (preference == null) {
+            if (!usePersonalGithubUsage) return
+
+            val newPreference = MemberPreference(integerIdService.nextId(), userId)
+            newPreference.changeGithubUsage(usePersonalGithubUsage, now)
+            memberPreferenceRepository.save(newPreference)
+            return
+        }
+
+        val changed =
+            try {
+                preference.changeGithubUsage(usePersonalGithubUsage, now)
+            } catch (_: IllegalArgumentException) {
+                throw BadRequestException("개인 GitHub API 사용을 다시 켜려면 비활성화 후 7일이 지나야 합니다.")
+            }
+        if (changed) memberPreferenceRepository.save(preference)
+    }
 
     @Transactional
     fun graduateMember(userId: Long) {

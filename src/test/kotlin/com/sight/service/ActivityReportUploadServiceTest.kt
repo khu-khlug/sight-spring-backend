@@ -69,7 +69,8 @@ class ActivityReportUploadServiceTest {
         given(systemConfigRegistry.getValueAsLong(ConfigKey.FILE_UPLOAD_MAX_SIZE_BYTES)).willReturn(size)
         given(systemConfigRegistry.getValueAsLong(ConfigKey.GROUP_ACTIVITY_REPORT_FILE_MAX_SIZE_BYTES)).willReturn(size)
         val expected = UploadLinkResult("https://upload.example.com", "key-1", fileUpload.id)
-        given(fileUploadService.createUploadLink(10L, fileUpload.apiPath, size, FileReferenceType.GROUP_ACTIVITY_REPORT)).willReturn(expected)
+        given(fileUploadService.createUploadLink(10L, fileUpload.apiPath, size, FileReferenceType.GROUP_ACTIVITY_REPORT))
+            .willReturn(expected)
         given(integerIdService.nextId()).willReturn(1L)
 
         val result = service.createUploadLink(1L, 10L, size, fileUpload.apiPath)

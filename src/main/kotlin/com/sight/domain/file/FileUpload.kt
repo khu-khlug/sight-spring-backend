@@ -18,6 +18,7 @@ import java.time.Instant
         Index(columnList = "deleted_at"),
         // 인덱스(is_uploaded, upload_check_at): 업로드 확인 예약, 미사용 업로드 청소.
         Index(columnList = "is_uploaded, upload_check_at"),
+        Index(name = "idx_file_upload_cleanup", columnList = "upload_check_at, id"),
     ],
 )
 class FileUpload(

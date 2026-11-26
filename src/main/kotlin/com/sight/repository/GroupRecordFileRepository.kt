@@ -5,7 +5,9 @@ import com.sight.domain.group.GroupRecordFile
 import com.sight.repository.dto.GroupRecordFileView
 import org.springframework.data.jpa.repository.JpaRepository
 
-interface GroupRecordFileRepository : JpaRepository<GroupRecordFile, Long>, GroupRecordFileRepositoryCustom
+interface GroupRecordFileRepository : JpaRepository<GroupRecordFile, Long>, GroupRecordFileRepositoryCustom {
+    fun findByFileReferenceId(fileReferenceId: String): GroupRecordFile?
+}
 
 interface GroupRecordFileRepositoryCustom {
     fun findByFileUploadIdOrderById(fileUploadId: String): List<GroupRecordFileView>

@@ -68,6 +68,11 @@ class GroupActivityReportService(
 ) {
     private val writeTransaction = TransactionTemplate(transactionManager)
 
+    @PeriodicFileCleanup(FileReferenceType.GROUP_ACTIVITY_REPORT)
+    @Transactional(readOnly = true)
+    fun isReportFileCleanupTarget(context: FileCleanupContext): Boolean =
+        !groupActivityReportRepository.existsById(context.reference.referrerId)
+
     @Transactional
     fun getUploadLink(
         groupId: Long,

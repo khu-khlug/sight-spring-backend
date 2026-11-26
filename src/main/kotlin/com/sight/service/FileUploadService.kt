@@ -23,6 +23,7 @@ class FileUploadService(
     private val storageService: StorageService,
     private val deletions: FileUploadDeletionService,
     private val fileUploadSizePolicyService: FileUploadSizePolicyService,
+    private val uploadChecks: FileUploadCheckService,
 ) {
     @Transactional
     fun createUploadLink(
@@ -62,6 +63,7 @@ class FileUploadService(
                     createdAt = Instant.now(),
                 ),
             )
+        uploadChecks.scheduleUploadCheck(fileUpload.id, fileUpload.uploadCheckAt)
         return UploadLinkResult(url = url, fileKey = fileKey, fileUploadId = fileUpload.id)
     }
 

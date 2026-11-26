@@ -126,6 +126,15 @@ class GroupActivityReportServiceTest {
         given(groupActivityReportRepository.save(any<GroupActivityReport>())).willReturn(baseReport)
     }
 
+    @Test
+    fun `활동보고가 사라졌을 때만 파일 참조를 정리 대상으로 판단한다`() {
+        val input = FileCleanupContext(baseFileUpload, baseReference, null)
+        given(groupActivityReportRepository.existsById(baseReference.referrerId)).willReturn(true, false)
+
+        assertEquals(false, service.isReportFileCleanupTarget(input))
+        assertEquals(true, service.isReportFileCleanupTarget(input))
+    }
+
     // ── getUploadLink ──────────────────────────────────────────────────────────
 
     @Test

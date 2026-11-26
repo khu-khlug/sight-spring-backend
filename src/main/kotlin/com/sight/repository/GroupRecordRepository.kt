@@ -14,6 +14,11 @@ interface GroupRecordRepository : Repository<GroupRecord, Long>, GroupRecordRepo
 
     fun findByIdAndDeletedAtIsNull(id: Long): GroupRecord?
 
+    @Query("select count(r) > 0 from GroupRecord r where r.id = :id")
+    fun existsIncludingDeletedById(
+        @Param("id") id: Long,
+    ): Boolean
+
     @Query(
         """
         select count(r) > 0 from GroupRecord r

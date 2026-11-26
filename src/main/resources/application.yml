@@ -42,6 +42,10 @@ solapi:
 integer-id:
   node-id: ${INTEGER_ID_NODE_ID:}
 
+file-upload:
+  maintenance:
+    enabled: ${FILE_UPLOAD_MAINTENANCE_ENABLED:false}
+
 ---
 spring:
   config:

@@ -110,6 +110,14 @@
 | `SEMINAR_PRESENTATION_REGISTERED` | 세미나 발표 신청 | termYear: 정수, termSemester | [코드](../../../../opened-sight-legacy/GroupController.php:2122) |
 | `SEMINAR_SESSION_REMOVED` | 운영진의 세미나 세션 제거 | termYear: 정수, termSemester | [코드](../../../../opened-sight-legacy/GroupController.php:2320) |
 
+### 활동보고
+
+| logType | 기록되는 동작 | logData 필드 |
+| :-- | :-- | :-- |
+| `ACTIVITY_REPORT_SUBMITTED` | 활동보고 제출 | reportId, seminarId (문자열) |
+| `ACTIVITY_REPORT_UPDATED` | 발표 여부나 파일이 실제로 바뀜 | reportId, seminarId (문자열) |
+| `ACTIVITY_REPORT_CANCELLED` | 활동보고 취소 | reportId, seminarId (문자열) |
+
 ## HTTP API 계약
 
 ### GET /groups/:groupId/logs

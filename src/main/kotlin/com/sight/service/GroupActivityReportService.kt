@@ -1,25 +1,28 @@
 package com.sight.service
 
 import com.github.f4b6a3.ulid.UlidCreator
+import com.sight.core.exception.BadGatewayException
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.InternalServerErrorException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.file.FileReferenceType
+import com.sight.domain.file.FileUpload
+import com.sight.domain.group.Group
 import com.sight.domain.group.GroupActivityReport
-import com.sight.domain.group.GroupFile
+import com.sight.domain.group.GroupLogData
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.notification.NotificationCategory
-import com.sight.domain.seminar.BigSeminar
-import com.sight.repository.BigSeminarRepository
 import com.sight.repository.GroupActivityReportRepository
-import com.sight.repository.GroupFileRepository
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
-import com.sight.repository.ScheduleRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 data class ActivityReportResult(
     val id: String,
@@ -27,58 +30,56 @@ data class ActivityReportResult(
     val seminarId: String,
     val isPresentation: Boolean,
     val reportFileKey: String,
-    val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime,
+    val createdAt: Instant,
+    val updatedAt: Instant,
 )
 
 data class ActivityReportListItem(
     val id: String,
     val groupId: Long,
     val seminarId: String,
-    val seminarDate: LocalDateTime?,
+    val seminarDate: Instant?,
     val seminarIsSummerSeason: Boolean?,
     val seminarIsSpeakAfter: Boolean?,
     val isPresentation: Boolean,
     val reportFileUrl: String,
-    val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime,
+    val createdAt: Instant,
+    val updatedAt: Instant,
 )
 
 data class ActivityReportListResult(
     val reports: List<ActivityReportListItem>,
 )
 
-// 활동보고 API는 응답 형식(파일 key, LocalDateTime 시각)을 유지한다.
-// 파일 key는 활동보고의 공통 파일 참조를 통해 업로드 기록에서 조회한다.
 @Service
 class GroupActivityReportService(
-    private val integerIdService: IntegerIdService,
     private val groupRepository: GroupRepository,
     private val groupMemberRepository: GroupMemberRepository,
     private val groupActivityReportRepository: GroupActivityReportRepository,
-    private val bigSeminarRepository: BigSeminarRepository,
-    private val scheduleRepository: ScheduleRepository,
     private val storageService: StorageService,
     private val pointService: PointService,
     private val notificationService: NotificationService,
     private val fileUploadService: FileUploadService,
-    private val groupFileRepository: GroupFileRepository,
-    private val fileReferences: FileReferenceService,
+    private val fileReferenceService: FileReferenceService,
+    private val seminarService: SeminarService,
+    private val activityReportUploadService: ActivityReportUploadService,
+    private val groupLogService: GroupLogService,
+    transactionManager: PlatformTransactionManager,
 ) {
+    private val writeTransaction = TransactionTemplate(transactionManager)
+
     @Transactional
     fun getUploadLink(
         groupId: Long,
         requesterId: Long,
-        requestPath: String,
+        size: Long,
+        uploadLinkRequestPath: String,
     ): UploadLinkResult {
-        groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-
-        val uploadLink = fileUploadService.createUploadLink(requesterId, requestPath)
-        groupFileRepository.save(GroupFile(id = integerIdService.nextId(), groupId = groupId, fileUploadId = uploadLink.fileUploadId))
-        return uploadLink
+        requireActiveGroup(groupRepository.findLockedById(groupId))
+        return activityReportUploadService.createUploadLink(groupId, requesterId, size, uploadLinkRequestPath)
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun submitReport(
         groupId: Long,
         requesterId: Long,
@@ -86,49 +87,69 @@ class GroupActivityReportService(
         fileUploadId: String,
         uploadLinkRequestPath: String,
     ): ActivityReportResult {
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+        requireActiveGroup(groupRepository.findById(groupId).orElse(null))
+        requireSubmissionSeminar(groupId)
+        val uploadStatus = activityReportUploadService.checkUploadedObject(fileUploadId, requesterId, uploadLinkRequestPath)
+        val result =
+            writeTransaction.execute {
+                val group = requireActiveGroup(groupRepository.findLockedById(groupId))
+                val seminar = requireSubmissionSeminar(groupId)
+                val file =
+                    activityReportUploadService.confirmUpload(fileUploadId, requesterId, uploadStatus, uploadLinkRequestPath)
+                        ?: return@execute null
+                createReport(group, seminar.id, requesterId, isPresentation, file)
+            }
+        // 파일 삭제 표시가 커밋되어야 저장소 삭제가 시작된다.
+        return result ?: throw BadRequestException(requireNotNull(uploadStatus.rejectionMessage))
+    }
 
-        val seminar = findNextSeminar() ?: throw BadRequestException("활동보고 기간이 아닙니다.")
+    private fun requireSubmissionSeminar(groupId: Long): OpenSeminarResult {
+        val seminar = seminarService.getOpenSeminar(Instant.now()) ?: throw BadRequestException("활동보고 기간이 아닙니다.")
         if (groupActivityReportRepository.existsByGroupIdAndSeminarId(groupId, seminar.id)) {
             throw BadRequestException("이미 활동보고를 제출했습니다.")
         }
-        val fileUpload = fileUploadService.validateFileUpload(fileUploadId, requesterId, uploadLinkRequestPath)
+        return seminar
+    }
+
+    private fun createReport(
+        group: Group,
+        seminarId: String,
+        requesterId: Long,
+        isPresentation: Boolean,
+        fileUpload: FileUpload,
+    ): ActivityReportResult {
         val reportId = UlidCreator.getUlid().toString()
+        val now = Instant.now()
 
         val report =
             groupActivityReportRepository.save(
                 GroupActivityReport(
                     id = reportId,
-                    groupId = groupId,
-                    seminarId = seminar.id,
+                    groupId = group.id,
+                    seminarId = seminarId,
                     isPresentation = isPresentation,
-                    createdAt = Instant.now(),
+                    createdAt = now,
                 ),
             )
 
-        fileReferences.createFileReference(fileUpload.id, FileReferenceType.GROUP_ACTIVITY_REPORT, reportId)
+        fileReferenceService.createFileReference(fileUpload.id, FileReferenceType.GROUP_ACTIVITY_REPORT, reportId)
         fileUploadService.markAsUsed(fileUpload)
 
-        val members = groupMemberRepository.findByGroupId(groupId)
-        members.forEach { member ->
-            pointService.givePoint(member.memberId, 150, "활동보고 제출")
-            notificationService.createNotification(
-                userId = member.memberId,
-                category = NotificationCategory.GROUP,
-                title = "활동보고 제출",
-                content = "${group.title} 그룹의 활동보고가 제출되었습니다.",
-            )
+        val memberIds = getMemberIds(group.id)
+        val point = ExpointRule.보고서제출.point
+        val expointChange =
+            memberIds.takeIf { it.isNotEmpty() }
+                ?.let { GroupLogExpointChange(targetId = report.id, point = point, memberIds = it) }
+        recordReportActivity(group, requesterId, GroupLogData.ActivityReportSubmitted(report.id, seminarId), now, expointChange)
+        notifyMembers(memberIds, "활동보고 제출", "${group.title} 그룹의 활동보고가 제출되었습니다.")
+        memberIds.forEach { memberId ->
+            pointService.givePoint(memberId, point, "활동보고 제출")
         }
-        notificationService.createNotificationForManagers(
-            category = NotificationCategory.GROUP,
-            title = "활동보고 제출",
-            content = "${group.title} 그룹의 활동보고가 제출되었습니다.",
-        )
 
         return report.toResult(reportFileKey = fileUpload.fileKey)
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun editReport(
         groupId: Long,
         reportId: String,
@@ -137,159 +158,188 @@ class GroupActivityReportService(
         fileUploadId: String?,
         uploadLinkRequestPath: String,
     ): ActivityReportResult {
-        if (isPresentation == null && fileUploadId == null) throw BadRequestException("수정할 내용이 없습니다.")
-
-        val report =
-            groupActivityReportRepository.findLockedById(reportId) ?: throw NotFoundException("활동보고를 찾을 수 없습니다.")
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
-
-        validateGroupActivitySubmitPeriod(report.seminarId)
-
-        val oldFileUpload = getReportFileUpload(report)
-        val newFileUpload =
+        val uploadStatus =
             fileUploadId?.let {
-                fileUploadService.validateFileUpload(it, requesterId, uploadLinkRequestPath)
+                requireActiveGroup(groupRepository.findById(groupId).orElse(null))
+                val report = requireReport(groupActivityReportRepository.findByGroupIdAndId(groupId, reportId))
+                seminarService.requireActivityReportPeriod(report.seminarId)
+                activityReportUploadService.checkUploadedObject(it, requesterId, uploadLinkRequestPath)
             }
-        val isFileChanged = newFileUpload != null && newFileUpload.id != oldFileUpload.id
-        if (isFileChanged) {
-            fileReferences.replaceSingleFileReference(requireNotNull(newFileUpload).id, FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
+        val result =
+            writeTransaction.execute {
+                val group = requireActiveGroup(groupRepository.findLockedById(groupId))
+                val report = requireReport(groupActivityReportRepository.findLockedByGroupIdAndId(groupId, reportId))
+                seminarService.requireActivityReportPeriod(report.seminarId)
+                val newFile =
+                    fileUploadId?.let {
+                        activityReportUploadService.confirmUpload(it, requesterId, requireNotNull(uploadStatus), uploadLinkRequestPath)
+                            ?: return@execute null
+                    }
+                updateReport(group, report, requesterId, isPresentation, newFile)
+            }
+        return result ?: throw BadRequestException(requireNotNull(uploadStatus?.rejectionMessage))
+    }
+
+    private fun updateReport(
+        group: Group,
+        report: GroupActivityReport,
+        requesterId: Long,
+        isPresentation: Boolean?,
+        newFileUpload: FileUpload?,
+    ): ActivityReportResult {
+        val fileUpload = newFileUpload ?: getReportFileUpload(report)
+        val isFileChanged = newFileUpload != null
+        val nextIsPresentation = isPresentation ?: report.isPresentation
+        val isPresentationChanged = nextIsPresentation != report.isPresentation
+        if (!isPresentationChanged && !isFileChanged) return report.toResult(fileUpload.fileKey)
+        if (newFileUpload != null) {
+            fileReferenceService.replaceSingleFileReference(newFileUpload.id, FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
             fileUploadService.markAsUsed(newFileUpload)
         }
 
-        val nextIsPresentation = isPresentation ?: report.isPresentation
-        if (nextIsPresentation != report.isPresentation || isFileChanged) {
-            report.update(isPresentation = nextIsPresentation, updatedAt = Instant.now())
-        }
-        val savedReport = groupActivityReportRepository.save(report)
-
-        val members = groupMemberRepository.findByGroupId(groupId)
-        val notificationContent = buildEditNotificationContent(isPresentation, fileUploadId, group.title)
-        members.forEach { member ->
-            notificationService.createNotification(
-                userId = member.memberId,
-                category = NotificationCategory.GROUP,
-                title = "활동보고 수정",
-                content = notificationContent,
-            )
-        }
-        notificationService.createNotificationForManagers(
-            category = NotificationCategory.GROUP,
-            title = "활동보고 수정",
-            content = notificationContent,
-        )
-
-        return savedReport.toResult(reportFileKey = (newFileUpload ?: oldFileUpload).fileKey)
+        val now = Instant.now()
+        report.update(isPresentation = nextIsPresentation, updatedAt = now)
+        recordReportActivity(group, requesterId, GroupLogData.ActivityReportUpdated(report.id, report.seminarId), now)
+        notifyMembers(getMemberIds(group.id), "활동보고 수정", buildEditNotificationContent(isPresentationChanged, isFileChanged, group.title))
+        return report.toResult(reportFileKey = fileUpload.fileKey)
     }
 
     @Transactional
     fun cancelReport(
         groupId: Long,
         reportId: String,
+        requesterId: Long,
     ) {
-        val report =
-            groupActivityReportRepository.findLockedById(reportId) ?: throw NotFoundException("활동보고를 찾을 수 없습니다.")
-        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        if (report.groupId != groupId) throw NotFoundException("활동보고를 찾을 수 없습니다.")
+        val group = requireActiveGroup(groupRepository.findLockedById(groupId))
+        val report = requireReport(groupActivityReportRepository.findLockedByGroupIdAndId(groupId, reportId))
 
-        validateGroupActivitySubmitPeriod(report.seminarId)
+        seminarService.requireActivityReportPeriod(report.seminarId)
 
         groupActivityReportRepository.delete(report)
-        fileReferences.deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
+        fileReferenceService.deleteSingleFileReferenceByReferrer(FileReferenceType.GROUP_ACTIVITY_REPORT, report.id)
 
-        val members = groupMemberRepository.findByGroupId(groupId)
-        members.forEach { member ->
-            pointService.givePoint(member.memberId, -150, "활동보고 취소")
+        val memberIds = getMemberIds(group.id)
+        group.resumeByActivity()
+        group.recordActivity(Instant.now())
+        notifyMembers(memberIds, "활동보고 취소", "${group.title} 그룹의 활동보고가 취소되었습니다.")
+        groupLogService.revertExpointChange(
+            groupId = group.id,
+            actorMemberId = requesterId,
+            targetId = report.id,
+            targetLogTypes = setOf(GroupLogType.ACTIVITY_REPORT_SUBMITTED),
+            revertLog = GroupLogData.ActivityReportCancelled(report.id, report.seminarId),
+            message = "활동보고 취소",
+            fallbackRule = ExpointRule.보고서제출취소,
+            fallbackMemberIds = memberIds,
+        )
+    }
+
+    private fun notifyMembers(
+        memberIds: List<Long>,
+        title: String,
+        content: String,
+    ) {
+        memberIds.forEach { memberId ->
             notificationService.createNotification(
-                userId = member.memberId,
+                userId = memberId,
                 category = NotificationCategory.GROUP,
-                title = "활동보고 취소",
-                content = "${group.title} 그룹의 활동보고가 취소되었습니다.",
+                title = title,
+                content = content,
             )
         }
         notificationService.createNotificationForManagers(
             category = NotificationCategory.GROUP,
-            title = "활동보고 취소",
-            content = "${group.title} 그룹의 활동보고가 취소되었습니다.",
+            title = title,
+            content = content,
         )
     }
+
+    private fun getMemberIds(groupId: Long): List<Long> =
+        groupMemberRepository.findByGroupId(groupId).map { it.memberId }.distinct().sorted()
 
     @Transactional(readOnly = true)
     fun listReports(groupId: Long): ActivityReportListResult {
         groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
-        val rows = groupActivityReportRepository.findWithFilesByGroupId(groupId)
-        if (rows.groupBy { it.report.id }.values.any { it.size > 1 }) {
+        val rows = groupActivityReportRepository.findWithFileAndSeminarByGroupId(groupId)
+        if (rows.map { it.report.id }.toSet().size != rows.size) {
             throw InternalServerErrorException("활동보고 파일 참조가 중복되어 있습니다.")
         }
-        val reports = rows.map { it.report }
-
-        val seminars = bigSeminarRepository.findAllById(reports.map { it.seminarId }).associateBy { it.id }
-        val schedules = scheduleRepository.findAllById(seminars.values.map { it.scheduleId }).associateBy { it.id }
-
         val items =
             rows.map { row ->
                 val report = row.report
-                val seminar = seminars[report.seminarId]
-                val schedule = seminar?.let { schedules[it.scheduleId] }
                 val fileKey = row.fileKey ?: throw NotFoundException("활동보고 파일을 찾을 수 없습니다.")
+                val fileUploadId = row.fileUploadId ?: throw NotFoundException("활동보고 파일을 찾을 수 없습니다.")
 
                 ActivityReportListItem(
                     id = report.id,
                     groupId = report.groupId,
                     seminarId = report.seminarId,
-                    seminarDate = schedule?.scheduledAt,
-                    seminarIsSummerSeason = seminar?.isSummerSeason,
-                    seminarIsSpeakAfter = seminar?.isSpeakAfter,
+                    seminarDate = row.seminarScheduledAt?.atZone(SEMINAR_TIME_ZONE)?.toInstant(),
+                    seminarIsSummerSeason = row.seminarIsSummerSeason,
+                    seminarIsSpeakAfter = row.seminarIsSpeakAfter,
                     isPresentation = report.isPresentation,
-                    reportFileUrl = storageService.getDownloadUrl(fileKey),
-                    createdAt = report.createdAt.toUtcLocalDateTime(),
-                    updatedAt = report.updatedAt.toUtcLocalDateTime(),
+                    reportFileUrl = getReportFileUrl(fileKey, fileUploadId),
+                    createdAt = report.createdAt,
+                    updatedAt = report.updatedAt,
                 )
             }
 
         return ActivityReportListResult(reports = items)
     }
 
-    private fun getReportFileUpload(report: GroupActivityReport): com.sight.domain.file.FileUpload {
+    private fun getReportFileUpload(report: GroupActivityReport): FileUpload {
         val reference =
-            fileReferences.getSingleFileReferenceByReferrer(
+            fileReferenceService.getSingleFileReferenceByReferrer(
                 FileReferenceType.GROUP_ACTIVITY_REPORT,
                 report.id,
             ) ?: throw NotFoundException("활동보고 파일 참조를 찾을 수 없습니다.")
         return fileUploadService.getFileUploadById(reference.fileUploadId)
     }
 
-    private fun findNextSeminar(): BigSeminar? {
-        val now = LocalDateTime.now()
-        val upcomingSchedules = scheduleRepository.findByEndAtAfterOrderByScheduledAtAsc(now)
-        return upcomingSchedules.firstNotNullOfOrNull { schedule ->
-            bigSeminarRepository.findByScheduleId(schedule.id)
+    private fun getReportFileUrl(
+        key: String,
+        fileUploadId: String,
+    ): String =
+        try {
+            storageService.getDownloadUrl(
+                key,
+                FileDownloadOptions(fileName = fileUploadId, contentType = "application/octet-stream", inline = false),
+            ).url
+        } catch (_: StorageOperationException) {
+            throw BadGatewayException("활동보고 파일 주소를 발급할 수 없습니다.")
         }
+
+    private fun requireActiveGroup(group: Group?): Group {
+        val existing = group ?: throw NotFoundException("그룹을 찾을 수 없습니다.")
+        if (existing.status.isEnded) throw BadRequestException("종료된 그룹입니다.")
+        return existing
     }
 
-    private fun validateGroupActivitySubmitPeriod(seminarId: String) {
-        val seminar =
-            bigSeminarRepository.findById(seminarId)
-                .orElseThrow { NotFoundException("세미나를 찾을 수 없습니다.") }
-        val schedule =
-            scheduleRepository.findById(seminar.scheduleId)
-                .orElseThrow { NotFoundException("스케줄을 찾을 수 없습니다.") }
-        if (schedule.endAt <= LocalDateTime.now()) throw BadRequestException("접수 기간이 지났습니다.")
+    private fun requireReport(report: GroupActivityReport?): GroupActivityReport = report ?: throw NotFoundException("활동보고를 찾을 수 없습니다.")
+
+    private fun recordReportActivity(
+        group: Group,
+        actorId: Long,
+        log: GroupLogData,
+        at: Instant,
+        expointChange: GroupLogExpointChange? = null,
+    ) {
+        group.resumeByActivity()
+        group.recordActivity(at)
+        groupLogService.createLog(group.id, actorId, log, expointChange)
     }
 
     private fun buildEditNotificationContent(
-        isPresentation: Boolean?,
-        fileUploadId: String?,
+        isPresentationChanged: Boolean,
+        isFileChanged: Boolean,
         groupTitle: String,
     ): String =
         when {
-            isPresentation != null && fileUploadId != null ->
+            isPresentationChanged && isFileChanged ->
                 "$groupTitle 그룹의 활동보고 발표 여부 및 제출 파일이 변경되었습니다."
-            isPresentation != null -> "$groupTitle 그룹의 활동보고 발표 여부가 변경되었습니다."
+            isPresentationChanged -> "$groupTitle 그룹의 활동보고 발표 여부가 변경되었습니다."
             else -> "$groupTitle 그룹의 활동보고 제출 파일이 변경되었습니다."
         }
-
-    private fun Instant.toUtcLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 
     private fun GroupActivityReport.toResult(reportFileKey: String): ActivityReportResult =
         ActivityReportResult(
@@ -298,7 +348,7 @@ class GroupActivityReportService(
             seminarId = seminarId,
             isPresentation = isPresentation,
             reportFileKey = reportFileKey,
-            createdAt = createdAt.toUtcLocalDateTime(),
-            updatedAt = updatedAt.toUtcLocalDateTime(),
+            createdAt = createdAt,
+            updatedAt = updatedAt,
         )
 }

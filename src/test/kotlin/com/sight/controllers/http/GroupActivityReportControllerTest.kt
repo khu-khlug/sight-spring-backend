@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.Optional
 
 @WebMvcTest(
@@ -67,8 +67,8 @@ class GroupActivityReportControllerTest {
             seminarId = "seminar-1",
             isPresentation = true,
             reportFileKey = "reports/file-1.pdf",
-            createdAt = LocalDateTime.of(2026, 1, 1, 0, 0),
-            updatedAt = LocalDateTime.of(2026, 1, 1, 0, 0),
+            createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+            updatedAt = Instant.parse("2026-01-01T00:00:00Z"),
         )
 
     @BeforeEach
@@ -84,10 +84,12 @@ class GroupActivityReportControllerTest {
 
     @Test
     fun `활동보고 업로드 링크는 그룹장만 발급받을 수 있다`() {
-        given(groupActivityReportService.getUploadLink(GROUP_ID, LEADER_ID, requestPath = UPLOAD_LINK_PATH))
+        given(groupActivityReportService.getUploadLink(GROUP_ID, LEADER_ID, size = 1024L, uploadLinkRequestPath = UPLOAD_LINK_PATH))
             .willReturn(UploadLinkResult(url = "https://upload.example.com", fileKey = "reports/file-1.pdf", fileUploadId = "file-1"))
 
-        assertOnlyLeaderAllowed(status().isOk) { post(UPLOAD_LINK_PATH) }
+        assertOnlyLeaderAllowed(status().isOk) {
+            post(UPLOAD_LINK_PATH).contentType(MediaType.APPLICATION_JSON).content("""{"size":1024}""")
+        }
     }
 
     @Test
@@ -103,7 +105,7 @@ class GroupActivityReportControllerTest {
         ).willReturn(report)
 
         assertOnlyLeaderAllowed(status().isCreated) {
-            post("/groups/$GROUP_ID/activity-report")
+            post("/groups/$GROUP_ID/activity-reports")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"isPresentation":true,"fileUploadId":"file-1"}""")
         }
@@ -123,22 +125,32 @@ class GroupActivityReportControllerTest {
         ).willReturn(report)
 
         assertOnlyLeaderAllowed(status().isOk) {
-            patch("/groups/$GROUP_ID/activity-report/$REPORT_ID")
+            patch("/groups/$GROUP_ID/activity-reports/$REPORT_ID")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"isPresentation":false}""")
         }
     }
 
     @Test
+    fun `활동보고 수정은 발표 여부와 파일 아이디가 모두 없으면 400을 반환한다`() {
+        authenticate(LEADER_ID, UserRole.USER)
+        mockMvc.perform(
+            patch("/groups/$GROUP_ID/activity-reports/$REPORT_ID")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"isPresentation":null,"fileUploadId":null}"""),
+        ).andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun `활동보고는 그룹장과 운영진이 취소할 수 있다`() {
         authenticate(MEMBER_ID, UserRole.USER)
-        mockMvc.perform(delete("/groups/$GROUP_ID/activity-report/$REPORT_ID")).andExpect(status().isForbidden)
+        mockMvc.perform(delete("/groups/$GROUP_ID/activity-reports/$REPORT_ID")).andExpect(status().isForbidden)
 
         authenticate(LEADER_ID, UserRole.USER)
-        mockMvc.perform(delete("/groups/$GROUP_ID/activity-report/$REPORT_ID")).andExpect(status().isNoContent)
+        mockMvc.perform(delete("/groups/$GROUP_ID/activity-reports/$REPORT_ID")).andExpect(status().isNoContent)
 
         authenticate(MANAGER_ID, UserRole.MANAGER)
-        mockMvc.perform(delete("/groups/$GROUP_ID/activity-report/$REPORT_ID")).andExpect(status().isNoContent)
+        mockMvc.perform(delete("/groups/$GROUP_ID/activity-reports/$REPORT_ID")).andExpect(status().isNoContent)
     }
 
     @Test
@@ -146,13 +158,13 @@ class GroupActivityReportControllerTest {
         given(groupActivityReportService.listReports(GROUP_ID)).willReturn(ActivityReportListResult(reports = emptyList()))
 
         authenticate(OUTSIDER_ID, UserRole.USER)
-        mockMvc.perform(get("/groups/$GROUP_ID/activity-report")).andExpect(status().isForbidden)
+        mockMvc.perform(get("/groups/$GROUP_ID/activity-reports")).andExpect(status().isForbidden)
 
         authenticate(MEMBER_ID, UserRole.USER)
-        mockMvc.perform(get("/groups/$GROUP_ID/activity-report")).andExpect(status().isOk)
+        mockMvc.perform(get("/groups/$GROUP_ID/activity-reports")).andExpect(status().isOk)
 
         authenticate(MANAGER_ID, UserRole.MANAGER)
-        mockMvc.perform(get("/groups/$GROUP_ID/activity-report")).andExpect(status().isOk)
+        mockMvc.perform(get("/groups/$GROUP_ID/activity-reports")).andExpect(status().isOk)
     }
 
     private fun assertOnlyLeaderAllowed(
@@ -188,6 +200,6 @@ class GroupActivityReportControllerTest {
         private const val OUTSIDER_ID = 3L
         private const val MANAGER_ID = 9L
         private const val REPORT_ID = "report-1"
-        private const val UPLOAD_LINK_PATH = "/groups/$GROUP_ID/activity-report/upload-link"
+        private const val UPLOAD_LINK_PATH = "/groups/$GROUP_ID/activity-reports/upload-link"
     }
 }

@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.text.Normalizer
 
 class GroupRecordTextExtractorTest {
@@ -126,6 +128,62 @@ class GroupRecordTextExtractorTest {
             )
 
         assertEquals("보임1 보임2 보임3", text)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "display : none; display : block",
+            "visibility : hidden; visibility : visible",
+            "DISPLAY: NONE ! important; display: block !IMPORTANT",
+            "visibility: hidden !important; VISIBILITY: VISIBLE ! important",
+        ],
+    )
+    fun `같은 우선순위에서 마지막 선언이 표시 상태이면 텍스트를 포함한다`(style: String) {
+        assertEquals("본문", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "display: block; display: none",
+            "visibility: visible; visibility: hidden",
+            "display: block !important; display: none !important",
+            "visibility: visible !important; visibility: hidden !important",
+        ],
+    )
+    fun `같은 우선순위에서 마지막 선언이 숨김 상태이면 텍스트를 제외한다`(style: String) {
+        assertEquals("", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["display: none !important; display: block", "visibility: hidden !important; visibility: visible"])
+    fun `앞선 숨김 선언에 important가 있으면 뒤의 일반 표시 선언보다 우선한다`(style: String) {
+        assertEquals("", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["display: block !important; display: none", "visibility: visible !important; visibility: hidden"])
+    fun `앞선 표시 선언에 important가 있으면 뒤의 일반 숨김 선언보다 우선한다`(style: String) {
+        assertEquals("본문", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["display: none; display: block !important", "visibility: hidden; visibility: visible !important"])
+    fun `뒤의 표시 선언에 important가 있으면 앞선 일반 숨김 선언보다 우선한다`(style: String) {
+        assertEquals("본문", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["display: block; display: none !important", "visibility: visible; visibility: hidden !important"])
+    fun `뒤의 숨김 선언에 important가 있으면 앞선 일반 표시 선언보다 우선한다`(style: String) {
+        assertEquals("", html("""<p style="$style">본문</p>"""))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["display: none; visibility: visible", "visibility: hidden; display: block"])
+    fun `다른 속성의 표시 선언은 숨김 속성을 덮어쓰지 않는다`(style: String) {
+        assertEquals("", html("""<p style="$style">본문</p>"""))
     }
 
     @Test

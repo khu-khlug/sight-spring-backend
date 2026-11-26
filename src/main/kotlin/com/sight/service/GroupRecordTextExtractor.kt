@@ -32,15 +32,27 @@ class GroupRecordTextExtractor(
         return GroupSearchKeywords.normalizeText(document.body().text())
     }
 
-    // 인라인 스타일이 화면에서 숨기는지 확인한다. 속성 이름과 값의 공백, 대소문자, `!important` 차이는 무시한다.
-    private fun isHiddenByStyle(style: String): Boolean =
-        style.split(';').any { declaration ->
+    // 인라인 display·visibility는 속성별로 !important가 우선하며, 같은 우선순위에서는 마지막 선언을 적용한다.
+    private fun isHiddenByStyle(style: String): Boolean {
+        val effectiveDeclarations = mutableMapOf<String, InlineStyleDeclaration>()
+        for (declaration in style.split(';')) {
             val separator = declaration.indexOf(':')
-            if (separator < 0) return@any false
+            if (separator < 0) continue
             val name = declaration.substring(0, separator).filterNot { it.isBlankChar() }.lowercase()
-            val value = declaration.substring(separator + 1).filterNot { it.isBlankChar() }.lowercase().removeSuffix("!important")
-            (name == "display" && value == "none") || (name == "visibility" && value == "hidden")
+            if (name != "display" && name != "visibility") continue
+            val rawValue = declaration.substring(separator + 1).filterNot { it.isBlankChar() }.lowercase()
+            val isImportant = rawValue.endsWith(IMPORTANT_MARKER)
+            val value = rawValue.removeSuffix(IMPORTANT_MARKER)
+            if (value.isEmpty()) continue
+            val previous = effectiveDeclarations[name]
+            if (previous == null || !previous.isImportant || isImportant) {
+                effectiveDeclarations[name] = InlineStyleDeclaration(value, isImportant)
+            }
         }
+        return effectiveDeclarations["display"]?.value == "none" || effectiveDeclarations["visibility"]?.value == "hidden"
+    }
+
+    private data class InlineStyleDeclaration(val value: String, val isImportant: Boolean)
 
     private fun Char.isBlankChar(): Boolean = isWhitespace() || Character.isSpaceChar(this)
 
@@ -84,6 +96,8 @@ class GroupRecordTextExtractor(
     }
 
     companion object {
+        private const val IMPORTANT_MARKER = "!important"
+
         // 태그와 속성만으로 숨겨지는 요소. 인라인 스타일로 숨긴 요소는 공백 차이를 정리해 따로 판정한다.
         private const val HIDDEN_ELEMENT_SELECTOR = "script, style, noscript, template, head, [hidden], input[type=hidden]"
 

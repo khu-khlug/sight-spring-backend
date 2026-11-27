@@ -1,11 +1,17 @@
 package com.sight.service
 
+import com.sight.core.auth.Requester
+import com.sight.core.auth.UserRole
 import com.sight.core.exception.BadRequestException
+import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.core.groupauth.GroupVisibility
 import com.sight.domain.group.GroupBookmark
 import com.sight.domain.group.GroupCategory
+import com.sight.domain.group.GroupInfoItem
 import com.sight.domain.group.GroupInterest
+import com.sight.domain.group.GroupLogData
 import com.sight.domain.group.GroupOrderBy
 import com.sight.domain.group.GroupStatus
 import com.sight.domain.notification.NotificationCategory
@@ -15,6 +21,7 @@ import com.sight.repository.GroupRepository
 import com.sight.repository.dto.GroupListDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.util.HtmlUtils
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -49,6 +56,7 @@ class GroupService(
     private val groupMemberRepository: GroupMemberRepository,
     private val pointService: PointService,
     private val notificationService: NotificationService,
+    private val groupLogService: GroupLogService,
 ) {
     @Transactional(readOnly = true)
     fun listGroupsByQuery(
@@ -216,6 +224,74 @@ class GroupService(
                 category = NotificationCategory.GROUP,
                 title = "포트폴리오 취소",
                 content = "${group.title} 그룹의 포트폴리오가 취소되었습니다.",
+            )
+        }
+    }
+
+    // 그룹 정보를 요청 값으로 모두 덮어쓴다. 정보 변경은 활동으로 인정하지 않으므로
+    // 최근 활동 일시를 갱신하지 않고 중단 상태를 해제하지 않는다(중단 상태에서는 실행 자체를 거부한다).
+    @Transactional
+    fun updateGroup(
+        groupId: Long,
+        requester: Requester,
+        title: String,
+        description: String?,
+        category: GroupCategory,
+        interests: List<GroupInterest>?,
+        techStack: String?,
+        repositoryUrls: String?,
+        allowJoin: Boolean,
+        visibility: GroupVisibility,
+    ) {
+        val group = groupRepository.findById(groupId).orElseThrow { NotFoundException("그룹을 찾을 수 없습니다.") }
+
+        // 중단·종료된 그룹은 정보를 바꿀 수 없다. 중단 상태는 정보 변경이 중단을 해제하지 않으므로 거부한다.
+        if (group.status != GroupStatus.PROGRESS) {
+            throw BadRequestException("진행 중인 그룹만 정보를 변경할 수 있습니다.")
+        }
+
+        // 운영진 전용 유형과 운영진 공개 범위는 운영진만 지정할 수 있다. 운영진 공개가 운영 그룹에서만 가능한지는 도메인이 검사한다.
+        if (requester.role != UserRole.MANAGER && (category.isManagerOnly || visibility == GroupVisibility.MANAGER_ONLY)) {
+            throw ForbiddenException("운영진만 지정할 수 있는 그룹 유형 또는 공개 범위입니다.")
+        }
+
+        // 도메인은 값이 올바르지 않으면 상태를 바꾸기 전에 IllegalArgumentException을 던진다.
+        val changedItems =
+            try {
+                group.updateInfo(
+                    title = title,
+                    description = description,
+                    category = category,
+                    interests = interests,
+                    techStack = techStack,
+                    repositoryUrls = repositoryUrls,
+                    allowJoin = allowJoin,
+                    visibility = visibility,
+                )
+            } catch (e: IllegalArgumentException) {
+                throw BadRequestException(e.message ?: "그룹 정보가 올바르지 않습니다.")
+            }
+
+        // 현재와 같은 값으로 요청하면 성공으로 응답하되 알림·로그를 남기지 않는다.
+        if (changedItems.isEmpty()) return
+
+        val changedNames = GroupInfoItem.entries.filter { it in changedItems }.map { it.displayName }
+        groupLogService.createLog(
+            groupId = groupId,
+            actorMemberId = requester.userId,
+            data = GroupLogData.GroupInfoUpdated(changedFields = changedNames),
+        )
+
+        // 알림의 그룹 이름은 변경 후 이름이다.
+        val notificationContent =
+            "<a href=\"/group/$groupId\"><u>${HtmlUtils.htmlEscape(group.title)}</u></a> " +
+                "그룹 정보가 변경되었습니다. (변경 항목: ${changedNames.joinToString(", ")})"
+        groupMemberRepository.findByGroupId(groupId).forEach { member ->
+            notificationService.createNotification(
+                userId = member.memberId,
+                category = NotificationCategory.GROUP,
+                title = "",
+                content = notificationContent,
             )
         }
     }

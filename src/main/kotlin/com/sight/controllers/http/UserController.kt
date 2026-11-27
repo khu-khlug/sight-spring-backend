@@ -3,7 +3,9 @@ package com.sight.controllers.http
 import com.sight.controllers.http.dto.CallbackDiscordIntegrationRequest
 import com.sight.controllers.http.dto.GetCurrentUserResponse
 import com.sight.controllers.http.dto.GetDiscordIntegrationResponse
+import com.sight.controllers.http.dto.GetUserPreferenceResponse
 import com.sight.controllers.http.dto.IssueDiscordIntegrationUrlResponse
+import com.sight.controllers.http.dto.UpdateUserPreferenceRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
@@ -17,7 +19,10 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.net.URI
 
@@ -39,6 +44,27 @@ class UserController(
             studentStatus = member.studentStatus,
             createdAt = member.createdAt,
             updatedAt = member.updatedAt,
+        )
+    }
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.OK)
+    @GetMapping("/users/@me/preference")
+    fun getCurrentUserPreference(requester: Requester): GetUserPreferenceResponse =
+        GetUserPreferenceResponse(
+            usePersonalGithubUsage = userService.getPreferenceByUserId(requester.userId),
+        )
+
+    @Auth([UserRole.USER, UserRole.MANAGER])
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PatchMapping("/users/@me/preference")
+    fun updateCurrentUserPreference(
+        requester: Requester,
+        @Valid @RequestBody request: UpdateUserPreferenceRequest,
+    ) {
+        userService.updatePreference(
+            userId = requester.userId,
+            usePersonalGithubUsage = request.personalGithubUsageValue(),
         )
     }
 

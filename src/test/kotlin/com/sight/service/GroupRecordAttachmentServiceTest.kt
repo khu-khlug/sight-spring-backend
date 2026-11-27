@@ -10,7 +10,9 @@ import com.sight.domain.group.GroupRecordFile
 import com.sight.domain.group.testGroup
 import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupFileRepository
+import com.sight.repository.GroupRecordDraftRepository
 import com.sight.repository.GroupRecordFileRepository
+import com.sight.repository.GroupRecordRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupRecordFileView
@@ -40,10 +42,22 @@ class GroupRecordAttachmentServiceTest {
     private val members = mock<MemberRepository>()
     private val uploadChecks = mock<GroupRecordUploadService>()
     private val systemConfigRegistry = mock<SystemConfigRegistry>()
+    private val records = mock<GroupRecordRepository>()
+    private val drafts = mock<GroupRecordDraftRepository>()
     private val service =
         GroupRecordAttachmentService(
-            recordFileRepository, fileUploadRepository, groupFiles, ids, storage, fileReferenceService, groups, members, uploadChecks,
+            recordFileRepository,
+            fileUploadRepository,
+            groupFiles,
+            ids,
+            storage,
+            fileReferenceService,
+            groups,
+            members,
+            uploadChecks,
             FileUploadSizePolicyService(systemConfigRegistry),
+            records,
+            drafts,
         )
 
     @BeforeEach
@@ -312,6 +326,51 @@ class GroupRecordAttachmentServiceTest {
             given(groupFiles.existsByGroupIdAndFileUploadId(1L, fileUpload.id)).willReturn(true)
             given(storage.isFileExists(fileUpload.fileKey)).willReturn(true)
         }
+    }
+
+    @Test
+    fun `업로드가 미완료이고 R2에 객체가 없으면 첨부 참조를 정리 대상으로 판단한다`() {
+        val view = view("missing", RECORD, "3", "block")
+
+        assertTrue(service.isAttachmentCleanupTarget(FileCleanupContext(view.fileUpload, view.fileReference, false)))
+    }
+
+    @Test
+    fun `원본 기록이 남아 있으면 복구 가능한 기록의 첨부를 유지한다`() {
+        val view = view("record", RECORD, "3", "block")
+        given(records.existsIncludingDeletedById(3L)).willReturn(true)
+
+        assertFalse(service.isAttachmentCleanupTarget(FileCleanupContext(view.fileUpload, view.fileReference, true)))
+    }
+
+    @Test
+    fun `임시저장이 남아 있으면 임시저장의 첨부를 유지한다`() {
+        val view = view("draft", FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT, "4", "block")
+        given(drafts.existsById(4L)).willReturn(true)
+
+        assertFalse(service.isAttachmentCleanupTarget(FileCleanupContext(view.fileUpload, view.fileReference, true)))
+    }
+
+    @Test
+    fun `원본 기록이 실제로 없어지면 업로드가 끝난 첨부 참조도 정리 대상으로 판단한다`() {
+        val view = view("orphan", RECORD, "3", "block")
+        view.fileUpload.markUploaded()
+
+        assertTrue(service.isAttachmentCleanupTarget(FileCleanupContext(view.fileUpload, view.fileReference, null)))
+    }
+
+    @Test
+    fun `주기적 청소에서 첨부 부가 행을 제거하면 공통 참조를 해제하기 전에 반영한다`() {
+        val view = view("orphan", RECORD, "3", "block")
+        given(recordFileRepository.findByFileReferenceId(view.fileReference.id)).willReturn(view.recordFile)
+
+        service.deleteAttachmentDetailsForCleanup(view.fileReference)
+
+        inOrder(recordFileRepository) {
+            verify(recordFileRepository).delete(view.recordFile)
+            verify(recordFileRepository).flush()
+        }
+        verifyNoInteractions(fileReferenceService, fileUploadRepository, storage)
     }
 
     private fun newFile(size: Long) = RecordFileInput("block", null, "file.txt", size, "text/plain")

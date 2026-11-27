@@ -7,6 +7,7 @@ plugins {
     kotlin("plugin.spring") version "1.9.25"
     kotlin("plugin.jpa") version "1.9.25"
     kotlin("kapt") version "1.9.25"
+    id("com.google.devtools.ksp") version "1.9.25-1.0.20"
     id("org.jlleitschuh.gradle.ktlint") version "12.1.1"
 }
 
@@ -19,6 +20,7 @@ repositories {
 }
 
 dependencies {
+    ksp(project(":build-tools:periodic-file-cleanup"))
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
 

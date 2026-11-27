@@ -3,17 +3,21 @@ package com.sight.service
 import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.NotFoundException
+import com.sight.domain.file.FileReference
 import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
 import com.sight.domain.group.GroupFile
 import com.sight.domain.group.GroupRecordFile
 import com.sight.repository.FileUploadRepository
 import com.sight.repository.GroupFileRepository
+import com.sight.repository.GroupRecordDraftRepository
 import com.sight.repository.GroupRecordFileRepository
+import com.sight.repository.GroupRecordRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
 import com.sight.repository.dto.GroupRecordFileView
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
@@ -31,7 +35,28 @@ class GroupRecordAttachmentService(
     private val members: MemberRepository,
     private val uploadChecks: GroupRecordUploadService,
     private val fileUploadSizePolicyService: FileUploadSizePolicyService,
+    private val groupRecordRepository: GroupRecordRepository,
+    private val groupRecordDraftRepository: GroupRecordDraftRepository,
 ) {
+    @PeriodicFileCleanup(FileReferenceType.GROUP_RECORD_ATTACHMENT, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT)
+    @Transactional(readOnly = true)
+    fun isAttachmentCleanupTarget(context: FileCleanupContext): Boolean {
+        if (!context.upload.isUploaded && context.objectExists == false) return true
+        val referrerId = context.reference.referrerId.toLongOrNull() ?: return false
+        return when (context.reference.referenceType) {
+            FileReferenceType.GROUP_RECORD_ATTACHMENT -> !groupRecordRepository.existsIncludingDeletedById(referrerId)
+            FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT -> !groupRecordDraftRepository.existsById(referrerId)
+            else -> false
+        }
+    }
+
+    @BeforePeriodicFileCleanup(FileReferenceType.GROUP_RECORD_ATTACHMENT, FileReferenceType.GROUP_RECORD_DRAFT_ATTACHMENT)
+    @Transactional(propagation = Propagation.MANDATORY)
+    fun deleteAttachmentDetailsForCleanup(reference: FileReference) {
+        recordFileRepository.findByFileReferenceId(reference.id)?.let { recordFileRepository.delete(it) }
+        recordFileRepository.flush()
+    }
+
     @Transactional
     fun replaceRecordFiles(
         groupId: Long,

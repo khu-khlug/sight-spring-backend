@@ -17,6 +17,12 @@ interface FileReferenceRepository {
 
     fun findDistinctTypesByFileUploadId(fileUploadId: String): Set<FileReferenceType>
 
+    fun findByFileUploadIdOrderById(
+        fileUploadId: String,
+        cursor: String,
+        limit: Int,
+    ): List<FileReference>
+
     fun save(reference: FileReference): FileReference
 
     fun deleteByIdAndRefTypeAndReferrer(

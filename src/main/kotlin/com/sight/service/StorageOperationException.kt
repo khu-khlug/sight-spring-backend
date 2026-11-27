@@ -10,4 +10,7 @@ enum class StorageFailureReason {
 class StorageOperationException(val reason: StorageFailureReason, message: String, cause: Throwable? = null) : RuntimeException(
     message,
     cause,
-)
+) {
+    val stopsMaintenance: Boolean
+        get() = reason == StorageFailureReason.NO_SUCH_BUCKET || reason == StorageFailureReason.AUTHENTICATION
+}

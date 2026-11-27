@@ -27,6 +27,7 @@ class FileUploadServiceTest {
     private val fileUploadRepository = mock<FileUploadRepository>()
     private val storageService = mock<StorageService>()
     private val deletions = mock<FileUploadDeletionService>()
+    private val uploadChecks = mock<FileUploadCheckService>()
     private val systemConfigRegistry = mock<SystemConfigRegistry>()
     private lateinit var service: FileUploadService
 
@@ -34,7 +35,14 @@ class FileUploadServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = FileUploadService(fileUploadRepository, storageService, deletions, FileUploadSizePolicyService(systemConfigRegistry))
+        service =
+            FileUploadService(
+                fileUploadRepository,
+                storageService,
+                deletions,
+                FileUploadSizePolicyService(systemConfigRegistry),
+                uploadChecks,
+            )
         given(systemConfigRegistry.getValueAsLong(any())).willAnswer { it.getArgument<ConfigKey>(0).defaultValue.toLong() }
         given(storageService.generateUploadUrl(any())).willReturn("https://upload.example.com")
         given(storageService.isFileExists(any())).willReturn(true)
@@ -69,6 +77,7 @@ class FileUploadServiceTest {
 
         verify(storageService).generateUploadUrl(link.fileKey, size)
         verify(fileUploadRepository).saveAndFlush(argThat { this.size == size && fileKey == link.fileKey })
+        verify(uploadChecks).scheduleUploadCheck(baseFileUpload.id, baseFileUpload.uploadCheckAt)
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.util.HtmlUtils
@@ -77,9 +78,8 @@ class GroupMemberService(
         newLeaderId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
         if (group.isEnded) {
             throw BadRequestException("종료된 그룹입니다")
@@ -94,9 +94,8 @@ class GroupMemberService(
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, newLeaderId)) {
-            throw BadRequestException("위임 대상이 그룹 멤버가 아닙니다")
-        }
+        groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, newLeaderId)
+            ?: throw BadRequestException("위임 대상이 그룹 멤버가 아닙니다")
 
         val oldLeader =
             memberRepository.findById(requesterId).orElseThrow {
@@ -144,9 +143,8 @@ class GroupMemberService(
         isManager: Boolean = false,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
         val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
 
@@ -167,7 +165,11 @@ class GroupMemberService(
         }
 
         val groupMemberId = integerIdService.nextId()
-        groupMemberRepository.save(groupMemberId, groupId, requesterId, Instant.now())
+        try {
+            groupMemberRepository.save(groupMemberId, groupId, requesterId, Instant.now())
+        } catch (_: DataIntegrityViolationException) {
+            throw BadRequestException("이미 그룹 멤버입니다")
+        }
 
         val point = ExpointRule.그룹참여.point
         groupLogService.createLog(
@@ -225,9 +227,8 @@ class GroupMemberService(
         kickedMemberId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
         if (group.isEnded) {
             throw BadRequestException("종료된 그룹입니다")
@@ -247,7 +248,7 @@ class GroupMemberService(
             }
 
         val targetMember =
-            groupMemberRepository.findByGroupIdAndMemberId(groupId, kickedMemberId)
+            groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, kickedMemberId)
                 ?: throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
 
         // 동시에 같은 회원을 내보내면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.
@@ -289,9 +290,8 @@ class GroupMemberService(
         requesterId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
         if (group.isEnded) {
             throw BadRequestException("종료된 그룹입니다")
@@ -303,7 +303,7 @@ class GroupMemberService(
         }
 
         val groupMember =
-            groupMemberRepository.findByGroupIdAndMemberId(groupId, requesterId)
+            groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, requesterId)
                 ?: throw BadRequestException("그룹 멤버가 아닙니다")
 
         // 동시에 나가기를 요청하면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.

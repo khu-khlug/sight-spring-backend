@@ -33,6 +33,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.springframework.dao.DataIntegrityViolationException
 import java.time.Instant
 import java.util.Optional
 
@@ -103,6 +104,7 @@ class GroupMemberServiceTest {
         isMember: Boolean = true,
     ) {
         given(groupRepository.findById(group.id)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(group.id)).willReturn(group)
         given(memberRepository.findById(requester.id)).willReturn(Optional.of(requester))
         given(groupMemberRepository.existsByGroupIdAndMemberId(group.id, requester.id)).willReturn(isMember)
     }
@@ -207,10 +209,12 @@ class GroupMemberServiceTest {
         val group = createGroup(id = 100L, master = 1L)
         val requester = createMember(id = 1L)
         val newLeader = createMember(id = 2L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(2L)).willReturn(Optional.of(newLeader))
         given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 2L)).willReturn(true)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 2L)).willReturn(
+            GroupMember(id = 2L, groupId = 100L, memberId = 2L, joinedAt = Instant.EPOCH),
+        )
         given(groupMemberRepository.findByGroupId(100L)).willReturn(
             listOf(
                 testGroupMember(groupId = 100L, memberId = 1L),
@@ -255,7 +259,7 @@ class GroupMemberServiceTest {
         // given
         listOf(GroupStatus.SUCCESS, GroupStatus.FAIL).forEach { status ->
             val group = createGroup(id = 100L, master = 1L, status = status)
-            given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+            given(groupRepository.findLockedById(100L)).willReturn(group)
 
             // then
             assertThrows<BadRequestException> {
@@ -270,10 +274,10 @@ class GroupMemberServiceTest {
         val group = createGroup(id = 100L, master = 1L)
         val requester = createMember(id = 1L)
         val newLeader = createMember(id = 2L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(2L)).willReturn(Optional.of(newLeader))
         given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
-        given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 2L)).willReturn(false)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 2L)).willReturn(null)
 
         // then
         assertThrows<BadRequestException> {
@@ -287,7 +291,7 @@ class GroupMemberServiceTest {
         // given
         val group = createGroup(id = 100L, master = 1L)
         val requester = createMember(id = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(1L)).willReturn(Optional.of(requester))
 
         // then
@@ -300,7 +304,7 @@ class GroupMemberServiceTest {
     @Test
     fun `delegateLeader는 그룹이 존재하지 않으면 404를 던진다`() {
         // given
-        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+        given(groupRepository.findLockedById(999L)).willReturn(null)
 
         // then
         assertThrows<NotFoundException> {
@@ -312,7 +316,7 @@ class GroupMemberServiceTest {
     fun `delegateLeader는 위임 대상 회원이 존재하지 않으면 404를 던진다`() {
         // given
         val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(999L)).willReturn(Optional.empty())
 
         // then
@@ -547,9 +551,33 @@ class GroupMemberServiceTest {
     }
 
     @Test
+    fun `joinGroup은 중복 참가로 DataIntegrityViolationException이 발생하면 400을 던진다`() {
+        // given
+        val group =
+            createGroup(
+                id = 100L,
+                master = 1L,
+                visibility = GroupVisibility.PUBLIC,
+                status = GroupStatus.PROGRESS,
+                allowJoin = true,
+            )
+        val requester = createMember(id = 2L)
+        stubGroupAndRequester(group, requester, isMember = false)
+        given(groupMemberRepository.save(any(), eq(100L), eq(2L), any()))
+            .willThrow(DataIntegrityViolationException("Duplicate entry"))
+
+        // then
+        val ex =
+            assertThrows<BadRequestException> {
+                groupMemberService.joinGroup(groupId = 100L, requesterId = 2L)
+            }
+        assertEquals("이미 그룹 멤버입니다", ex.message)
+    }
+
+    @Test
     fun `joinGroup은 그룹이 존재하지 않으면 404를 던진다`() {
         // given
-        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+        given(groupRepository.findLockedById(999L)).willReturn(null)
 
         // then
         assertThrows<NotFoundException> {
@@ -562,9 +590,9 @@ class GroupMemberServiceTest {
         // given
         val group = createGroup(id = 100L, master = 1L)
         val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(
             GroupMember(id = 777L, groupId = 100L, memberId = 5L, joinedAt = Instant.EPOCH),
         )
 
@@ -598,7 +626,7 @@ class GroupMemberServiceTest {
         // given
         listOf(GroupStatus.SUCCESS, GroupStatus.FAIL).forEach { status ->
             val group = createGroup(id = 100L, master = 1L, status = status)
-            given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+            given(groupRepository.findLockedById(100L)).willReturn(group)
 
             // then
             assertThrows<BadRequestException> {
@@ -611,7 +639,7 @@ class GroupMemberServiceTest {
     fun `kickMember는 운영 그룹에서 400을 던진다`() {
         // given
         val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
 
         // then
         assertThrows<BadRequestException> {
@@ -623,7 +651,7 @@ class GroupMemberServiceTest {
     fun `kickMember는 자기 자신을 내보낼 수 없다`() {
         // given
         val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
 
         // then
         assertThrows<BadRequestException> {
@@ -636,9 +664,9 @@ class GroupMemberServiceTest {
         // given
         val group = createGroup(id = 100L, master = 1L, status = GroupStatus.STOP)
         val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(
             GroupMember(id = 777L, groupId = 100L, memberId = 5L, joinedAt = Instant.EPOCH),
         )
 
@@ -654,9 +682,9 @@ class GroupMemberServiceTest {
         // given
         val group = createGroup(id = 100L, master = 1L)
         val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(
             GroupMember(id = 777L, groupId = 100L, memberId = 5L, joinedAt = Instant.EPOCH),
         )
         given(groupMemberRepository.delete(100L, 5L)).willReturn(0)
@@ -674,9 +702,9 @@ class GroupMemberServiceTest {
         // given
         val group = createGroup(id = 100L, master = 1L)
         val kickedMember = createMember(id = 5L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(5L)).willReturn(Optional.of(kickedMember))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(null)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(null)
 
         // then
         assertThrows<BadRequestException> {
@@ -687,7 +715,7 @@ class GroupMemberServiceTest {
     @Test
     fun `kickMember는 그룹이 존재하지 않으면 404를 던진다`() {
         // given
-        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+        given(groupRepository.findLockedById(999L)).willReturn(null)
 
         // then
         assertThrows<NotFoundException> {
@@ -699,7 +727,7 @@ class GroupMemberServiceTest {
     fun `kickMember는 대상 회원이 존재하지 않으면 404를 던진다`() {
         // given
         val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(memberRepository.findById(999L)).willReturn(Optional.empty())
 
         // then
@@ -712,8 +740,8 @@ class GroupMemberServiceTest {
     fun `leaveGroup은 일반 카테고리 그룹 탈퇴 시 멤버 삭제·로그·알림·포인트 차감·상태 갱신을 수행한다`() {
         // given - 일반 카테고리, requester는 일반 멤버 (master 아님)
         val group = createGroup(id = 100L, master = 1L)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(
+        given(groupRepository.findLockedById(100L)).willReturn(group)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(
             GroupMember(id = 888L, groupId = 100L, memberId = 5L, joinedAt = Instant.EPOCH),
         )
 
@@ -765,7 +793,7 @@ class GroupMemberServiceTest {
         // given
         listOf(GroupStatus.SUCCESS, GroupStatus.FAIL).forEach { status ->
             val group = createGroup(id = 100L, master = 1L, status = status)
-            given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+            given(groupRepository.findLockedById(100L)).willReturn(group)
 
             // then
             assertThrows<BadRequestException> {
@@ -778,8 +806,8 @@ class GroupMemberServiceTest {
     fun `leaveGroup은 운영 카테고리에서 잔여 멤버 전체에게 알림을 발송하고 남은 멤버 중 한 명을 그룹장으로 지정한다`() {
         // given - 운영 카테고리, master(1L)가 탈퇴, 잔여 멤버 2L, 3L
         val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 1L)).willReturn(
+        given(groupRepository.findLockedById(100L)).willReturn(group)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 1L)).willReturn(
             GroupMember(id = 888L, groupId = 100L, memberId = 1L, joinedAt = Instant.EPOCH),
         )
         // leave_member 이후의 멤버 목록 (탈퇴자 본인은 빠짐)
@@ -831,8 +859,8 @@ class GroupMemberServiceTest {
     fun `leaveGroup은 운영 카테고리에서 마지막 그룹원인 그룹장이 탈퇴하면 leaderMemberId를 null로 저장한다`() {
         // given - 운영 카테고리, 마지막 멤버 1L 탈퇴
         val group = createGroup(id = 100L, master = 1L, category = GroupCategory.MANAGE)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 1L)).willReturn(
+        given(groupRepository.findLockedById(100L)).willReturn(group)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 1L)).willReturn(
             GroupMember(id = 888L, groupId = 100L, memberId = 1L, joinedAt = Instant.EPOCH),
         )
         given(groupMemberRepository.findByGroupId(100L)).willReturn(emptyList())
@@ -848,8 +876,8 @@ class GroupMemberServiceTest {
     fun `leaveGroup은 SUSPEND 상태 그룹에서 탈퇴하면 상태가 PROGRESS로 전환된다`() {
         // given
         val group = createGroup(id = 100L, master = 1L, status = GroupStatus.STOP)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
-        given(groupMemberRepository.findByGroupIdAndMemberId(100L, 5L)).willReturn(
+        given(groupRepository.findLockedById(100L)).willReturn(group)
+        given(groupMemberRepository.findLockedByGroupIdAndMemberId(100L, 5L)).willReturn(
             GroupMember(id = 888L, groupId = 100L, memberId = 5L, joinedAt = Instant.EPOCH),
         )
 
@@ -864,7 +892,7 @@ class GroupMemberServiceTest {
     fun `leaveGroup은 일반 카테고리에서 그룹장이 탈퇴하려 하면 400을 던진다`() {
         // given - 일반 카테고리, requester == master
         val group = createGroup(id = 100L, master = 1L, category = GroupCategory.STUDY)
-        given(groupRepository.findById(100L)).willReturn(Optional.of(group))
+        given(groupRepository.findLockedById(100L)).willReturn(group)
         given(groupMemberRepository.existsByGroupIdAndMemberId(100L, 1L)).willReturn(true)
 
         // then
@@ -876,7 +904,7 @@ class GroupMemberServiceTest {
     @Test
     fun `leaveGroup은 그룹이 존재하지 않으면 404를 던진다`() {
         // given
-        given(groupRepository.findById(999L)).willReturn(Optional.empty())
+        given(groupRepository.findLockedById(999L)).willReturn(null)
 
         // then
         assertThrows<NotFoundException> {

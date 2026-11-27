@@ -2,148 +2,51 @@ package com.sight.repository
 
 import com.sight.domain.group.GroupMember
 import com.sight.repository.dto.GroupMemberListDto
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.core.RowMapper
-import org.springframework.stereotype.Repository
-import java.sql.Timestamp
+import jakarta.persistence.LockModeType
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.Repository
+import org.springframework.data.repository.query.Param
 import java.time.Instant
 
-@Repository
-class GroupMemberRepository(
-    private val jdbcTemplate: JdbcTemplate,
-) {
-    private val groupMemberRowMapper =
-        RowMapper { rs, _ ->
-            GroupMember(
-                id = rs.getLong("id"),
-                groupId = rs.getLong("group_id"),
-                memberId = rs.getLong("member_id"),
-                joinedAt = rs.getTimestamp("joined_at").toInstant(),
-            )
-        }
+interface GroupMemberRepository : Repository<GroupMember, Long>, GroupMemberRepositoryCustom {
+    fun findByGroupId(groupId: Long): List<GroupMember>
 
-    fun findMemberListByGroupId(groupId: Long): List<GroupMemberListDto> {
-        return jdbcTemplate.query(
-            """
-            SELECT
-                m.id AS user_id,
-                m.realname AS name,
-                m.college AS college,
-                COALESCE(c.card_count, 0) AS card_count,
-                COALESCE(r.record_count, 0) AS record_count
-            FROM khlug_group_member gm
-            JOIN khlug_members m ON gm.member_id = m.id
-            LEFT JOIN (
-                SELECT author_member_id, COUNT(*) AS card_count
-                FROM khlug_group_card
-                WHERE group_id = ? AND deleted_at IS NULL
-                GROUP BY author_member_id
-            ) c ON c.author_member_id = m.id
-            LEFT JOIN (
-                SELECT rc.author_member_id, COUNT(*) AS record_count
-                FROM khlug_group_record rc
-                JOIN khlug_group_card gc ON rc.card_id = gc.id
-                WHERE gc.group_id = ? AND rc.deleted_at IS NULL AND gc.deleted_at IS NULL
-                GROUP BY rc.author_member_id
-            ) r ON r.author_member_id = m.id
-            WHERE gm.group_id = ?
-            ORDER BY m.id ASC
-            """.trimIndent(),
-            { rs, _ ->
-                GroupMemberListDto(
-                    userId = rs.getLong("user_id"),
-                    name = rs.getString("name"),
-                    college = rs.getString("college"),
-                    cardCount = rs.getLong("card_count"),
-                    recordCount = rs.getLong("record_count"),
-                )
-            },
-            groupId,
-            groupId,
-            groupId,
-        )
-    }
-
-    fun findByGroupId(groupId: Long): List<GroupMember> {
-        return jdbcTemplate.query(
-            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ?",
-            groupMemberRowMapper,
-            groupId,
-        )
-    }
-
-    fun findByMemberId(memberId: Long): List<GroupMember> {
-        return jdbcTemplate.query(
-            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE member_id = ?",
-            groupMemberRowMapper,
-            memberId,
-        )
-    }
+    fun findByMemberId(memberId: Long): List<GroupMember>
 
     fun findByGroupIdAndMemberId(
         groupId: Long,
         memberId: Long,
-    ): GroupMember? {
-        return jdbcTemplate.query(
-            "SELECT id, group_id, member_id, joined_at FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
-            groupMemberRowMapper,
-            groupId,
-            memberId,
-        ).firstOrNull()
-    }
+    ): GroupMember?
 
     fun existsByGroupIdAndMemberId(
         groupId: Long,
         memberId: Long,
-    ): Boolean {
-        val count =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
-                Int::class.java,
-                groupId,
-                memberId,
-            ) ?: 0
+    ): Boolean
 
-        return count > 0
-    }
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT gm FROM GroupMember gm WHERE gm.groupId = :groupId AND gm.memberId = :memberId")
+    fun findLockedByGroupIdAndMemberId(
+        @Param("groupId") groupId: Long,
+        @Param("memberId") memberId: Long,
+    ): GroupMember?
+}
+
+interface GroupMemberRepositoryCustom {
+    fun findMemberListByGroupId(groupId: Long): List<GroupMemberListDto>
 
     fun save(
         id: Long,
         groupId: Long,
         memberId: Long,
         joinedAt: Instant,
-    ) {
-        jdbcTemplate.update(
-            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
-            id,
-            groupId,
-            memberId,
-            Timestamp.from(joinedAt),
-        )
-    }
+    )
+
+    fun saveAll(groupMembers: List<GroupMember>)
 
     // 삭제한 행 수를 반환한다. 0이면 이미 그룹원이 아니다.
     fun delete(
         groupId: Long,
         memberId: Long,
-    ): Int {
-        return jdbcTemplate.update(
-            "DELETE FROM khlug_group_member WHERE group_id = ? AND member_id = ?",
-            groupId,
-            memberId,
-        )
-    }
-
-    fun saveAll(groupMembers: List<GroupMember>) {
-        jdbcTemplate.batchUpdate(
-            "INSERT INTO khlug_group_member (id, group_id, member_id, joined_at) VALUES (?, ?, ?, ?)",
-            groupMembers,
-            groupMembers.size,
-        ) { ps, groupMember ->
-            ps.setLong(1, groupMember.id)
-            ps.setLong(2, groupMember.groupId)
-            ps.setLong(3, groupMember.memberId)
-            ps.setTimestamp(4, Timestamp.from(groupMember.joinedAt))
-        }
-    }
+    ): Int
 }

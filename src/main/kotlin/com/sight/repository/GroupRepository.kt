@@ -47,6 +47,12 @@ interface GroupRepository : JpaRepository<Group, Long>, GroupRepositoryCustom {
         @Param("newLeaderMemberId") newLeaderMemberId: Long,
     ): Int
 
+    @Modifying
+    @Query("UPDATE KhlugGroup g SET g.leaderMemberId = NULL WHERE g.id = :id")
+    fun clearLeaderById(
+        @Param("id") id: Long,
+    ): Int
+
     // 포트폴리오 발행 여부가 반대 상태일 때만 바꾼다. 바뀐 행 수가 0이면 이미 같은 상태로 바뀐 것이다.
     @Modifying
     @Query(

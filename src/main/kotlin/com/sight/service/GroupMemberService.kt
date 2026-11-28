@@ -3,14 +3,16 @@ package com.sight.service
 import com.sight.core.exception.BadRequestException
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
-import com.sight.domain.group.Group
+import com.sight.domain.expoint.ExpointRule
 import com.sight.domain.group.GroupCategory
 import com.sight.domain.group.GroupLogData
-import com.sight.domain.group.GroupPolicy
+import com.sight.domain.group.GroupLogExpointChange
+import com.sight.domain.group.GroupLogType
 import com.sight.domain.notification.NotificationCategory
 import com.sight.repository.GroupMemberRepository
 import com.sight.repository.GroupRepository
 import com.sight.repository.MemberRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.util.HtmlUtils
@@ -19,11 +21,13 @@ import java.time.Instant
 data class GroupMemberListItem(
     val userId: Long,
     val name: String,
-    val realname: String,
-    val isLeader: Boolean,
+    val college: String,
+    val cardCount: Long,
+    val recordCount: Long,
 )
 
 data class GroupMemberListResult(
+    val leaderUserId: Long?,
     val members: List<GroupMemberListItem>,
 )
 
@@ -45,53 +49,61 @@ class GroupMemberService(
             }
 
         val members = groupMemberRepository.findMemberListByGroupId(groupId)
+        val leaderId = group.leaderMemberId
         val sorted =
             members
-                .map { it.toItem(group) }
-                .sortedWith(compareByDescending<GroupMemberListItem> { it.isLeader }.thenBy { it.userId })
+                .map { it.toItem() }
+                .sortedWith(
+                    compareBy<GroupMemberListItem> { if (leaderId != null && it.userId == leaderId) 0 else 1 }
+                        .thenBy { it.name }
+                        .thenBy { it.userId },
+                )
 
-        return GroupMemberListResult(members = sorted)
+        return GroupMemberListResult(leaderUserId = leaderId, members = sorted)
     }
 
-    private fun com.sight.repository.dto.GroupMemberListDto.toItem(group: Group): GroupMemberListItem =
+    private fun com.sight.repository.dto.GroupMemberListDto.toItem(): GroupMemberListItem =
         GroupMemberListItem(
             userId = this.userId,
             name = this.name,
-            realname = this.realname,
-            isLeader = group.isLeader(this.userId),
+            college = this.college,
+            cardCount = this.cardCount,
+            recordCount = this.recordCount,
         )
 
     @Transactional
-    fun delegateMaster(
+    fun delegateLeader(
         groupId: Long,
         requesterId: Long,
-        newMasterId: Long,
+        newLeaderId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
-        if (newMasterId == requesterId) {
+        if (group.isEnded) {
+            throw BadRequestException("종료된 그룹입니다")
+        }
+
+        if (newLeaderId == requesterId) {
             throw BadRequestException("자기 자신에게 위임할 수 없습니다")
         }
 
-        val newMaster =
-            memberRepository.findById(newMasterId).orElseThrow {
+        val newLeader =
+            memberRepository.findById(newLeaderId).orElseThrow {
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, newMasterId)) {
-            throw BadRequestException("위임 대상이 그룹 멤버가 아닙니다")
-        }
+        groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, newLeaderId)
+            ?: throw BadRequestException("위임 대상이 그룹 멤버가 아닙니다")
 
-        val oldMaster =
+        val oldLeader =
             memberRepository.findById(requesterId).orElseThrow {
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
         // 그 사이 다른 요청이 그룹장을 바꿨으면 요청자는 더 이상 그룹장이 아니다.
-        if (groupRepository.changeLeaderById(groupId, requesterId, newMasterId) == 0) {
+        if (groupRepository.changeLeaderById(groupId, requesterId, newLeaderId) == 0) {
             throw ForbiddenException("그룹장만 위임할 수 있습니다")
         }
         recordGroupActivity(groupId)
@@ -101,18 +113,18 @@ class GroupMemberService(
             actorMemberId = requesterId,
             data =
                 GroupLogData.GroupLeaderDelegated(
-                    fromUserId = oldMaster.id,
-                    fromUserName = oldMaster.realname,
-                    fromUserCollege = oldMaster.college,
-                    toUserId = newMaster.id,
-                    toUserName = newMaster.realname,
-                    toUserCollege = newMaster.college,
+                    fromUserId = oldLeader.id,
+                    fromUserName = oldLeader.realname,
+                    fromUserCollege = oldLeader.college,
+                    toUserId = newLeader.id,
+                    toUserName = newLeader.realname,
+                    toUserCollege = newLeader.college,
                 ),
         )
 
         val notificationContent =
             "<a href=\"/group/$groupId#member\"><u>${HtmlUtils.htmlEscape(group.title)}</u></a> " +
-                "그룹장이 ${newMaster.realname}에게 위임되었습니다."
+                "그룹장이 ${newLeader.realname}에게 위임되었습니다."
         val memberIds = groupMemberRepository.findByGroupId(groupId).map { it.memberId }
         memberIds.forEach { memberId ->
             notificationService.createNotification(
@@ -128,13 +140,17 @@ class GroupMemberService(
     fun joinGroup(
         groupId: Long,
         requesterId: Long,
+        isManager: Boolean = false,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
 
         val isMember = groupMemberRepository.existsByGroupIdAndMemberId(groupId, requesterId)
+
+        if (group.category == GroupCategory.MANAGE && !isManager) {
+            throw ForbiddenException("운영 그룹은 운영진만 참가할 수 있습니다")
+        }
 
         if (!group.allowJoin) {
             throw ForbiddenException("이 그룹은 참여가 제한되어 있습니다")
@@ -148,12 +164,24 @@ class GroupMemberService(
             throw BadRequestException("이미 그룹 멤버입니다")
         }
 
-        groupMemberRepository.save(integerIdService.nextId(), groupId, requesterId, Instant.now())
+        val groupMemberId = integerIdService.nextId()
+        try {
+            groupMemberRepository.save(groupMemberId, groupId, requesterId, Instant.now())
+        } catch (_: DataIntegrityViolationException) {
+            throw BadRequestException("이미 그룹 멤버입니다")
+        }
 
+        val point = ExpointRule.그룹참여.point
         groupLogService.createLog(
             groupId = groupId,
             actorMemberId = requesterId,
             data = GroupLogData.GroupMemberJoined,
+            expointChange =
+                GroupLogExpointChange(
+                    targetId = groupMemberId.toString(),
+                    point = point,
+                    memberIds = listOf(requesterId),
+                ),
         )
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
@@ -182,13 +210,11 @@ class GroupMemberService(
             )
         }
 
-        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
-            pointService.givePoint(
-                targetUserId = requesterId,
-                point = 40,
-                message = "<u>$escapedTitle</u> 그룹에 참여했습니다.",
-            )
-        }
+        pointService.givePoint(
+            targetUserId = requesterId,
+            point = point,
+            message = "<u>$escapedTitle</u> 그룹에 참여했습니다.",
+        )
 
         groupRepository.addMemberCountById(groupId, 1)
         recordGroupActivity(groupId)
@@ -201,9 +227,16 @@ class GroupMemberService(
         kickedMemberId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
+
+        if (group.isEnded) {
+            throw BadRequestException("종료된 그룹입니다")
+        }
+
+        if (group.category == GroupCategory.MANAGE) {
+            throw BadRequestException("운영 그룹에서는 멤버를 내보낼 수 없습니다")
+        }
 
         if (kickedMemberId == requesterId) {
             throw BadRequestException("자기 자신을 내보낼 수 없습니다")
@@ -214,41 +247,38 @@ class GroupMemberService(
                 NotFoundException("회원을 찾을 수 없습니다")
             }
 
-        if (!groupMemberRepository.existsByGroupIdAndMemberId(groupId, kickedMemberId)) {
-            throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
-        }
+        val targetMember =
+            groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, kickedMemberId)
+                ?: throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
 
         // 동시에 같은 회원을 내보내면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.
         if (groupMemberRepository.delete(groupId, kickedMemberId) == 0) {
             throw BadRequestException("내보낼 대상이 그룹 멤버가 아닙니다")
         }
 
-        groupLogService.createLog(
+        val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        groupLogService.revertExpointChange(
             groupId = groupId,
             actorMemberId = requesterId,
-            data =
+            targetId = targetMember.id.toString(),
+            targetLogTypes = setOf(GroupLogType.GROUP_MEMBER_JOINED),
+            revertLog =
                 GroupLogData.GroupMemberKicked(
                     targetUserId = kickedMember.id,
                     targetUserName = kickedMember.realname,
                     targetUserCollege = kickedMember.college,
                 ),
+            message = "<u>$escapedTitle</u> 그룹에서 내보내졌습니다.",
+            fallbackRule = ExpointRule.그룹탈퇴,
+            fallbackMemberIds = listOf(kickedMemberId),
         )
 
-        val escapedTitle = HtmlUtils.htmlEscape(group.title)
         notificationService.createNotification(
             userId = kickedMemberId,
             category = NotificationCategory.GROUP,
             title = "",
             content = "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에서 내보내졌습니다.",
         )
-
-        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
-            pointService.givePoint(
-                targetUserId = kickedMemberId,
-                point = -40,
-                message = "<u>$escapedTitle</u> 그룹에서 내보내졌습니다.",
-            )
-        }
 
         groupRepository.addMemberCountById(groupId, -1)
         recordGroupActivity(groupId)
@@ -260,27 +290,50 @@ class GroupMemberService(
         requesterId: Long,
     ) {
         val group =
-            groupRepository.findById(groupId).orElseThrow {
-                NotFoundException("그룹을 찾을 수 없습니다")
-            }
+            groupRepository.findLockedById(groupId)
+                ?: throw NotFoundException("그룹을 찾을 수 없습니다")
+
+        if (group.isEnded) {
+            throw BadRequestException("종료된 그룹입니다")
+        }
 
         // 운영 카테고리가 아닌 그룹에서 그룹장은 탈퇴 불가 (먼저 위임 필요)
         if (group.isLeader(requesterId) && group.category != GroupCategory.MANAGE) {
             throw BadRequestException("그룹장은 다른 멤버에게 그룹장을 위임한 후 탈퇴할 수 있습니다")
         }
 
+        val groupMember =
+            groupMemberRepository.findLockedByGroupIdAndMemberId(groupId, requesterId)
+                ?: throw BadRequestException("그룹 멤버가 아닙니다")
+
         // 동시에 나가기를 요청하면 한 요청만 삭제에 성공하고, 나머지는 경험치·로그를 다시 남기지 않는다.
         if (groupMemberRepository.delete(groupId, requesterId) == 0) {
             throw BadRequestException("그룹 멤버가 아닙니다")
         }
 
-        groupLogService.createLog(
-            groupId = groupId,
-            actorMemberId = requesterId,
-            data = GroupLogData.GroupMemberLeft,
-        )
+        // 운영 카테고리 그룹에서 그룹장이 탈퇴한 경우: 남은 멤버 중 한 명을 새 그룹장으로 지정, 없으면 null 저장
+        if (group.isLeader(requesterId) && group.category == GroupCategory.MANAGE) {
+            val remainingMembers = groupMemberRepository.findByGroupId(groupId)
+            if (remainingMembers.isNotEmpty()) {
+                val newLeaderId = remainingMembers.first().memberId
+                groupRepository.changeLeaderById(groupId, requesterId, newLeaderId)
+            } else {
+                groupRepository.clearLeaderById(groupId)
+            }
+        }
 
         val escapedTitle = HtmlUtils.htmlEscape(group.title)
+        groupLogService.revertExpointChange(
+            groupId = groupId,
+            actorMemberId = requesterId,
+            targetId = groupMember.id.toString(),
+            targetLogTypes = setOf(GroupLogType.GROUP_MEMBER_JOINED),
+            revertLog = GroupLogData.GroupMemberLeft,
+            message = "<u>$escapedTitle</u> 그룹에서 나갔습니다.",
+            fallbackRule = ExpointRule.그룹탈퇴,
+            fallbackMemberIds = listOf(requesterId),
+        )
+
         val notificationContent =
             "<a href=\"/group/$groupId\"><u>$escapedTitle</u></a> 그룹에서 나갔습니다."
 
@@ -303,14 +356,6 @@ class GroupMemberService(
                 category = NotificationCategory.GROUP,
                 title = "",
                 content = notificationContent,
-            )
-        }
-
-        if (groupId != GroupPolicy.EXPOINT_EXCLUDED_GROUP_ID) {
-            pointService.givePoint(
-                targetUserId = requesterId,
-                point = -40,
-                message = "<u>$escapedTitle</u> 그룹에서 나갔습니다.",
             )
         }
 

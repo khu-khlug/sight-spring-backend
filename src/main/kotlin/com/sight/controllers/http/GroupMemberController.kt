@@ -2,18 +2,20 @@ package com.sight.controllers.http
 
 import com.sight.controllers.http.dto.ListGroupMemberResponse
 import com.sight.controllers.http.dto.ListGroupMembersResponse
-import com.sight.controllers.http.dto.UpdateGroupMasterRequest
+import com.sight.controllers.http.dto.UpdateGroupLeaderRequest
 import com.sight.core.auth.Auth
 import com.sight.core.auth.Requester
 import com.sight.core.auth.UserRole
+import com.sight.core.groupauth.GroupAuth
+import com.sight.core.groupauth.GroupPermission
 import com.sight.service.GroupMemberService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -23,46 +25,49 @@ class GroupMemberController(
     private val groupMemberService: GroupMemberService,
 ) {
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @GetMapping("/groups/{groupId}/members")
     fun listGroupMembers(
         @PathVariable groupId: Long,
-        requester: Requester,
     ): ListGroupMembersResponse {
         val result =
             groupMemberService.listGroupMembers(
                 groupId = groupId,
-                requesterId = requester.userId,
             )
 
         return ListGroupMembersResponse(
+            leaderUserId = result.leaderUserId,
             members =
                 result.members.map { member ->
                     ListGroupMemberResponse(
                         userId = member.userId,
                         name = member.name,
-                        realname = member.realname,
-                        isLeader = member.isLeader,
+                        college = member.college,
+                        cardCount = member.cardCount,
+                        recordCount = member.recordCount,
                     )
                 },
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PatchMapping("/groups/{groupId}/master")
-    fun delegateGroupMaster(
+    @PutMapping("/groups/{groupId}/leader")
+    fun delegateGroupLeader(
         @PathVariable groupId: Long,
-        @Valid @RequestBody request: UpdateGroupMasterRequest,
+        @Valid @RequestBody request: UpdateGroupLeaderRequest,
         requester: Requester,
     ) {
-        groupMemberService.delegateMaster(
+        groupMemberService.delegateLeader(
             groupId = groupId,
             requesterId = requester.userId,
-            newMasterId = request.memberId,
+            newLeaderId = request.userId,
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.VIEWER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping("/groups/{groupId}/members/@me")
     fun joinGroup(
@@ -72,25 +77,28 @@ class GroupMemberController(
         groupMemberService.joinGroup(
             groupId = groupId,
             requesterId = requester.userId,
+            isManager = requester.role == UserRole.MANAGER,
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.LEADER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @DeleteMapping("/groups/{groupId}/members/{memberId}")
+    @DeleteMapping("/groups/{groupId}/members/{userId}")
     fun kickGroupMember(
         @PathVariable groupId: Long,
-        @PathVariable memberId: Long,
+        @PathVariable userId: Long,
         requester: Requester,
     ) {
         groupMemberService.kickMember(
             groupId = groupId,
             requesterId = requester.userId,
-            kickedMemberId = memberId,
+            kickedMemberId = userId,
         )
     }
 
     @Auth([UserRole.USER, UserRole.MANAGER])
+    @GroupAuth([GroupPermission.MEMBER], groupId = "groupId", allowManager = false)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/groups/{groupId}/members/@me")
     fun leaveGroup(

@@ -108,7 +108,7 @@ class GroupMatchingAnswerController(
                         role = summary.role,
                         hasIdea = summary.hasIdea,
                         idea = summary.idea,
-                        matchedGroupIds = summary.matchedGroupIds,
+                        matchedGroupIds = summary.matchedGroupIds.map { it.toString() },
                     )
                 },
             count = result.count,

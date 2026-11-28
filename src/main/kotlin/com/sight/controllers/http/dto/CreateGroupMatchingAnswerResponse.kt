@@ -29,7 +29,7 @@ data class CreateGroupMatchingAnswerResponse(
 
     data class MatchedGroupResponse(
         val id: String,
-        val groupId: Long,
+        val groupId: String,
         val createdAt: LocalDateTime,
     )
 }

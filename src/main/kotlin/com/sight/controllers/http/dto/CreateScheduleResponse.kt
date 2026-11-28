@@ -7,7 +7,7 @@ import com.sight.domain.seminar.BigSeminar
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class CreateScheduleResponse(
-    val id: Long,
+    val id: String,
     val title: String,
     val category: ScheduleCategory,
     val location: String?,
@@ -27,7 +27,7 @@ data class CreateScheduleResponse(
             bigSeminar: BigSeminar? = null,
         ): CreateScheduleResponse {
             return CreateScheduleResponse(
-                id = schedule.id,
+                id = schedule.id.toString(),
                 title = schedule.title,
                 category = schedule.category,
                 location = schedule.location,

@@ -4,10 +4,12 @@ import com.github.f4b6a3.ulid.UlidCreator
 import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
+import com.sight.domain.file.FileReferenceType
 import com.sight.domain.file.FileUpload
 import com.sight.repository.FileUploadRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 
 data class UploadLinkResult(
     val url: String,
@@ -19,21 +21,45 @@ data class UploadLinkResult(
 class FileUploadService(
     private val fileUploadRepository: FileUploadRepository,
     private val storageService: StorageService,
+    private val deletions: FileUploadDeletionService,
+    private val fileUploadSizePolicyService: FileUploadSizePolicyService,
 ) {
     @Transactional
     fun createUploadLink(
         memberId: Long,
         apiPath: String,
+    ): UploadLinkResult = createUpload(memberId, apiPath, null)
+
+    @Transactional
+    fun createUploadLink(
+        memberId: Long,
+        apiPath: String,
+        size: Long,
+        referenceType: FileReferenceType? = null,
+    ): UploadLinkResult {
+        fileUploadSizePolicyService.validateSize(size, referenceType)
+        return createUpload(memberId, apiPath, size)
+    }
+
+    private fun createUpload(
+        memberId: Long,
+        apiPath: String,
+        size: Long?,
     ): UploadLinkResult {
         val fileKey = UlidCreator.getUlid().toString()
-        val url = storageService.generateUploadUrl(fileKey)
+        val url =
+            if (size == null) storageService.generateUploadUrl(fileKey) else storageService.generateUploadUrl(fileKey, size)
         val fileUpload =
-            fileUploadRepository.save(
+            fileUploadRepository.saveAndFlush(
                 FileUpload(
                     id = UlidCreator.getUlid().toString(),
                     fileKey = fileKey,
-                    memberId = memberId,
+                    uploaderMemberId = memberId,
                     apiPath = apiPath,
+                    fileName = null,
+                    size = size,
+                    contentType = null,
+                    createdAt = Instant.now(),
                 ),
             )
         return UploadLinkResult(url = url, fileKey = fileKey, fileUploadId = fileUpload.id)
@@ -46,11 +72,12 @@ class FileUploadService(
         apiPath: String,
     ): FileUpload {
         val fileUpload =
-            fileUploadRepository.findById(fileUploadId)
-                .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+            fileUploadRepository.findForUpdateById(fileUploadId)
+                ?: throw NotFoundException("파일을 찾을 수 없습니다.")
         if (fileUpload.apiPath != apiPath) throw UnprocessableEntityException("해당 경로에서 발급된 파일 업로드 아이디가 아닙니다.")
-        if (fileUpload.memberId != memberId) throw ForbiddenException("링크 발급자가 아닙니다.")
-        if (fileUpload.isUsed) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
+        if (!fileUpload.isIssuedBy(memberId)) throw ForbiddenException("링크 발급자가 아닙니다.")
+        if (fileUpload.isUploaded) throw UnprocessableEntityException("이미 사용된 업로드 링크입니다.")
+        if (fileUpload.isDeleted) throw UnprocessableEntityException("삭제 처리된 파일입니다.")
         if (!storageService.isFileExists(fileUpload.fileKey)) {
             throw NotFoundException("파일을 찾을 수 없습니다.")
         }
@@ -59,11 +86,17 @@ class FileUploadService(
 
     @Transactional
     fun markAsUsed(fileUpload: FileUpload) {
-        fileUploadRepository.save(fileUpload.copy(isUsed = true))
+        fileUpload.markUploaded()
+        fileUploadRepository.save(fileUpload)
     }
 
+    @Transactional(readOnly = true)
+    fun getFileUploadById(fileUploadId: String): FileUpload =
+        fileUploadRepository.findById(fileUploadId)
+            .orElseThrow { NotFoundException("파일을 찾을 수 없습니다.") }
+
     @Transactional
-    fun deleteByFileKey(fileKey: String) {
-        fileUploadRepository.deleteByFileKey(fileKey)
+    fun deleteFileUpload(fileUploadId: String) {
+        deletions.deleteFileUpload(fileUploadId)
     }
 }

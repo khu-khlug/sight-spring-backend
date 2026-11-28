@@ -4,11 +4,9 @@ import com.sight.core.exception.ForbiddenException
 import com.sight.core.exception.NotFoundException
 import com.sight.core.exception.UnprocessableEntityException
 import com.sight.domain.discord.DiscordIntegration
-import com.sight.domain.group.Group
-import com.sight.domain.group.GroupAccessGrade
 import com.sight.domain.group.GroupCategory
-import com.sight.domain.group.GroupDiscordChannel
-import com.sight.domain.group.GroupState
+import com.sight.domain.group.testGroup
+import com.sight.domain.group.testGroupDiscordChannel
 import com.sight.repository.DiscordIntegrationRepository
 import com.sight.repository.GroupDiscordChannelRepository
 import com.sight.repository.GroupMemberRepository
@@ -45,28 +43,10 @@ class GroupDiscordChannelServiceMemberTest {
     private val discordUserId = "test-discord-user-id"
 
     private val testGroup =
-        Group(
-            id = groupId,
-            category = GroupCategory.STUDY,
-            title = "테스트 그룹",
-            author = masterId,
-            master = masterId,
-            state = GroupState.PROGRESS,
-            allowJoin = true,
-            grade = GroupAccessGrade.MEMBER,
-            countMember = 1L,
-            countList = 0L,
-            countCard = 0L,
-            countRecord = 0L,
-            portfolio = false,
-        )
+        testGroup(id = groupId, category = GroupCategory.STUDY, title = "테스트 그룹", leaderMemberId = masterId, memberCount = 1L)
 
     private val testGroupDiscordChannel =
-        GroupDiscordChannel(
-            id = "test-id",
-            groupId = groupId,
-            discordChannelId = discordChannelId,
-        )
+        testGroupDiscordChannel(id = "test-id", groupId = groupId, discordChannelId = discordChannelId)
 
     private val testDiscordIntegration =
         DiscordIntegration(

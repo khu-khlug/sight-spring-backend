@@ -32,7 +32,7 @@
 - 이름·제목·소속은 동작 당시 원문 텍스트다. JSON 이스케이프 외에 HTML·Markdown 이스케이프를 적용하지 않는다.
 - changedFields는 실제 변경한 항목의 표시명 배열이다. 레거시 기준 제목·목적·분야·기술·공개 범위·저장소 중 변경한 항목을 담는다.
 - category는 GroupCategory의 API enum 값이다. label은 카드 레이블 API의 값이며 색상을 문자열로 보존한다.
-- description은 당시 설명 원문 문자열이며 렌더링에서는 일반 텍스트로 취급한다. contentText는 당시 기록 본문에서 추출한 텍스트이며 문단·줄바꿈을 보존한다. 실행 가능한 원문 HTML을 신규 로그데이터에 넣지 않는다.
+- description은 당시 설명 원문 문자열이며 렌더링에서는 일반 텍스트로 취급한다. 기록 작성·수정 로그는 기록 식별자와 당시 소속 카드 정보만 저장한다. 본문이 필요하면 기록 단건 조회 API로 조회한다. 실행 가능한 원문 HTML을 신규 로그데이터에 넣지 않는다.
 - termYear는 연도 정수, termSemester는 당시 학기 표시명 문자열이다. 구분자의 위치에 의존하는 합성 문자열로 저장하지 않는다.
 
 ### 그룹
@@ -94,8 +94,8 @@
 
 | logType | 기록되는 동작 | logData 필드 | 레거시 근거 |
 | :-- | :-- | :-- | :-- |
-| `RECORD_UPDATED` | 기록 본문 수정 | recordId, cardId, cardTitle, contentText | [코드](../../../../opened-sight-legacy/GroupController.php:1615) |
-| `RECORD_CREATED` | 기록 작성. Slack 경유 작성도 같은 타입 | recordId, cardId, cardTitle, contentText | [코드](../../../../opened-sight-legacy/GroupController.php:1672) |
+| `RECORD_UPDATED` | 기록 본문 수정 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1615) |
+| `RECORD_CREATED` | 기록 작성. Slack 경유 작성도 같은 타입 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1672) |
 | `RECORD_DELETED` | 기록 소프트 삭제 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1714) |
 | `RECORD_RESTORED` | 기록 복구 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1747) |
 | `RECORD_PORTFOLIO_REMOVED` | 기록 포트폴리오 제외 | recordId, cardId, cardTitle | [코드](../../../../opened-sight-legacy/GroupController.php:1784) |
@@ -109,6 +109,14 @@
 | `SEMINAR_PRESENTATION_CANCELLED` | 세미나 발표 신청 취소 | termYear: 정수, termSemester | [코드](../../../../opened-sight-legacy/GroupController.php:2110) |
 | `SEMINAR_PRESENTATION_REGISTERED` | 세미나 발표 신청 | termYear: 정수, termSemester | [코드](../../../../opened-sight-legacy/GroupController.php:2122) |
 | `SEMINAR_SESSION_REMOVED` | 운영진의 세미나 세션 제거 | termYear: 정수, termSemester | [코드](../../../../opened-sight-legacy/GroupController.php:2320) |
+
+### 활동보고
+
+| logType | 기록되는 동작 | logData 필드 |
+| :-- | :-- | :-- |
+| `ACTIVITY_REPORT_SUBMITTED` | 활동보고 제출 | reportId, seminarId (문자열) |
+| `ACTIVITY_REPORT_UPDATED` | 발표 여부나 파일이 실제로 바뀜 | reportId, seminarId (문자열) |
+| `ACTIVITY_REPORT_CANCELLED` | 활동보고 취소 | reportId, seminarId (문자열) |
 
 ## HTTP API 계약
 
@@ -205,7 +213,7 @@ erDiagram
 ## 호환성 및 배포
 
 - 조회 응답의 페이지·행위자·식별자·로그 표현이 바뀌므로 백엔드와 프런트의 활동 로그 조회를 함께 배포한다.
-- 신규 로그 아이디는 TSID로 발급하므로 [TSID 도입](../../decisions/integer-id-tsid.md) 설정을 활성화한 상태로 배포한다.
+- 신규 로그 아이디는 TSID로 발급하므로 [TSID 도입](../../decisions/integer-id-tsid.md)의 노드 번호(`INTEGER_ID_NODE_ID`)를 설정해 배포한다.
 - 신규 JSON 로그가 저장된 뒤에는 logType·logData를 해석할 수 있는 버전으로만 rollback한다.
 
 ## 검증

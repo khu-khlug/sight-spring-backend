@@ -4,7 +4,7 @@ import com.sight.service.dto.CheckScheduleAttendanceResult
 import java.time.LocalDateTime
 
 data class CreateScheduleAttendanceResponse(
-    val scheduleId: Long,
+    val scheduleId: String,
     val userId: Long,
     val expointGranted: Int,
     val createdAt: LocalDateTime,
@@ -12,7 +12,7 @@ data class CreateScheduleAttendanceResponse(
     companion object {
         fun from(result: CheckScheduleAttendanceResult): CreateScheduleAttendanceResponse {
             return CreateScheduleAttendanceResponse(
-                scheduleId = result.scheduleId,
+                scheduleId = result.scheduleId.toString(),
                 userId = result.userId,
                 expointGranted = result.expointGranted,
                 createdAt = result.createdAt,

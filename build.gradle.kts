@@ -33,11 +33,14 @@ dependencies {
     implementation("com.querydsl:querydsl-jpa:5.1.0:jakarta")
     kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.jsoup:jsoup:1.18.1")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8")
     implementation("net.dv8tion:JDA:5.0.0")
     implementation("com.github.f4b6a3:ulid-creator:5.2.3")
+    implementation("com.github.f4b6a3:tsid-creator:5.2.6")
+    implementation("software.amazon.awssdk:s3:2.31.78")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

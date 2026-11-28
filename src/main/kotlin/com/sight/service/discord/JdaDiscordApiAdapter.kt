@@ -121,8 +121,8 @@ class JdaDiscordApiAdapter(
             val permissionOverride = channel.getPermissionOverride(member)
             permissionOverride?.allowed?.contains(Permission.VIEW_CHANNEL) == true
         } catch (e: Exception) {
-            logger.debug("Failed to check if user $discordUserId is in channel $channelId", e)
-            false
+            logger.error("Failed to check if user $discordUserId is in channel $channelId", e)
+            throw InternalServerErrorException("디스코드 채널 참여 여부를 확인하는데 실패했습니다. 운영진에게 문의해주세요.")
         }
     }
 
